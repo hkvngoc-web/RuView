@@ -1,9 +1,9 @@
 /**
  * @file ota_update.h
- * @brief HTTP OTA firmware update endpoint for ESP32-S3 CSI Node.
+ * @brief Endpoint cập nhật firmware OTA qua HTTP cho nút CSI ESP32-S3.
  *
- * Provides an HTTP server endpoint that accepts firmware binaries
- * for over-the-air updates without physical access to the device.
+ * Cung cấp endpoint server HTTP chấp nhận firmware nhị phân
+ * cho cập nhật không dây mà không cần truy cập vật lý vào thiết bị.
  */
 
 #ifndef OTA_UPDATE_H
@@ -12,21 +12,21 @@
 #include "esp_err.h"
 
 /**
- * Initialize the OTA update HTTP server.
- * Starts a lightweight HTTP server on port 8032 that accepts
- * POST /ota with a firmware binary payload.
+ * Khởi tạo server HTTP cập nhật OTA.
+ * Khởi động server HTTP nhẹ trên cổng 8032 chấp nhận
+ * POST /ota với payload firmware nhị phân.
  *
- * @return ESP_OK on success.
+ * @return ESP_OK khi thành công.
  */
 esp_err_t ota_update_init(void);
 
 /**
- * Initialize the OTA update HTTP server and return the handle.
- * Same as ota_update_init() but exposes the httpd_handle_t so
- * other modules (e.g. WASM upload) can register additional endpoints.
+ * Khởi tạo server HTTP cập nhật OTA và trả về handle.
+ * Giống ota_update_init() nhưng cung cấp httpd_handle_t để
+ * các module khác (VD: WASM upload) có thể đăng ký thêm endpoint.
  *
- * @param out_server  Output: HTTP server handle (may be NULL on failure).
- * @return ESP_OK on success.
+ * @param out_server  Đầu ra: handle server HTTP (có thể NULL khi thất bại).
+ * @return ESP_OK khi thành công.
  */
 esp_err_t ota_update_init_ex(void **out_server);
 

@@ -1,20 +1,20 @@
 /**
  * @file edge_processing.h
- * @brief ADR-039 Edge Intelligence — dual-core CSI processing pipeline.
+ * @brief ADR-039 Trí Tuệ Biên — đường ống xử lý CSI hai nhân.
  *
- * Core 0 (WiFi): Produces CSI frames into a lock-free SPSC ring buffer.
- * Core 1 (DSP):  Consumes frames, runs signal processing, extracts vitals.
+ * Nhân 0 (WiFi): Tạo khung CSI vào bộ đệm vòng SPSC không khóa.
+ * Nhân 1 (DSP):  Tiêu thụ khung, chạy xử lý tín hiệu, trích xuất sinh hiệu.
  *
  * Features:
- *   - Biquad IIR bandpass filters for breathing (0.1-0.5 Hz) and heart rate (0.8-2.0 Hz)
- *   - Phase unwrapping and Welford running statistics
- *   - Top-K subcarrier selection by variance
- *   - Presence detection with adaptive threshold calibration
- *   - Vital signs: breathing rate, heart rate (zero-crossing BPM)
- *   - Fall detection (phase acceleration exceeds threshold)
- *   - Delta compression (XOR + RLE) for bandwidth reduction
- *   - Multi-person vitals via subcarrier group clustering
- *   - 32-byte vitals packet (magic 0xC5110002) for server-side parsing
+ *   - Bộ lọc thông dải biquad IIR cho nhịp thở (0.1-0.5 Hz) và nhịp tim (0.8-2.0 Hz)
+ *   - Mở gói pha và thống kê chạy Welford
+ *   - Chọn sóng mang phụ Top-K theo phương sai
+ *   - Phát hiện hiện diện với hiệu chuẩn ngưỡng thích ứng
+ *   - Sinh hiệu: nhịp thở, nhịp tim (BPM cắt zero)
+ *   - Phát hiện ngã (gia tốc pha vượt ngưỡng)
+ *   - Nén delta (XOR + RLE) để giảm băng thông
+ *   - Sinh hiệu đa người qua phân nhóm sóng mang phụ
+ *   - Gói sinh hiệu 32-byte (magic 0xC5110002) cho phân tích phía server
  */
 
 #ifndef EDGE_PROCESSING_H
@@ -24,150 +24,150 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
-/* ---- Magic numbers ---- */
-#define EDGE_VITALS_MAGIC     0xC5110002  /**< Vitals packet magic. */
-#define EDGE_COMPRESSED_MAGIC 0xC5110003  /**< Compressed frame magic. */
+/* ---- Số magic ---- */
+#define EDGE_VITALS_MAGIC     0xC5110002  /**< Magic gói sinh hiệu. */
+#define EDGE_COMPRESSED_MAGIC 0xC5110003  /**< Magic khung nén. */
 
-/* ---- Buffer sizes ---- */
-#define EDGE_RING_SLOTS       16    /**< SPSC ring buffer slots (power of 2). */
-#define EDGE_MAX_IQ_BYTES     1024  /**< Max I/Q payload per slot. */
-#define EDGE_PHASE_HISTORY_LEN 256  /**< Phase history buffer depth. */
-#define EDGE_TOP_K            8     /**< Top-K subcarriers to track. */
-#define EDGE_MAX_SUBCARRIERS  128   /**< Max subcarriers per frame. */
+/* ---- Kích thước bộ đệm ---- */
+#define EDGE_RING_SLOTS       16    /**< Khe bộ đệm vòng SPSC (lũy thừa 2). */
+#define EDGE_MAX_IQ_BYTES     1024  /**< Tải I/Q tối đa mỗi khe. */
+#define EDGE_PHASE_HISTORY_LEN 256  /**< Độ sâu bộ đệm lịch sử pha. */
+#define EDGE_TOP_K            8     /**< Sóng mang phụ Top-K cần theo dõi. */
+#define EDGE_MAX_SUBCARRIERS  128   /**< Sóng mang phụ tối đa mỗi khung. */
 
-/* ---- Multi-person ---- */
-#define EDGE_MAX_PERSONS      4     /**< Max simultaneous persons. */
+/* ---- Đa người ---- */
+#define EDGE_MAX_PERSONS      4     /**< Số người đồng thời tối đa. */
 
-/* ---- Calibration ---- */
-#define EDGE_CALIB_FRAMES     1200  /**< Frames for adaptive calibration (~60s at 20 Hz). */
-#define EDGE_CALIB_SIGMA_MULT 3.0f  /**< Threshold = mean + 3*sigma of ambient. */
+/* ---- Hiệu chuẩn ---- */
+#define EDGE_CALIB_FRAMES     1200  /**< Khung cho hiệu chuẩn thích ứng (~60 giây ở 20 Hz). */
+#define EDGE_CALIB_SIGMA_MULT 3.0f  /**< Ngưỡng = trung bình + 3*sigma của môi trường. */
 
-/* ---- SPSC ring buffer slot ---- */
+/* ---- Khe bộ đệm vòng SPSC ---- */
 typedef struct {
-    uint8_t  iq_data[EDGE_MAX_IQ_BYTES]; /**< Raw I/Q bytes from CSI callback. */
-    uint16_t iq_len;                     /**< Actual I/Q data length. */
-    int8_t   rssi;                       /**< RSSI from rx_ctrl. */
-    uint8_t  channel;                    /**< WiFi channel. */
-    uint32_t timestamp_us;               /**< Microsecond timestamp. */
+    uint8_t  iq_data[EDGE_MAX_IQ_BYTES]; /**< Byte I/Q thô từ callback CSI. */
+    uint16_t iq_len;                     /**< Độ dài dữ liệu I/Q thực tế. */
+    int8_t   rssi;                       /**< RSSI từ rx_ctrl. */
+    uint8_t  channel;                    /**< Kênh WiFi. */
+    uint32_t timestamp_us;               /**< Nhãn thời gian micro giây. */
 } edge_ring_slot_t;
 
-/* ---- SPSC ring buffer ---- */
+/* ---- Bộ đệm vòng SPSC ---- */
 typedef struct {
     edge_ring_slot_t slots[EDGE_RING_SLOTS];
-    volatile uint32_t head;  /**< Written by producer (Core 0). */
-    volatile uint32_t tail;  /**< Written by consumer (Core 1). */
+    volatile uint32_t head;  /**< Ghi bởi nhà sản xuất (Nhân 0). */
+    volatile uint32_t tail;  /**< Ghi bởi nhà tiêu thụ (Nhân 1). */
 } edge_ring_buf_t;
 
-/* ---- Biquad IIR filter state ---- */
+/* ---- Trạng thái bộ lọc biquad IIR ---- */
 typedef struct {
-    float b0, b1, b2;  /**< Numerator coefficients. */
-    float a1, a2;       /**< Denominator coefficients (a0 = 1). */
-    float x1, x2;       /**< Input delay line. */
-    float y1, y2;       /**< Output delay line. */
+    float b0, b1, b2;  /**< Hệ số tử số. */
+    float a1, a2;       /**< Hệ số mẫu số (a0 = 1). */
+    float x1, x2;       /**< Đường trễ đầu vào. */
+    float y1, y2;       /**< Đường trễ đầu ra. */
 } edge_biquad_t;
 
-/* ---- Welford running statistics ---- */
+/* ---- Thống kê chạy Welford ---- */
 typedef struct {
     double mean;
     double m2;
     uint32_t count;
 } edge_welford_t;
 
-/* ---- Per-person vitals state (multi-person mode) ---- */
+/* ---- Trạng thái sinh hiệu theo người (chế độ đa người) ---- */
 typedef struct {
     float    phase_history[EDGE_PHASE_HISTORY_LEN];
     uint16_t history_len;
     uint16_t history_idx;
     float    breathing_bpm;
     float    heartrate_bpm;
-    uint8_t  subcarrier_idx;  /**< Which subcarrier group this person tracks. */
+    uint8_t  subcarrier_idx;  /**< Nhóm sóng mang phụ người này theo dõi. */
     bool     active;
 } edge_person_vitals_t;
 
-/* ---- Vitals packet (32 bytes, wire format) ---- */
+/* ---- Gói sinh hiệu (32 byte, định dạng truyền) ---- */
 typedef struct __attribute__((packed)) {
     uint32_t magic;          /**< EDGE_VITALS_MAGIC = 0xC5110002. */
-    uint8_t  node_id;        /**< ESP32 node identifier. */
-    uint8_t  flags;          /**< Bit0=presence, Bit1=fall, Bit2=motion. */
-    uint16_t breathing_rate; /**< BPM * 100 (fixed-point). */
-    uint32_t heartrate;      /**< BPM * 10000 (fixed-point). */
-    int8_t   rssi;           /**< Latest RSSI. */
-    uint8_t  n_persons;      /**< Number of detected persons (multi-person). */
+    uint8_t  node_id;        /**< Mã định danh nút ESP32. */
+    uint8_t  flags;          /**< Bit0=hiện diện, Bit1=ngã, Bit2=chuyển động. */
+    uint16_t breathing_rate; /**< BPM * 100 (dấu phẩy cố định). */
+    uint32_t heartrate;      /**< BPM * 10000 (dấu phẩy cố định). */
+    int8_t   rssi;           /**< RSSI mới nhất. */
+    uint8_t  n_persons;      /**< Số người phát hiện (đa người). */
     uint8_t  reserved[2];
-    float    motion_energy;  /**< Phase variance / motion metric. */
-    float    presence_score; /**< Presence detection score. */
-    uint32_t timestamp_ms;   /**< Milliseconds since boot. */
-    uint32_t reserved2;      /**< Reserved for future use. */
+    float    motion_energy;  /**< Phương sai pha / chỉ số chuyển động. */
+    float    presence_score; /**< Điểm phát hiện hiện diện. */
+    uint32_t timestamp_ms;   /**< Mili giây kể từ khởi động. */
+    uint32_t reserved2;      /**< Dành cho tương lai. */
 } edge_vitals_pkt_t;
 
 _Static_assert(sizeof(edge_vitals_pkt_t) == 32, "vitals packet must be 32 bytes");
 
-/* ---- Edge configuration (from NVS) ---- */
+/* ---- Cấu hình xử lý biên (từ NVS) ---- */
 typedef struct {
-    uint8_t  tier;           /**< Processing tier: 0=raw, 1=basic, 2=full. */
-    float    presence_thresh;/**< Presence detection threshold (0 = auto-calibrate). */
-    float    fall_thresh;    /**< Fall detection threshold (phase accel, rad/s^2). */
-    uint16_t vital_window;   /**< Phase history window for BPM estimation. */
-    uint16_t vital_interval_ms; /**< Vitals packet send interval in ms. */
-    uint8_t  top_k_count;    /**< Number of top subcarriers to track. */
-    uint8_t  power_duty;     /**< Power duty cycle percentage (10-100). */
+    uint8_t  tier;           /**< Tầng xử lý: 0=thô, 1=cơ bản, 2=đầy đủ. */
+    float    presence_thresh;/**< Ngưỡng phát hiện hiện diện (0 = tự hiệu chuẩn). */
+    float    fall_thresh;    /**< Ngưỡng phát hiện ngã (gia tốc pha, rad/s^2). */
+    uint16_t vital_window;   /**< Cửa sổ lịch sử pha cho ước lượng BPM. */
+    uint16_t vital_interval_ms; /**< Khoảng gửi gói sinh hiệu tính bằng ms. */
+    uint8_t  top_k_count;    /**< Số sóng mang phụ hàng đầu cần theo dõi. */
+    uint8_t  power_duty;     /**< Phần trăm chu kỳ hoạt động nguồn (10-100). */
 } edge_config_t;
 
 /**
- * Initialize the edge processing pipeline.
- * Creates the SPSC ring buffer and starts the DSP task on Core 1.
+ * Khởi tạo đường ống xử lý biên.
+ * Creates the Bộ đệm vòng SPSC and starts the DSP task on Core 1.
  *
- * @param cfg  Edge configuration (from NVS or defaults).
- * @return ESP_OK on success.
+ * @param cfg  Cấu hình biên (từ NVS hoặc mặc định).
+ * @return ESP_OK khi thành công.
  */
 esp_err_t edge_processing_init(const edge_config_t *cfg);
 
 /**
- * Enqueue a CSI frame from the WiFi callback (Core 0).
- * Lock-free SPSC push — safe to call from ISR context.
+ * Xếp hàng khung CSI từ callback WiFi (Nhân 0).
+ * Push SPSC không khóa — an toàn để gọi từ ngữ cảnh ISR.
  *
- * @param iq_data   Raw I/Q data from wifi_csi_info_t.buf.
- * @param iq_len    Length of I/Q data in bytes.
- * @param rssi      RSSI from rx_ctrl.
- * @param channel   WiFi channel number.
- * @return true if enqueued, false if ring buffer is full (frame dropped).
+ * @param iq_data   Dữ liệu I/Q thô từ wifi_csi_info_t.buf.
+ * @param iq_len    Độ dài dữ liệu I/Q tính bằng byte.
+ * @param rssi      RSSI từ rx_ctrl.
+ * @param channel   Số kênh WiFi.
+ * @return true nếu đã xếp hàng, false nếu bộ đệm vòng đầy (khung bị bỏ).
  */
 bool edge_enqueue_csi(const uint8_t *iq_data, uint16_t iq_len,
                       int8_t rssi, uint8_t channel);
 
 /**
- * Get the latest vitals packet (thread-safe copy).
+ * Lấy gói sinh hiệu mới nhất (bản sao an toàn luồng).
  *
- * @param pkt  Output vitals packet.
- * @return true if valid vitals data is available.
+ * @param pkt  Gói sinh hiệu đầu ra.
+ * @return true nếu có dữ liệu sinh hiệu hợp lệ.
  */
 bool edge_get_vitals(edge_vitals_pkt_t *pkt);
 
 /**
- * Get multi-person vitals array.
+ * Lấy mảng sinh hiệu đa người.
  *
- * @param persons   Output array (must be EDGE_MAX_PERSONS elements).
- * @param n_active  Output: number of active persons.
+ * @param persons   Mảng đầu ra (phải có EDGE_MAX_PERSONS phần tử).
+ * @param n_active  Đầu ra: số người hoạt động.
  */
 void edge_get_multi_person(edge_person_vitals_t *persons, uint8_t *n_active);
 
 /**
- * Get pointer to the phase history ring buffer and its state.
- * Used by WASM runtime (ADR-040) to expose phase history to modules.
+ * Lấy con trỏ đến bộ đệm vòng lịch sử pha và trạng thái.
+ * Được sử dụng bởi WASM runtime (ADR-040) để cung cấp lịch sử pha cho module.
  *
- * @param out_buf     Output: pointer to phase history array.
- * @param out_len     Output: number of valid entries.
- * @param out_idx     Output: current write index.
+ * @param out_buf     Đầu ra: con trỏ đến mảng lịch sử pha.
+ * @param out_len     Đầu ra: số mục hợp lệ.
+ * @param out_idx     Đầu ra: chỉ số ghi hiện tại.
  */
 void edge_get_phase_history(const float **out_buf, uint16_t *out_len,
                             uint16_t *out_idx);
 
 /**
- * Get per-subcarrier Welford variance array.
- * Used by WASM runtime (ADR-040) to expose variances to modules.
+ * Lấy mảng phương sai Welford theo sóng mang phụ.
+ * Được sử dụng bởi WASM runtime (ADR-040) để cung cấp phương sai cho module.
  *
- * @param out_variances  Output array (must be EDGE_MAX_SUBCARRIERS elements).
- * @param n_subcarriers  Number of subcarriers to fill.
+ * @param out_variances  Mảng đầu ra (phải có EDGE_MAX_SUBCARRIERS phần tử).
+ * @param n_subcarriers  Số sóng mang phụ cần điền.
  */
 void edge_get_variances(float *out_variances, uint16_t n_subcarriers);
 

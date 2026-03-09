@@ -1,20 +1,20 @@
 /**
  * @file edge_processing.c
- * @brief ADR-039 Edge Intelligence — dual-core CSI processing pipeline.
+ * @brief ADR-039 Trí Tuệ Biên — đường ống xử lý CSI hai nhân.
  *
- * Core 0 (WiFi task): Pushes raw CSI frames into lock-free SPSC ring buffer.
- * Core 1 (DSP task):  Pops frames, runs signal processing pipeline:
- *   1. Phase extraction from I/Q pairs
- *   2. Phase unwrapping (continuous phase)
- *   3. Welford variance tracking per subcarrier
- *   4. Top-K subcarrier selection by variance
- *   5. Biquad IIR bandpass → breathing (0.1-0.5 Hz), heart rate (0.8-2.0 Hz)
- *   6. Zero-crossing BPM estimation
- *   7. Presence detection (adaptive or fixed threshold)
- *   8. Fall detection (phase acceleration)
- *   9. Multi-person vitals via subcarrier group clustering
- *  10. Delta compression (XOR + RLE) for bandwidth reduction
- *  11. Vitals packet broadcast (magic 0xC5110002)
+ * Nhân 0 (tác vụ WiFi): Đẩy khung CSI thô vào bộ đệm vòng SPSC không khóa.
+ * Nhân 1 (tác vụ DSP):  Lấy khung ra, chạy đường ống xử lý tín hiệu:
+ *   1. Trích xuất pha từ cặp I/Q
+ *   2. Mở gói pha (pha liên tục)
+ *   3. Theo dõi phương sai Welford theo từng sóng mang phụ
+ *   4. Chọn Top-K sóng mang phụ theo phương sai
+ *   5. Biquad IIR thông dải → nhịp thở (0.1-0.5 Hz), nhịp tim (0.8-2.0 Hz)
+ *   6. Ước lượng BPM bằng cắt zero
+ *   7. Phát hiện hiện diện (ngưỡng thích ứng hoặc cố định)
+ *   8. Phát hiện ngã (gia tốc pha)
+ *   9. Sinh hiệu đa người qua phân nhóm sóng mang phụ
+ *  10. Nén delta (XOR + RLE) để giảm băng thông
+ *  11. Phát gói sinh hiệu (magic 0xC5110002)
  */
 
 #include "edge_processing.h"
@@ -32,7 +32,7 @@
 static const char *TAG = "edge_proc";
 
 /* ======================================================================
- * SPSC Ring Buffer (lock-free, single-producer single-consumer)
+ * Bộ Đệm Vòng SPSC (không khóa, một-sản-xuất một-tiêu-thụ)
  * ====================================================================== */
 
 static edge_ring_buf_t s_ring;
@@ -42,7 +42,7 @@ static inline bool ring_push(const uint8_t *iq, uint16_t len,
 {
     uint32_t next = (s_ring.head + 1) % EDGE_RING_SLOTS;
     if (next == s_ring.tail) {
-        return false;  /* Full — drop frame. */
+        return false;  /* Đầy — bỏ khung. */
     }
 
     edge_ring_slot_t *slot = &s_ring.slots[s_ring.head];
@@ -53,7 +53,7 @@ static inline bool ring_push(const uint8_t *iq, uint16_t len,
     slot->channel = channel;
     slot->timestamp_us = (uint32_t)(esp_timer_get_time() & 0xFFFFFFFF);
 
-    /* Memory barrier: ensure slot data is visible before advancing head. */
+    /* Rào bộ nhớ: đảm bảo dữ liệu khe hiển thị trước khi tiến head. */
     __sync_synchronize();
     s_ring.head = next;
     return true;
@@ -62,7 +62,7 @@ static inline bool ring_push(const uint8_t *iq, uint16_t len,
 static inline bool ring_pop(edge_ring_slot_t *out)
 {
     if (s_ring.tail == s_ring.head) {
-        return false;  /* Empty. */
+        return false;  /* Trống. */
     }
 
     memcpy(out, &s_ring.slots[s_ring.tail], sizeof(edge_ring_slot_t));
@@ -73,16 +73,16 @@ static inline bool ring_pop(edge_ring_slot_t *out)
 }
 
 /* ======================================================================
- * Biquad IIR Filter
+ * Bộ Lọc Biquad IIR
  * ====================================================================== */
 
 /**
- * Design a 2nd-order Butterworth bandpass biquad.
+ * Thiết kế biquad thông dải Butterworth bậc 2.
  *
- * @param bq   Output biquad state.
- * @param fs   Sampling frequency (Hz).
- * @param f_lo Low cutoff frequency (Hz).
- * @param f_hi High cutoff frequency (Hz).
+ * @param bq   Trạng thái biquad đầu ra.
+ * @param fs   Tần số lấy mẫu (Hz).
+ * @param f_lo Tần số cắt thấp (Hz).
+ * @param f_hi Tần số cắt cao (Hz).
  */
 static void biquad_bandpass_design(edge_biquad_t *bq, float fs,
                                    float f_lo, float f_hi)
@@ -114,10 +114,10 @@ static inline float biquad_process(edge_biquad_t *bq, float x)
 }
 
 /* ======================================================================
- * Phase Extraction and Unwrapping
+ * Trích Xuất và Mở Gói Pha
  * ====================================================================== */
 
-/** Extract phase (radians) from an I/Q pair at byte offset. */
+/** Trích xuất pha (radian) từ cặp I/Q tại offset byte. */
 static inline float extract_phase(const uint8_t *iq, uint16_t idx)
 {
     int8_t i_val = (int8_t)iq[idx * 2];
@@ -125,7 +125,7 @@ static inline float extract_phase(const uint8_t *iq, uint16_t idx)
     return atan2f((float)q_val, (float)i_val);
 }
 
-/** Unwrap phase to maintain continuity (avoid 2*pi jumps). */
+/** Mở gói pha để duy trì tính liên tục (tránh nhảy 2*pi). */
 static inline float unwrap_phase(float prev, float curr)
 {
     float diff = curr - prev;
@@ -135,7 +135,7 @@ static inline float unwrap_phase(float prev, float curr)
 }
 
 /* ======================================================================
- * Welford Running Statistics
+ * Thống Kê Chạy Welford
  * ====================================================================== */
 
 static inline void welford_reset(edge_welford_t *w)
@@ -160,16 +160,16 @@ static inline double welford_variance(const edge_welford_t *w)
 }
 
 /* ======================================================================
- * Zero-Crossing BPM Estimation
+ * Ước Lượng BPM Bằng Cắt Zero
  * ====================================================================== */
 
 /**
- * Estimate BPM from a filtered signal using positive zero-crossings.
+ * Ước lượng BPM từ tín hiệu đã lọc sử dụng cắt zero dương.
  *
- * @param history     Signal buffer (filtered phase).
- * @param len         Number of samples.
- * @param sample_rate Sampling rate in Hz.
- * @return Estimated BPM, or 0 if insufficient crossings.
+ * @param history     Bộ đệm tín hiệu (pha đã lọc).
+ * @param len         Số lượng mẫu.
+ * @param sample_rate Tốc độ lấy mẫu tính bằng Hz.
+ * @return BPM ước lượng, hoặc 0 nếu không đủ điểm cắt.
  */
 static float estimate_bpm_zero_crossing(const float *history, uint16_t len,
                                         float sample_rate)
@@ -187,7 +187,7 @@ static float estimate_bpm_zero_crossing(const float *history, uint16_t len,
 
     if (n_cross < 2) return 0.0f;
 
-    /* Average period from consecutive crossings. */
+    /* Chu kỳ trung bình từ các điểm cắt liên tiếp. */
     float total_period = 0.0f;
     for (uint16_t i = 1; i < n_cross; i++) {
         total_period += (float)(crossings[i] - crossings[i - 1]);
@@ -197,41 +197,41 @@ static float estimate_bpm_zero_crossing(const float *history, uint16_t len,
     if (avg_period_samples < 1.0f) return 0.0f;
 
     float freq_hz = sample_rate / avg_period_samples;
-    return freq_hz * 60.0f;  /* Hz to BPM. */
+    return freq_hz * 60.0f;  /* Hz sang BPM. */
 }
 
 /* ======================================================================
- * DSP Pipeline State
+ * Trạng Thái Đường Ống DSP
  * ====================================================================== */
 
-/** Edge processing configuration. */
+/** Cấu hình xử lý biên. */
 static edge_config_t s_cfg;
 
-/** Per-subcarrier running variance (for top-K selection). */
+/** Phương sai chạy theo sóng mang phụ (cho chọn top-K). */
 static edge_welford_t s_subcarrier_var[EDGE_MAX_SUBCARRIERS];
 
-/** Previous phase per subcarrier (for unwrapping). */
+/** Pha trước đó theo sóng mang phụ (để mở gói). */
 static float s_prev_phase[EDGE_MAX_SUBCARRIERS];
 static bool  s_phase_initialized;
 
-/** Top-K subcarrier indices (sorted by variance, descending). */
+/** Chỉ số sóng mang phụ Top-K (sắp xếp theo phương sai, giảm dần). */
 static uint8_t s_top_k[EDGE_TOP_K];
 static uint8_t s_top_k_count;
 
-/** Phase history for the primary (highest-variance) subcarrier. */
+/** Lịch sử pha cho sóng mang phụ chính (phương sai cao nhất). */
 static float s_phase_history[EDGE_PHASE_HISTORY_LEN];
 static uint16_t s_history_len;
 static uint16_t s_history_idx;
 
-/** Biquad filters for breathing and heart rate. */
+/** Bộ lọc biquad cho nhịp thở và nhịp tim. */
 static edge_biquad_t s_bq_breathing;
 static edge_biquad_t s_bq_heartrate;
 
-/** Filtered signal histories for BPM estimation. */
+/** Lịch sử tín hiệu đã lọc cho ước lượng BPM. */
 static float s_breathing_filtered[EDGE_PHASE_HISTORY_LEN];
 static float s_heartrate_filtered[EDGE_PHASE_HISTORY_LEN];
 
-/** Latest vitals state. */
+/** Trạng thái sinh hiệu mới nhất. */
 static float    s_breathing_bpm;
 static float    s_heartrate_bpm;
 static float    s_motion_energy;
@@ -241,42 +241,42 @@ static bool     s_fall_detected;
 static int8_t   s_latest_rssi;
 static uint32_t s_frame_count;
 
-/** Previous phase velocity for fall detection (acceleration). */
+/** Vận tốc pha trước đó cho phát hiện ngã (gia tốc). */
 static float s_prev_phase_velocity;
 
-/** Adaptive calibration state. */
+/** Trạng thái hiệu chuẩn thích ứng. */
 static bool     s_calibrated;
 static float    s_calib_sum;
 static float    s_calib_sum_sq;
 static uint32_t s_calib_count;
 static float    s_adaptive_threshold;
 
-/** Last vitals send timestamp. */
+/** Nhãn thời gian gửi sinh hiệu cuối. */
 static int64_t s_last_vitals_send_us;
 
-/** Delta compression state. */
+/** Trạng thái nén delta. */
 static uint8_t s_prev_iq[EDGE_MAX_IQ_BYTES];
 static uint16_t s_prev_iq_len;
 static bool s_has_prev_iq;
 
-/** Multi-person vitals state. */
+/** Trạng thái sinh hiệu đa người. */
 static edge_person_vitals_t s_persons[EDGE_MAX_PERSONS];
 static edge_biquad_t s_person_bq_br[EDGE_MAX_PERSONS];
 static edge_biquad_t s_person_bq_hr[EDGE_MAX_PERSONS];
 static float s_person_br_filt[EDGE_MAX_PERSONS][EDGE_PHASE_HISTORY_LEN];
 static float s_person_hr_filt[EDGE_MAX_PERSONS][EDGE_PHASE_HISTORY_LEN];
 
-/** Latest vitals packet (thread-safe via volatile copy). */
+/** Gói sinh hiệu mới nhất (an toàn luồng qua bản sao volatile). */
 static volatile edge_vitals_pkt_t s_latest_pkt;
 static volatile bool s_pkt_valid;
 
 /* ======================================================================
- * Top-K Subcarrier Selection
+ * Chọn Sóng Mang Phụ Top-K
  * ====================================================================== */
 
 /**
- * Select top-K subcarriers by variance (descending).
- * Uses partial insertion sort — O(n*K) which is fine for n <= 128.
+ * Chọn sóng mang phụ top-K theo phương sai (giảm dần).
+ * Sử dụng sắp xếp chèn từng phần — O(n*K), phù hợp cho n <= 128.
  */
 static void update_top_k(uint16_t n_subcarriers)
 {
@@ -284,7 +284,7 @@ static void update_top_k(uint16_t n_subcarriers)
     if (k > EDGE_TOP_K) k = EDGE_TOP_K;
     if (k > n_subcarriers) k = (uint8_t)n_subcarriers;
 
-    /* Simple selection: find K largest variances. */
+    /* Chọn đơn giản: tìm K phương sai lớn nhất. */
     bool used[EDGE_MAX_SUBCARRIERS];
     memset(used, 0, sizeof(used));
 
@@ -310,7 +310,7 @@ static void update_top_k(uint16_t n_subcarriers)
 }
 
 /* ======================================================================
- * Adaptive Presence Calibration
+ * Hiệu Chuẩn Hiện Diện Thích Ứng
  * ====================================================================== */
 
 static void calibration_update(float motion)
@@ -332,26 +332,26 @@ static void calibration_update(float motion)
         }
 
         s_calibrated = true;
-        ESP_LOGI(TAG, "Adaptive calibration complete: mean=%.4f sigma=%.4f "
-                 "threshold=%.4f (from %lu frames)",
+        ESP_LOGI(TAG, "Hiệu chuẩn thích ứng hoàn tất: mean=%.4f sigma=%.4f "
+                 "ngưỡng=%.4f (từ %lu khung)",
                  mean, sigma, s_adaptive_threshold,
                  (unsigned long)s_calib_count);
     }
 }
 
 /* ======================================================================
- * Delta Compression (XOR + RLE)
+ * Nén Delta (XOR + RLE)
  * ====================================================================== */
 
 /**
- * Delta-compress I/Q data relative to previous frame.
- * Format: [XOR'd bytes], then RLE-encoded.
+ * Nén delta dữ liệu I/Q so với khung trước.
+ * Định dạng: [byte XOR], sau đó mã hóa RLE.
  *
- * @param curr       Current I/Q data.
- * @param len        Length of I/Q data.
- * @param out        Output compressed buffer.
- * @param out_max    Max output buffer size.
- * @return Compressed size, or 0 if compression would expand the data.
+ * @param curr       Dữ liệu I/Q hiện tại.
+ * @param len        Độ dài dữ liệu I/Q.
+ * @param out        Bộ đệm nén đầu ra.
+ * @param out_max    Kích thước tối đa bộ đệm đầu ra.
+ * @return Kích thước nén, hoặc 0 nếu nén sẽ tăng kích thước dữ liệu.
  */
 static uint16_t delta_compress(const uint8_t *curr, uint16_t len,
                                uint8_t *out, uint16_t out_max)
@@ -360,14 +360,14 @@ static uint16_t delta_compress(const uint8_t *curr, uint16_t len,
         return 0;
     }
 
-    /* XOR delta. */
+    /* Delta XOR. */
     uint8_t xor_buf[EDGE_MAX_IQ_BYTES];
     for (uint16_t i = 0; i < len; i++) {
         xor_buf[i] = curr[i] ^ s_prev_iq[i];
     }
 
-    /* RLE encode: [value, count] pairs.
-     * If count > 255, emit multiple pairs. */
+    /* Mã hóa RLE: cặp [giá trị, số lượng].
+     * Nếu số lượng > 255, phát nhiều cặp. */
     uint16_t out_idx = 0;
 
     uint16_t i = 0;
@@ -378,13 +378,13 @@ static uint16_t delta_compress(const uint8_t *curr, uint16_t len,
             run++;
         }
 
-        if (out_idx + 2 > out_max) return 0;  /* Would overflow. */
+        if (out_idx + 2 > out_max) return 0;  /* Sẽ tràn bộ đệm. */
         out[out_idx++] = val;
         out[out_idx++] = (uint8_t)run;
         i += run;
     }
 
-    /* Only use compression if it actually saves space. */
+    /* Chỉ dùng nén nếu thực sự tiết kiệm dung lượng. */
     if (out_idx >= len) {
         return 0;
     }
@@ -393,7 +393,7 @@ static uint16_t delta_compress(const uint8_t *curr, uint16_t len,
 }
 
 /**
- * Send a compressed CSI frame (magic 0xC5110003).
+ * Gửi khung CSI đã nén (magic 0xC5110003).
  *
  * Header:
  *   [0..3]   Magic 0xC5110003 (LE)
@@ -410,11 +410,11 @@ static void send_compressed_frame(const uint8_t *iq_data, uint16_t iq_len,
     uint16_t comp_len = delta_compress(iq_data, iq_len,
                                        comp_buf, sizeof(comp_buf));
     if (comp_len == 0) {
-        /* Compression didn't help — skip sending compressed version. */
+        /* Nén không hiệu quả — bỏ qua gửi phiên bản nén. */
         goto store_prev;
     }
 
-    /* Build compressed frame packet. */
+    /* Tạo gói khung nén. */
     uint16_t pkt_size = 10 + comp_len;
     uint8_t pkt[10 + EDGE_MAX_IQ_BYTES];
 
@@ -433,34 +433,34 @@ static void send_compressed_frame(const uint8_t *iq_data, uint16_t iq_len,
 
     stream_sender_send(pkt, pkt_size);
 
-    ESP_LOGD(TAG, "Compressed frame: %u → %u bytes (%.0f%% reduction)",
+    ESP_LOGD(TAG, "Khung nén: %u → %u byte (giảm %.0f%%)",
              iq_len, comp_len,
              (1.0f - (float)comp_len / (float)iq_len) * 100.0f);
 
 store_prev:
-    /* Store current frame as reference for next delta. */
+    /* Lưu khung hiện tại làm tham chiếu cho delta tiếp theo. */
     memcpy(s_prev_iq, iq_data, iq_len);
     s_prev_iq_len = iq_len;
     s_has_prev_iq = true;
 }
 
 /* ======================================================================
- * Multi-Person Vitals
+ * Sinh Hiệu Đa Người
  * ====================================================================== */
 
 /**
- * Update multi-person vitals by assigning top-K subcarriers to person groups.
+ * Cập nhật sinh hiệu đa người bằng cách gán sóng mang phụ top-K cho các nhóm người.
  *
- * Division strategy: top-K subcarriers are evenly divided among
- * up to EDGE_MAX_PERSONS groups. Each group tracks independent
- * phase history and BPM estimation.
+ * Chiến lược phân chia: sóng mang phụ top-K được chia đều cho
+ * tối đa EDGE_MAX_PERSONS nhóm. Mỗi nhóm theo dõi
+ * lịch sử pha và ước lượng BPM độc lập.
  */
 static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
                                        float sample_rate)
 {
     if (s_top_k_count < 2) return;
 
-    /* Determine number of active persons based on available subcarriers. */
+    /* Xác định số người hoạt động dựa trên sóng mang phụ khả dụng. */
     uint8_t n_persons = s_top_k_count / 2;
     if (n_persons > EDGE_MAX_PERSONS) n_persons = EDGE_MAX_PERSONS;
     if (n_persons < 1) n_persons = 1;
@@ -472,7 +472,7 @@ static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
         pv->active = true;
         pv->subcarrier_idx = s_top_k[p * subs_per_person];
 
-        /* Average phase across this person's subcarrier group. */
+        /* Pha trung bình qua nhóm sóng mang phụ của người này. */
         float avg_phase = 0.0f;
         uint8_t count = 0;
         for (uint8_t s = 0; s < subs_per_person; s++) {
@@ -484,7 +484,7 @@ static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
         }
         if (count > 0) avg_phase /= (float)count;
 
-        /* Unwrap and store in history. */
+        /* Mở gói và lưu vào lịch sử. */
         if (pv->history_len > 0) {
             uint16_t prev_idx = (pv->history_idx + EDGE_PHASE_HISTORY_LEN - 1)
                                 % EDGE_PHASE_HISTORY_LEN;
@@ -495,7 +495,7 @@ static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
         pv->history_idx = (pv->history_idx + 1) % EDGE_PHASE_HISTORY_LEN;
         if (pv->history_len < EDGE_PHASE_HISTORY_LEN) pv->history_len++;
 
-        /* Filter and estimate BPM. */
+        /* Lọc và ước lượng BPM. */
         float br_val = biquad_process(&s_person_bq_br[p], avg_phase);
         float hr_val = biquad_process(&s_person_bq_hr[p], avg_phase);
 
@@ -504,9 +504,9 @@ static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
         s_person_br_filt[p][idx] = br_val;
         s_person_hr_filt[p][idx] = hr_val;
 
-        /* Estimate BPM when we have enough history. */
+        /* Ước lượng BPM khi có đủ lịch sử. */
         if (pv->history_len >= 64) {
-            /* Build contiguous buffer for zero-crossing. */
+            /* Tạo bộ đệm liên tục cho cắt zero. */
             float br_buf[EDGE_PHASE_HISTORY_LEN];
             float hr_buf[EDGE_PHASE_HISTORY_LEN];
             uint16_t buf_len = pv->history_len;
@@ -521,20 +521,20 @@ static void update_multi_person_vitals(const uint8_t *iq_data, uint16_t n_sc,
             float br = estimate_bpm_zero_crossing(br_buf, buf_len, sample_rate);
             float hr = estimate_bpm_zero_crossing(hr_buf, buf_len, sample_rate);
 
-            /* Sanity clamp. */
+            /* Giới hạn hợp lý. */
             if (br >= 6.0f && br <= 40.0f) pv->breathing_bpm = br;
             if (hr >= 40.0f && hr <= 180.0f) pv->heartrate_bpm = hr;
         }
     }
 
-    /* Mark remaining persons as inactive. */
+    /* Đánh dấu những người còn lại là không hoạt động. */
     for (uint8_t p = n_persons; p < EDGE_MAX_PERSONS; p++) {
         s_persons[p].active = false;
     }
 }
 
 /* ======================================================================
- * Vitals Packet Sending
+ * Gửi Gói Sinh Hiệu
  * ====================================================================== */
 
 static void send_vitals_packet(void)
@@ -558,7 +558,7 @@ static void send_vitals_packet(void)
     pkt.heartrate = (uint32_t)(s_heartrate_bpm * 10000.0f);
     pkt.rssi = s_latest_rssi;
 
-    /* Count active persons. */
+    /* Đếm số người hoạt động. */
     uint8_t n_active = 0;
     for (uint8_t p = 0; p < EDGE_MAX_PERSONS; p++) {
         if (s_persons[p].active) n_active++;
@@ -569,16 +569,16 @@ static void send_vitals_packet(void)
     pkt.presence_score = s_presence_score;
     pkt.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
-    /* Update thread-safe copy. */
+    /* Cập nhật bản sao an toàn luồng. */
     s_latest_pkt = pkt;
     s_pkt_valid = true;
 
-    /* Send over UDP. */
+    /* Gửi qua UDP. */
     stream_sender_send((const uint8_t *)&pkt, sizeof(pkt));
 }
 
 /* ======================================================================
- * Main DSP Pipeline (runs on Core 1)
+ * Đường Ống DSP Chính (chạy trên Nhân 1)
  * ====================================================================== */
 
 static void process_frame(const edge_ring_slot_t *slot)
@@ -589,10 +589,10 @@ static void process_frame(const edge_ring_slot_t *slot)
     s_frame_count++;
     s_latest_rssi = slot->rssi;
 
-    /* Assumed CSI sample rate (~20 Hz for typical ESP32 CSI). */
+    /* Tốc độ lấy mẫu CSI giả định (~20 Hz cho ESP32 CSI thông thường). */
     const float sample_rate = 20.0f;
 
-    /* --- Step 1-2: Phase extraction + unwrapping per subcarrier --- */
+    /* --- Bước 1-2: Trích xuất pha + mở gói theo sóng mang phụ --- */
     float phases[EDGE_MAX_SUBCARRIERS];
     for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
         float raw_phase = extract_phase(slot->iq_data, sc);
@@ -606,27 +606,27 @@ static void process_frame(const edge_ring_slot_t *slot)
     }
     s_phase_initialized = true;
 
-    /* --- Step 3: Welford variance update per subcarrier --- */
+    /* --- Bước 3: Cập nhật phương sai Welford theo sóng mang phụ --- */
     for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
         welford_update(&s_subcarrier_var[sc], (double)phases[sc]);
     }
 
-    /* --- Step 4: Top-K selection (every 100 frames to amortize cost) --- */
+    /* --- Bước 4: Chọn Top-K (mỗi 100 khung để phân bổ chi phí) --- */
     if ((s_frame_count % 100) == 1 || s_top_k_count == 0) {
         update_top_k(n_subcarriers);
     }
 
     if (s_top_k_count == 0) return;
 
-    /* --- Step 5: Phase of primary (highest-variance) subcarrier --- */
+    /* --- Bước 5: Pha của sóng mang phụ chính (phương sai cao nhất) --- */
     float primary_phase = phases[s_top_k[0]];
 
-    /* Store in phase history ring buffer. */
+    /* Lưu vào bộ đệm vòng lịch sử pha. */
     s_phase_history[s_history_idx] = primary_phase;
     s_history_idx = (s_history_idx + 1) % EDGE_PHASE_HISTORY_LEN;
     if (s_history_len < EDGE_PHASE_HISTORY_LEN) s_history_len++;
 
-    /* --- Step 6: Biquad bandpass filtering --- */
+    /* --- Bước 6: Lọc thông dải biquad --- */
     float br_val = biquad_process(&s_bq_breathing, primary_phase);
     float hr_val = biquad_process(&s_bq_heartrate, primary_phase);
 
@@ -635,9 +635,9 @@ static void process_frame(const edge_ring_slot_t *slot)
     s_breathing_filtered[filt_idx] = br_val;
     s_heartrate_filtered[filt_idx] = hr_val;
 
-    /* --- Step 7: BPM estimation (zero-crossing) --- */
+    /* --- Bước 7: Ước lượng BPM (cắt zero) --- */
     if (s_history_len >= 64) {
-        /* Build contiguous buffers from ring. */
+        /* Tạo bộ đệm liên tục từ vòng. */
         float br_buf[EDGE_PHASE_HISTORY_LEN];
         float hr_buf[EDGE_PHASE_HISTORY_LEN];
         uint16_t buf_len = s_history_len;
@@ -652,12 +652,12 @@ static void process_frame(const edge_ring_slot_t *slot)
         float br_bpm = estimate_bpm_zero_crossing(br_buf, buf_len, sample_rate);
         float hr_bpm = estimate_bpm_zero_crossing(hr_buf, buf_len, sample_rate);
 
-        /* Sanity clamp: breathing 6-40 BPM, heart rate 40-180 BPM. */
+        /* Giới hạn hợp lý: nhịp thở 6-40 BPM, nhịp tim 40-180 BPM. */
         if (br_bpm >= 6.0f && br_bpm <= 40.0f) s_breathing_bpm = br_bpm;
         if (hr_bpm >= 40.0f && hr_bpm <= 180.0f) s_heartrate_bpm = hr_bpm;
     }
 
-    /* --- Step 8: Motion energy (variance of recent phases) --- */
+    /* --- Bước 8: Năng lượng chuyển động (phương sai pha gần đây) --- */
     if (s_history_len >= 10) {
         float sum = 0.0f, sum2 = 0.0f;
         uint16_t window = (s_history_len < 20) ? s_history_len : 20;
@@ -673,10 +673,10 @@ static void process_frame(const edge_ring_slot_t *slot)
         if (s_motion_energy < 0.0f) s_motion_energy = 0.0f;
     }
 
-    /* --- Step 9: Presence detection --- */
+    /* --- Bước 9: Phát hiện hiện diện --- */
     s_presence_score = s_motion_energy;
 
-    /* Adaptive calibration: learn ambient noise level from first N frames. */
+    /* Hiệu chuẩn thích ứng: học mức nhiễu môi trường từ N khung đầu. */
     if (!s_calibrated && s_cfg.presence_thresh == 0.0f) {
         calibration_update(s_motion_energy);
     }
@@ -685,11 +685,11 @@ static void process_frame(const edge_ring_slot_t *slot)
     if (threshold == 0.0f && s_calibrated) {
         threshold = s_adaptive_threshold;
     } else if (threshold == 0.0f) {
-        threshold = 0.05f;  /* Default until calibrated. */
+        threshold = 0.05f;  /* Mặc định cho đến khi hiệu chuẩn. */
     }
     s_presence_detected = (s_presence_score > threshold);
 
-    /* --- Step 10: Fall detection (phase acceleration) --- */
+    /* --- Step 10: Phát hiện ngã (gia tốc pha) --- */
     if (s_history_len >= 3) {
         uint16_t i0 = (s_history_idx + EDGE_PHASE_HISTORY_LEN - 1) % EDGE_PHASE_HISTORY_LEN;
         uint16_t i1 = (s_history_idx + EDGE_PHASE_HISTORY_LEN - 2) % EDGE_PHASE_HISTORY_LEN;
@@ -699,20 +699,20 @@ static void process_frame(const edge_ring_slot_t *slot)
 
         s_fall_detected = (accel > s_cfg.fall_thresh);
         if (s_fall_detected) {
-            ESP_LOGW(TAG, "Fall detected! accel=%.4f > thresh=%.4f",
+            ESP_LOGW(TAG, "Phát hiện ngã! gia_tốc=%.4f > ngưỡng=%.4f",
                      accel, s_cfg.fall_thresh);
         }
     }
 
-    /* --- Step 11: Multi-person vitals --- */
+    /* --- Bước 11: Sinh hiệu đa người --- */
     update_multi_person_vitals(slot->iq_data, n_subcarriers, sample_rate);
 
-    /* --- Step 12: Delta compression --- */
+    /* --- Bước 12: Nén delta --- */
     if (s_cfg.tier >= 2) {
         send_compressed_frame(slot->iq_data, slot->iq_len, slot->channel);
     }
 
-    /* --- Step 13: Send vitals packet at configured interval --- */
+    /* --- Bước 13: Gửi gói sinh hiệu theo khoảng cách cấu hình --- */
     int64_t now_us = esp_timer_get_time();
     int64_t interval_us = (int64_t)s_cfg.vital_interval_ms * 1000;
     if ((now_us - s_last_vitals_send_us) >= interval_us) {
@@ -720,8 +720,8 @@ static void process_frame(const edge_ring_slot_t *slot)
         s_last_vitals_send_us = now_us;
 
         if ((s_frame_count % 200) == 0) {
-            ESP_LOGI(TAG, "Vitals: br=%.1f hr=%.1f motion=%.4f pres=%s "
-                     "fall=%s persons=%u frames=%lu",
+            ESP_LOGI(TAG, "Sinh hiệu: thở=%.1f tim=%.1f chuyển_động=%.4f hiện_diện=%s "
+                     "ngã=%s người=%u khung=%lu",
                      s_breathing_bpm, s_heartrate_bpm, s_motion_energy,
                      s_presence_detected ? "YES" : "no",
                      s_fall_detected ? "YES" : "no",
@@ -730,9 +730,9 @@ static void process_frame(const edge_ring_slot_t *slot)
         }
     }
 
-    /* --- Step 14 (ADR-040): Dispatch to WASM modules --- */
+    /* --- Bước 14 (ADR-040): Gửi đến module WASM --- */
     if (s_cfg.tier >= 2 && s_pkt_valid) {
-        /* Extract amplitudes from I/Q for WASM host API. */
+        /* Trích xuất biên độ từ I/Q cho WASM host API. */
         float amplitudes[EDGE_MAX_SUBCARRIERS];
         for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
             int8_t i_val = (int8_t)slot->iq_data[sc * 2];
@@ -740,7 +740,7 @@ static void process_frame(const edge_ring_slot_t *slot)
             amplitudes[sc] = sqrtf((float)(i_val * i_val + q_val * q_val));
         }
 
-        /* Build variance array from Welford state. */
+        /* Tạo mảng phương sai từ trạng thái Welford. */
         float variances[EDGE_MAX_SUBCARRIERS];
         for (uint16_t sc = 0; sc < n_subcarriers; sc++) {
             variances[sc] = (float)welford_variance(&s_subcarrier_var[sc]);
@@ -753,13 +753,13 @@ static void process_frame(const edge_ring_slot_t *slot)
 }
 
 /* ======================================================================
- * Edge Processing Task (pinned to Core 1)
+ * Tác Vụ Xử Lý Biên (ghim vào Nhân 1)
  * ====================================================================== */
 
 static void edge_task(void *arg)
 {
     (void)arg;
-    ESP_LOGI(TAG, "Edge DSP task started on core %d (tier=%u)",
+    ESP_LOGI(TAG, "Tác vụ DSP biên đã khởi động trên nhân %d (tầng=%u)",
              xPortGetCoreID(), s_cfg.tier);
 
     edge_ring_slot_t slot;
@@ -768,14 +768,14 @@ static void edge_task(void *arg)
         if (ring_pop(&slot)) {
             process_frame(&slot);
         } else {
-            /* No frames available — yield briefly. */
+            /* Không có khung — nhường CPU ngắn. */
             vTaskDelay(pdMS_TO_TICKS(1));
         }
     }
 }
 
 /* ======================================================================
- * Public API
+ * API Công Khai
  * ====================================================================== */
 
 bool edge_enqueue_csi(const uint8_t *iq_data, uint16_t iq_len,
@@ -821,19 +821,19 @@ void edge_get_variances(float *out_variances, uint16_t n_subcarriers)
 esp_err_t edge_processing_init(const edge_config_t *cfg)
 {
     if (cfg == NULL) {
-        ESP_LOGE(TAG, "edge_processing_init: cfg is NULL");
+        ESP_LOGE(TAG, "edge_processing_init: cấu hình là NULL");
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* Store config. */
+    /* Lưu cấu hình. */
     s_cfg = *cfg;
 
-    ESP_LOGI(TAG, "Initializing edge processing (tier=%u, top_k=%u, "
-             "vital_interval=%ums, presence_thresh=%.3f)",
+    ESP_LOGI(TAG, "Khởi tạo xử lý biên (tầng=%u, top_k=%u, "
+             "khoảng_sinh_hiệu=%ums, ngưỡng_hiện_diện=%.3f)",
              s_cfg.tier, s_cfg.top_k_count,
              s_cfg.vital_interval_ms, s_cfg.presence_thresh);
 
-    /* Reset all state. */
+    /* Đặt lại tất cả trạng thái. */
     memset(&s_ring, 0, sizeof(s_ring));
     memset(s_subcarrier_var, 0, sizeof(s_subcarrier_var));
     memset(s_prev_phase, 0, sizeof(s_prev_phase));
@@ -855,52 +855,52 @@ esp_err_t edge_processing_init(const edge_config_t *cfg)
     s_prev_iq_len = 0;
     s_pkt_valid = false;
 
-    /* Reset calibration state. */
+    /* Đặt lại trạng thái hiệu chuẩn. */
     s_calibrated = false;
     s_calib_sum = 0.0f;
     s_calib_sum_sq = 0.0f;
     s_calib_count = 0;
     s_adaptive_threshold = 0.05f;
 
-    /* Reset multi-person state. */
+    /* Đặt lại trạng thái đa người. */
     memset(s_persons, 0, sizeof(s_persons));
     for (uint8_t p = 0; p < EDGE_MAX_PERSONS; p++) {
         s_persons[p].active = false;
     }
 
-    /* Design biquad bandpass filters.
-     * Sampling rate ~20 Hz (typical ESP32 CSI callback rate). */
+    /* Thiết kế bộ lọc thông dải biquad.
+     * Tốc độ lấy mẫu ~20 Hz (tốc độ callback CSI ESP32 thông thường). */
     const float fs = 20.0f;
     biquad_bandpass_design(&s_bq_breathing, fs, 0.1f, 0.5f);
     biquad_bandpass_design(&s_bq_heartrate, fs, 0.8f, 2.0f);
 
-    /* Design per-person filters. */
+    /* Thiết kế bộ lọc theo người. */
     for (uint8_t p = 0; p < EDGE_MAX_PERSONS; p++) {
         biquad_bandpass_design(&s_person_bq_br[p], fs, 0.1f, 0.5f);
         biquad_bandpass_design(&s_person_bq_hr[p], fs, 0.8f, 2.0f);
     }
 
     if (s_cfg.tier == 0) {
-        ESP_LOGI(TAG, "Edge tier 0: raw passthrough (no DSP task)");
+        ESP_LOGI(TAG, "Tầng biên 0: chuyển tiếp thô (không có tác vụ DSP)");
         return ESP_OK;
     }
 
-    /* Start DSP task on Core 1. */
+    /* Khởi động tác vụ DSP trên Nhân 1. */
     BaseType_t ret = xTaskCreatePinnedToCore(
         edge_task,
         "edge_dsp",
-        8192,       /* 8 KB stack — sufficient for DSP pipeline. */
+        8192,       /* Stack 8 KB — đủ cho đường ống DSP. */
         NULL,
-        5,          /* Priority 5 — above idle, below WiFi. */
+        5,          /* Ưu tiên 5 — trên idle, dưới WiFi. */
         NULL,
-        1           /* Pin to Core 1. */
+        1           /* Ghim vào Nhân 1. */
     );
 
     if (ret != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create edge DSP task");
+        ESP_LOGE(TAG, "Không thể tạo tác vụ DSP biên");
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGI(TAG, "Edge DSP task created on Core 1 (stack=8192, priority=5)");
+    ESP_LOGI(TAG, "Tác vụ DSP biên đã tạo trên Nhân 1 (stack=8192, ưu_tiên=5)");
     return ESP_OK;
 }

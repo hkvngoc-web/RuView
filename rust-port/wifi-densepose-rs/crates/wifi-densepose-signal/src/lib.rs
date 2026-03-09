@@ -1,17 +1,17 @@
-//! WiFi-DensePose Signal Processing Library
+//! Thư Viện Xử Lý Tín Hiệu WiFi-DensePose
 //!
-//! This crate provides signal processing capabilities for WiFi-based human pose estimation,
-//! including CSI (Channel State Information) processing, phase sanitization, feature extraction,
-//! and motion detection.
+//! Crate này cung cấp khả năng xử lý tín hiệu cho ước lượng tư thế con người dựa trên WiFi,
+//! bao gồm xử lý CSI (Thông tin Trạng thái Kênh), làm sạch pha, trích xuất đặc trưng,
+//! và phát hiện chuyển động.
 //!
-//! # Features
+//! # Tính Năng
 //!
-//! - **CSI Processing**: Preprocessing, noise removal, windowing, and normalization
-//! - **Phase Sanitization**: Phase unwrapping, outlier removal, and smoothing
-//! - **Feature Extraction**: Amplitude, phase, correlation, Doppler, and PSD features
-//! - **Motion Detection**: Human presence detection with confidence scoring
+//! - **Xử Lý CSI**: Tiền xử lý, loại bỏ nhiễu, cửa sổ hoá và chuẩn hoá
+//! - **Làm Sạch Pha**: Tháo cuộn pha, loại bỏ ngoại lai và làm mượt
+//! - **Trích Xuất Đặc Trưng**: Đặc trưng biên độ, pha, tương quan, Doppler và PSD
+//! - **Phát Hiện Chuyển Động**: Phát hiện sự hiện diện con người với điểm số tin cậy
 //!
-//! # Example
+//! # Ví Dụ
 //!
 //! ```rust,no_run
 //! use wifi_densepose_signal::{
@@ -20,7 +20,7 @@
 //!     MotionDetector,
 //! };
 //!
-//! // Configure CSI processor
+//! // Cấu hình bộ xử lý CSI
 //! let config = CsiProcessorConfig::builder()
 //!     .sampling_rate(1000.0)
 //!     .window_size(256)
@@ -44,7 +44,7 @@ pub mod ruvsense;
 pub mod spectrogram;
 pub mod subcarrier_selection;
 
-// Re-export main types for convenience
+// Tái xuất các kiểu chính để thuận tiện
 pub use csi_processor::{
     CsiData, CsiDataBuilder, CsiPreprocessor, CsiProcessor, CsiProcessorConfig,
     CsiProcessorConfigBuilder, CsiProcessorError,
@@ -63,41 +63,41 @@ pub use phase_sanitizer::{
     PhaseSanitizationError, PhaseSanitizer, PhaseSanitizerConfig, UnwrappingMethod,
 };
 
-/// Library version
+/// Phiên bản thư viện
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Common result type for signal processing operations
+/// Kiểu kết quả dùng chung cho các thao tác xử lý tín hiệu
 pub type Result<T> = std::result::Result<T, SignalError>;
 
-/// Unified error type for signal processing operations
+/// Kiểu lỗi thống nhất cho các thao tác xử lý tín hiệu
 #[derive(Debug, thiserror::Error)]
 pub enum SignalError {
-    /// CSI processing error
-    #[error("CSI processing error: {0}")]
+    /// Lỗi xử lý CSI
+    #[error("Lỗi xử lý CSI: {0}")]
     CsiProcessing(#[from] CsiProcessorError),
 
-    /// Phase sanitization error
-    #[error("Phase sanitization error: {0}")]
+    /// Lỗi làm sạch pha
+    #[error("Lỗi làm sạch pha: {0}")]
     PhaseSanitization(#[from] PhaseSanitizationError),
 
-    /// Feature extraction error
-    #[error("Feature extraction error: {0}")]
+    /// Lỗi trích xuất đặc trưng
+    #[error("Lỗi trích xuất đặc trưng: {0}")]
     FeatureExtraction(String),
 
-    /// Motion detection error
-    #[error("Motion detection error: {0}")]
+    /// Lỗi phát hiện chuyển động
+    #[error("Lỗi phát hiện chuyển động: {0}")]
     MotionDetection(String),
 
-    /// Invalid configuration
-    #[error("Invalid configuration: {0}")]
+    /// Cấu hình không hợp lệ
+    #[error("Cấu hình không hợp lệ: {0}")]
     InvalidConfig(String),
 
-    /// Data validation error
-    #[error("Data validation error: {0}")]
+    /// Lỗi xác thực dữ liệu
+    #[error("Lỗi xác thực dữ liệu: {0}")]
     DataValidation(String),
 }
 
-/// Prelude module for convenient imports
+/// Module prelude để import thuận tiện
 pub mod prelude {
     pub use crate::csi_processor::{CsiData, CsiProcessor, CsiProcessorConfig};
     pub use crate::features::{CsiFeatures, FeatureExtractor};

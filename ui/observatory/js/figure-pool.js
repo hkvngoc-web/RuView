@@ -1,19 +1,19 @@
 /**
- * FigurePool — Manages a pool of wireframe human figures for multi-person rendering.
+ * FigurePool — Quản lý nhóm hình người khung dây cho kết xuất đa người.
  *
- * Extracted from main.js Observatory class. Owns the lifecycle of up to MAX_FIGURES
- * Three.js figure groups, each containing joints, bones, body segments, and aura.
+ * Trích xuất từ lớp Observatory trong main.js. Sở hữu vòng đời của tối đa MAX_FIGURES
+ * nhóm hình Three.js, mỗi nhóm chứa khớp, xương, phân đoạn cơ thể, và hào quang.
  *
- * Improvements over the original inline implementation:
- * - Smooth joint interpolation (lerp toward target instead of snapping)
- * - Joint pulsation synced with breathing
- * - Natural bone thickness taper (thicker at shoulder/hip, thinner at extremities)
- * - Secondary motion with slight delay/overshoot for organic feel
- * - Pose-adaptive aura shape (wider for exercise, narrower for crouching)
+ * Cải tiến so với triển khai inline gốc:
+ * - Nội suy khớp mượt (lerp tới mục tiêu thay vì nhảy đột ngột)
+ * - Nhịp đập khớp đồng bộ với hơi thở
+ * - Xương có độ dày tự nhiên (dày hơn ở vai/hông, mỏng hơn ở tứ chi)
+ * - Chuyển động thứ cấp với độ trễ/vượt quá nhẹ cho cảm giác hữu cơ
+ * - Hào quang thích ứng theo tư thế (rộng hơn khi tập, hẹp hơn khi ngồi xổm)
  */
 import * as THREE from 'three';
 
-// 17-keypoint COCO skeleton connectivity
+// Kết nối khung xương COCO 17 điểm chính
 export const SKELETON_PAIRS = [
   [0, 1], [0, 2], [1, 3], [2, 4],
   [5, 6], [5, 7], [7, 9], [6, 8], [8, 10],
@@ -21,42 +21,42 @@ export const SKELETON_PAIRS = [
   [11, 13], [13, 15], [12, 14], [14, 16],
 ];
 
-// Body segment cylinders that give volume to the wireframe
+// Hình trụ phân đoạn cơ thể tạo thể tích cho khung dây
 export const BODY_SEGMENT_DEFS = [
-  { joints: [5, 11], radius: 0.12 },   // left torso
-  { joints: [6, 12], radius: 0.12 },   // right torso
-  { joints: [5, 6], radius: 0.1 },     // shoulder bar
-  { joints: [11, 12], radius: 0.1 },   // hip bar
-  { joints: [5, 7], radius: 0.05 },    // left upper arm
-  { joints: [6, 8], radius: 0.05 },    // right upper arm
-  { joints: [7, 9], radius: 0.04 },    // left forearm
-  { joints: [8, 10], radius: 0.04 },   // right forearm
-  { joints: [11, 13], radius: 0.07 },  // left thigh
-  { joints: [12, 14], radius: 0.07 },  // right thigh
-  { joints: [13, 15], radius: 0.05 },  // left shin
-  { joints: [14, 16], radius: 0.05 },  // right shin
+  { joints: [5, 11], radius: 0.12 },   // thân trái
+  { joints: [6, 12], radius: 0.12 },   // thân phải
+  { joints: [5, 6], radius: 0.1 },     // thanh vai
+  { joints: [11, 12], radius: 0.1 },   // thanh hông
+  { joints: [5, 7], radius: 0.05 },    // bắp tay trái
+  { joints: [6, 8], radius: 0.05 },    // bắp tay phải
+  { joints: [7, 9], radius: 0.04 },    // cẳng tay trái
+  { joints: [8, 10], radius: 0.04 },   // cẳng tay phải
+  { joints: [11, 13], radius: 0.07 },  // đùi trái
+  { joints: [12, 14], radius: 0.07 },  // đùi phải
+  { joints: [13, 15], radius: 0.05 },  // ống chân trái
+  { joints: [14, 16], radius: 0.05 },  // ống chân phải
   { joints: [0, 0], radius: 0.1, isHead: true },
 ];
 
-// Bone thickness multipliers — thicker at torso, thinner at extremities
+// Hệ số độ dày xương — dày hơn ở thân, mỏng hơn ở tứ chi
 const BONE_TAPER = (() => {
   const tapers = new Map();
-  // Torso and shoulder/hip connections are thickest
-  tapers.set('5-6', 1.4);    // shoulder bar
-  tapers.set('11-12', 1.3);  // hip bar
-  tapers.set('5-11', 1.3);   // left torso
-  tapers.set('6-12', 1.3);   // right torso
-  // Upper limbs
-  tapers.set('5-7', 1.0);    // left upper arm
-  tapers.set('6-8', 1.0);    // right upper arm
-  tapers.set('11-13', 1.1);  // left thigh
-  tapers.set('12-14', 1.1);  // right thigh
-  // Lower limbs / extremities — thinnest
-  tapers.set('7-9', 0.7);    // left forearm
-  tapers.set('8-10', 0.7);   // right forearm
-  tapers.set('13-15', 0.8);  // left shin
-  tapers.set('14-16', 0.8);  // right shin
-  // Head connections
+  // Kết nối thân và vai/hông dày nhất
+  tapers.set('5-6', 1.4);    // thanh vai
+  tapers.set('11-12', 1.3);  // thanh hông
+  tapers.set('5-11', 1.3);   // thân trái
+  tapers.set('6-12', 1.3);   // thân phải
+  // Chi trên
+  tapers.set('5-7', 1.0);    // bắp tay trái
+  tapers.set('6-8', 1.0);    // bắp tay phải
+  tapers.set('11-13', 1.1);  // đùi trái
+  tapers.set('12-14', 1.1);  // đùi phải
+  // Chi dưới / tứ chi — mỏng nhất
+  tapers.set('7-9', 0.7);    // cẳng tay trái
+  tapers.set('8-10', 0.7);   // cẳng tay phải
+  tapers.set('13-15', 0.8);  // ống chân trái
+  tapers.set('14-16', 0.8);  // ống chân phải
+  // Kết nối đầu
   tapers.set('0-1', 0.5);
   tapers.set('0-2', 0.5);
   tapers.set('1-3', 0.4);
@@ -64,60 +64,60 @@ const BONE_TAPER = (() => {
   return tapers;
 })();
 
-// Secondary motion delay factors per joint — extremities lag more
+// Hệ số trễ chuyển động thứ cấp theo khớp — tứ chi trễ nhiều hơn
 const SECONDARY_DELAY = [
-  0.12, // 0 nose
-  0.10, // 1 left eye
-  0.10, // 2 right eye
-  0.08, // 3 left ear
-  0.08, // 4 right ear
-  0.18, // 5 left shoulder
-  0.18, // 6 right shoulder
-  0.14, // 7 left elbow
-  0.14, // 8 right elbow
-  0.10, // 9 left wrist (most lag)
-  0.10, // 10 right wrist
-  0.20, // 11 left hip (anchored, fast follow)
-  0.20, // 12 right hip
-  0.15, // 13 left knee
-  0.15, // 14 right knee
-  0.10, // 15 left ankle
-  0.10, // 16 right ankle
+  0.12, // 0 mũi
+  0.10, // 1 mắt trái
+  0.10, // 2 mắt phải
+  0.08, // 3 tai trái
+  0.08, // 4 tai phải
+  0.18, // 5 vai trái
+  0.18, // 6 vai phải
+  0.14, // 7 khuỷu tay trái
+  0.14, // 8 khuỷu tay phải
+  0.10, // 9 cổ tay trái (trễ nhất)
+  0.10, // 10 cổ tay phải
+  0.20, // 11 hông trái (neo, theo nhanh)
+  0.20, // 12 hông phải
+  0.15, // 13 đầu gối trái
+  0.15, // 14 đầu gối phải
+  0.10, // 15 mắt cá trái
+  0.10, // 16 mắt cá phải
 ];
 
-// Overshoot factors — extremities overshoot more for organic feel
+// Hệ số vượt quá — tứ chi vượt quá nhiều hơn cho cảm giác hữu cơ
 const OVERSHOOT = [
-  0.02, // 0 nose
-  0.01, // 1 left eye
-  0.01, // 2 right eye
-  0.01, // 3 left ear
-  0.01, // 4 right ear
-  0.03, // 5 left shoulder
-  0.03, // 6 right shoulder
-  0.05, // 7 left elbow
-  0.05, // 8 right elbow
-  0.08, // 9 left wrist
-  0.08, // 10 right wrist
-  0.02, // 11 left hip
-  0.02, // 12 right hip
-  0.04, // 13 left knee
-  0.04, // 14 right knee
-  0.06, // 15 left ankle
-  0.06, // 16 right ankle
+  0.02, // 0 mũi
+  0.01, // 1 mắt trái
+  0.01, // 2 mắt phải
+  0.01, // 3 tai trái
+  0.01, // 4 tai phải
+  0.03, // 5 vai trái
+  0.03, // 6 vai phải
+  0.05, // 7 khuỷu tay trái
+  0.05, // 8 khuỷu tay phải
+  0.08, // 9 cổ tay trái
+  0.08, // 10 cổ tay phải
+  0.02, // 11 hông trái
+  0.02, // 12 hông phải
+  0.04, // 13 đầu gối trái
+  0.04, // 14 đầu gối phải
+  0.06, // 15 mắt cá trái
+  0.06, // 16 mắt cá phải
 ];
 
 const MAX_FIGURES = 4;
 
-// Reusable vectors to avoid per-frame allocation
+// Vector tái sử dụng tránh cấp phát mỗi khung hình
 const _vecFrom = new THREE.Vector3();
 const _vecTo = new THREE.Vector3();
 const _vecTarget = new THREE.Vector3();
 
 export class FigurePool {
   /**
-   * @param {THREE.Scene} scene - The Three.js scene to add figures to
-   * @param {object} settings - Shared settings object (boneThick, jointSize, glow, etc.)
-   * @param {object} poseSystem - PoseSystem instance with generateKeypoints(person, elapsed, breathPulse)
+   * @param {THREE.Scene} scene - Cảnh Three.js để thêm hình vào
+   * @param {object} settings - Đối tượng cài đặt dùng chung (boneThick, jointSize, glow, v.v.)
+   * @param {object} poseSystem - Thực thể PoseSystem với generateKeypoints(person, elapsed, breathPulse)
    */
   constructor(scene, settings, poseSystem) {
     this._scene = scene;
@@ -128,7 +128,7 @@ export class FigurePool {
     this._build();
   }
 
-  /** @returns {Array} The array of figure objects */
+  /** @returns {Array} Mảng các đối tượng hình */
   get figures() { return this._figures; }
 
   // ---- Construction ----

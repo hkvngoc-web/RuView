@@ -125,7 +125,7 @@ export class ConvergenceEngine {
     const persons = data?.persons || [];
     const estPersons = data?.estimated_persons || 0;
 
-    // --- Update RSSI waveform ---
+    // --- Cập nhật dạng sóng RSSI ---
     const rssi = features.mean_rssi || -50;
     this._rssiHistory[this._rssiHead] = rssi;
     this._rssiHead = (this._rssiHead + 1) % WAVEFORM_POINTS;
@@ -133,17 +133,17 @@ export class ConvergenceEngine {
     for (let i = 0; i < WAVEFORM_POINTS; i++) {
       const histIdx = (this._rssiHead + i) % WAVEFORM_POINTS;
       const val = this._rssiHistory[histIdx];
-      // Normalize RSSI (-80 to -20 range) to -1.5 to 1.5
+      // Chuẩn hoá RSSI (phạm vi -80 đến -20) sang -1.5 đến 1.5
       this._wavePositions[i * 3 + 1] = ((val + 50) / 30) * 1.5;
     }
     this._waveform.geometry.attributes.position.needsUpdate = true;
 
-    // Copy to glow
+    // Sao chép sang phát sáng
     const glowPos = this._waveGlow.geometry.attributes.position;
     glowPos.array.set(this._wavePositions);
     glowPos.needsUpdate = true;
 
-    // --- Person orbs ---
+    // --- Cầu người ---
     for (let i = 0; i < this._personOrbs.length; i++) {
       const { mesh, light, mat } = this._personOrbs[i];
       if (i < estPersons) {
@@ -158,7 +158,7 @@ export class ConvergenceEngine {
       }
     }
 
-    // --- Classification text ---
+    // --- Văn bản phân loại ---
     const motionLevel = classification.motion_level || 'absent';
     const label = motionLevel.toUpperCase().replace('_', ' ');
     if (label !== this._lastClassification) {
@@ -176,7 +176,7 @@ export class ConvergenceEngine {
       this._classTex.needsUpdate = true;
     }
 
-    // --- Fall alert ---
+    // --- Cảnh báo ngã ---
     const fallDetected = classification.fall_detected || false;
     if (fallDetected) {
       this._alertMat.opacity = 0.3 + Math.abs(Math.sin(elapsed * 6)) * 0.5;
@@ -186,7 +186,7 @@ export class ConvergenceEngine {
       this._alertMat.opacity = 0;
     }
 
-    // --- Metric bars ---
+    // --- Thanh chỉ số ---
     const confidence = classification.confidence || 0;
     const variance = Math.min(1, (features.variance || 0) / 5);
     const spectral = Math.min(1, (features.spectral_power || 0) / 0.5);

@@ -1,40 +1,40 @@
-//! RuvSense -- Sensing-First RF Mode for Multistatic WiFi DensePose (ADR-029)
+//! RuvSense -- Chế Độ RF Ưu Tiên Cảm Biến cho WiFi DensePose Đa Tĩnh (ADR-029)
 //!
-//! This bounded context implements the multistatic sensing pipeline that fuses
-//! CSI from multiple ESP32 nodes across multiple WiFi channels into a single
-//! coherent sensing frame per 50 ms TDMA cycle (20 Hz output).
+//! Bounded context này triển khai pipeline cảm biến đa tĩnh kết hợp
+//! CSI từ nhiều node ESP32 trên nhiều kênh WiFi thành một khung
+//! cảm biến nhất quán mỗi chu kỳ TDMA 50 ms (đầu ra 20 Hz).
 //!
-//! # Architecture
+//! # Kiến Trúc
 //!
-//! The pipeline flows through six stages:
+//! Pipeline chạy qua sáu giai đoạn:
 //!
-//! 1. **Multi-Band Fusion** (`multiband`) -- Aggregate per-channel CSI frames
-//!    from channel-hopping into a wideband virtual snapshot per node.
-//! 2. **Phase Alignment** (`phase_align`) -- Correct LO-induced phase rotation
-//!    between channels using `ruvector-solver::NeumannSolver`.
-//! 3. **Multistatic Fusion** (`multistatic`) -- Fuse N node observations into
-//!    a single `FusedSensingFrame` with attention-based cross-node weighting
-//!    via `ruvector-attn-mincut`.
-//! 4. **Coherence Scoring** (`coherence`) -- Compute per-subcarrier z-score
-//!    coherence against a rolling reference template.
-//! 5. **Coherence Gating** (`coherence_gate`) -- Apply threshold-based gate
-//!    decision: Accept / PredictOnly / Reject / Recalibrate.
-//! 6. **Pose Tracking** (`pose_tracker`) -- 17-keypoint Kalman tracker with
-//!    lifecycle state machine and AETHER re-ID embedding support.
+//! 1. **Kết Hợp Đa Băng** (`multiband`) -- Tổng hợp các khung CSI theo kênh
+//!    từ nhảy kênh thành ảnh chụp ảo băng rộng cho mỗi node.
+//! 2. **Căn Chỉnh Pha** (`phase_align`) -- Sửa xoay pha do LO gây ra
+//!    giữa các kênh sử dụng `ruvector-solver::NeumannSolver`.
+//! 3. **Kết Hợp Đa Tĩnh** (`multistatic`) -- Kết hợp N quan sát node thành
+//!    một `FusedSensingFrame` duy nhất với trọng số chú ý chéo node
+//!    qua `ruvector-attn-mincut`.
+//! 4. **Chấm Điểm Tương Hợp** (`coherence`) -- Tính điểm tương hợp z-score
+//!    theo sóng mang con so với mẫu tham chiếu cuốn.
+//! 5. **Cổng Tương Hợp** (`coherence_gate`) -- Áp dụng quyết định cổng
+//!    dựa trên ngưỡng: Chấp Nhận / Chỉ Dự Đoán / Từ Chối / Hiệu Chuẩn Lại.
+//! 6. **Theo Dõi Tư Thế** (`pose_tracker`) -- Bộ theo dõi Kalman 17 điểm khớp với
+//!    máy trạng thái vòng đời và hỗ trợ nhúng tái nhận dạng AETHER.
 //!
-//! # RuVector Crate Usage
+//! # Sử Dụng Crate RuVector
 //!
-//! - `ruvector-solver` -- Phase alignment, coherence decomposition
-//! - `ruvector-attn-mincut` -- Cross-node spectrogram fusion
-//! - `ruvector-mincut` -- Person separation and track assignment
-//! - `ruvector-attention` -- Cross-channel feature weighting
+//! - `ruvector-solver` -- Căn chỉnh pha, phân tách tương hợp
+//! - `ruvector-attn-mincut` -- Kết hợp phổ chéo node
+//! - `ruvector-mincut` -- Tách người và gán theo dõi
+//! - `ruvector-attention` -- Trọng số đặc trưng chéo kênh
 //!
-//! # References
+//! # Tham Khảo
 //!
-//! - ADR-029: Project RuvSense
-//! - IEEE 802.11bf-2024 WLAN Sensing
+//! - ADR-029: Dự Án RuvSense
+//! - IEEE 802.11bf-2024 Cảm Biến WLAN
 
-// ADR-030: Exotic sensing tiers
+// ADR-030: Các tầng cảm biến nâng cao
 pub mod adversarial;
 pub mod cross_room;
 pub mod field_model;
@@ -43,11 +43,11 @@ pub mod intention;
 pub mod longitudinal;
 pub mod tomography;
 
-// ADR-032a: Midstreamer-enhanced sensing
+// ADR-032a: Cảm biến nâng cao Midstreamer
 pub mod temporal_gesture;
 pub mod attractor_drift;
 
-// ADR-029: Core multistatic pipeline
+// ADR-029: Pipeline đa tĩnh cốt lõi
 pub mod coherence;
 pub mod coherence_gate;
 pub mod multiband;
@@ -55,7 +55,7 @@ pub mod multistatic;
 pub mod phase_align;
 pub mod pose_tracker;
 
-// Re-export core types for ergonomic access
+// Tái xuất các kiểu cốt lõi để truy cập thuận tiện
 pub use coherence::CoherenceState;
 pub use coherence_gate::{GateDecision, GatePolicy};
 pub use multiband::MultiBandCsiFrame;
@@ -63,10 +63,10 @@ pub use multistatic::FusedSensingFrame;
 pub use phase_align::{PhaseAligner, PhaseAlignError};
 pub use pose_tracker::{KeypointState, PoseTrack, TrackLifecycleState};
 
-/// Number of keypoints in a full-body pose skeleton (COCO-17).
+/// Số điểm khớp trong khung xương tư thế toàn thân (COCO-17).
 pub const NUM_KEYPOINTS: usize = 17;
 
-/// Keypoint indices following the COCO-17 convention.
+/// Chỉ số điểm khớp theo quy ước COCO-17.
 pub mod keypoint {
     pub const NOSE: usize = 0;
     pub const LEFT_EYE: usize = 1;
@@ -86,7 +86,7 @@ pub mod keypoint {
     pub const LEFT_ANKLE: usize = 15;
     pub const RIGHT_ANKLE: usize = 16;
 
-    /// Torso keypoint indices (shoulders, hips, spine midpoint proxy).
+    /// Chỉ số điểm khớp thân (vai, hông, proxy điểm giữa cột sống).
     pub const TORSO_INDICES: &[usize] = &[
         LEFT_SHOULDER,
         RIGHT_SHOULDER,
@@ -95,12 +95,12 @@ pub mod keypoint {
     ];
 }
 
-/// Unique identifier for a pose track.
+/// Định danh duy nhất cho một theo dõi tư thế.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TrackId(pub u64);
 
 impl TrackId {
-    /// Create a new track identifier.
+    /// Tạo định danh theo dõi mới.
     pub fn new(id: u64) -> Self {
         Self(id)
     }
@@ -112,49 +112,49 @@ impl std::fmt::Display for TrackId {
     }
 }
 
-/// Error type shared across the RuvSense pipeline.
+/// Kiểu lỗi dùng chung trong pipeline RuvSense.
 #[derive(Debug, thiserror::Error)]
 pub enum RuvSenseError {
-    /// Phase alignment failed.
-    #[error("Phase alignment error: {0}")]
+    /// Căn chỉnh pha thất bại.
+    #[error("Lỗi căn chỉnh pha: {0}")]
     PhaseAlign(#[from] phase_align::PhaseAlignError),
 
-    /// Multi-band fusion error.
-    #[error("Multi-band fusion error: {0}")]
+    /// Lỗi kết hợp đa băng.
+    #[error("Lỗi kết hợp đa băng: {0}")]
     MultiBand(#[from] multiband::MultiBandError),
 
-    /// Multistatic fusion error.
-    #[error("Multistatic fusion error: {0}")]
+    /// Lỗi kết hợp đa tĩnh.
+    #[error("Lỗi kết hợp đa tĩnh: {0}")]
     Multistatic(#[from] multistatic::MultistaticError),
 
-    /// Coherence computation error.
-    #[error("Coherence error: {0}")]
+    /// Lỗi tính toán tương hợp.
+    #[error("Lỗi tương hợp: {0}")]
     Coherence(#[from] coherence::CoherenceError),
 
-    /// Pose tracker error.
-    #[error("Pose tracker error: {0}")]
+    /// Lỗi bộ theo dõi tư thế.
+    #[error("Lỗi bộ theo dõi tư thế: {0}")]
     PoseTracker(#[from] pose_tracker::PoseTrackerError),
 }
 
-/// Common result type for RuvSense operations.
+/// Kiểu kết quả dùng chung cho các thao tác RuvSense.
 pub type Result<T> = std::result::Result<T, RuvSenseError>;
 
-/// Configuration for the RuvSense pipeline.
+/// Cấu hình cho pipeline RuvSense.
 #[derive(Debug, Clone)]
 pub struct RuvSenseConfig {
-    /// Maximum number of nodes in the multistatic mesh.
+    /// Số node tối đa trong lưới đa tĩnh.
     pub max_nodes: usize,
-    /// Target output rate in Hz.
+    /// Tốc độ đầu ra mục tiêu tính bằng Hz.
     pub target_hz: f64,
-    /// Number of channels in the hop sequence.
+    /// Số kênh trong chuỗi nhảy.
     pub num_channels: usize,
-    /// Coherence accept threshold (default 0.85).
+    /// Ngưỡng chấp nhận tương hợp (mặc định 0.85).
     pub coherence_accept: f32,
-    /// Coherence drift threshold (default 0.5).
+    /// Ngưỡng trôi tương hợp (mặc định 0.5).
     pub coherence_drift: f32,
-    /// Maximum stale frames before recalibration (default 200 = 10s at 20Hz).
+    /// Số khung cũ tối đa trước khi hiệu chuẩn lại (mặc định 200 = 10s ở 20Hz).
     pub max_stale_frames: u64,
-    /// Embedding dimension for AETHER re-ID (default 128).
+    /// Chiều nhúng cho tái nhận dạng AETHER (mặc định 128).
     pub embedding_dim: usize,
 }
 
@@ -172,11 +172,11 @@ impl Default for RuvSenseConfig {
     }
 }
 
-/// Top-level pipeline orchestrator for RuvSense multistatic sensing.
+/// Bộ điều phối pipeline cấp cao cho cảm biến đa tĩnh RuvSense.
 ///
-/// Coordinates the flow from raw per-node CSI frames through multi-band
-/// fusion, phase alignment, multistatic fusion, coherence gating, and
-/// finally into the pose tracker.
+/// Điều phối luồng từ khung CSI thô mỗi node qua kết hợp
+/// đa băng, căn chỉnh pha, kết hợp đa tĩnh, cổng tương hợp, và
+/// cuối cùng vào bộ theo dõi tư thế.
 pub struct RuvSensePipeline {
     config: RuvSenseConfig,
     phase_aligner: PhaseAligner,
@@ -186,14 +186,14 @@ pub struct RuvSensePipeline {
 }
 
 impl RuvSensePipeline {
-    /// Create a new pipeline with default configuration.
+    /// Tạo pipeline mới với cấu hình mặc định.
     pub fn new() -> Self {
         Self::with_config(RuvSenseConfig::default())
     }
 
-    /// Create a new pipeline with the given configuration.
+    /// Tạo pipeline mới với cấu hình cho trước.
     pub fn with_config(config: RuvSenseConfig) -> Self {
-        let n_sub = 56; // canonical subcarrier count
+        let n_sub = 56; // số sóng mang con chuẩn
         Self {
             phase_aligner: PhaseAligner::new(config.num_channels),
             coherence_state: CoherenceState::new(n_sub, config.coherence_accept),
@@ -207,22 +207,22 @@ impl RuvSensePipeline {
         }
     }
 
-    /// Return a reference to the current pipeline configuration.
+    /// Trả về tham chiếu đến cấu hình pipeline hiện tại.
     pub fn config(&self) -> &RuvSenseConfig {
         &self.config
     }
 
-    /// Return the total number of frames processed.
+    /// Trả về tổng số khung đã xử lý.
     pub fn frame_count(&self) -> u64 {
         self.frame_counter
     }
 
-    /// Return a reference to the current coherence state.
+    /// Trả về tham chiếu đến trạng thái tương hợp hiện tại.
     pub fn coherence_state(&self) -> &CoherenceState {
         &self.coherence_state
     }
 
-    /// Advance the frame counter (called once per sensing cycle).
+    /// Tăng bộ đếm khung (gọi một lần mỗi chu kỳ cảm biến).
     pub fn tick(&mut self) {
         self.frame_counter += 1;
     }
@@ -312,7 +312,7 @@ mod tests {
     fn error_display() {
         let err = RuvSenseError::Coherence(coherence::CoherenceError::EmptyInput);
         let msg = format!("{}", err);
-        assert!(msg.contains("Coherence"));
+        assert!(msg.contains("tương hợp"));
     }
 
     #[test]
