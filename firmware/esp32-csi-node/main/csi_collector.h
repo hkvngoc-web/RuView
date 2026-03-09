@@ -1,6 +1,6 @@
 /**
  * @file csi_collector.h
- * @brief CSI data collection and ADR-018 binary frame serialization.
+ * @brief Thu thập dữ liệu CSI và tuần tự hóa khung nhị phân ADR-018.
  */
 
 #ifndef CSI_COLLECTOR_H
@@ -11,26 +11,26 @@
 #include "esp_err.h"
 #include "esp_wifi_types.h"
 
-/** ADR-018 magic number. */
+/** Số ma thuật ADR-018. */
 #define CSI_MAGIC 0xC5110001
 
-/** ADR-018 header size in bytes. */
+/** Kích thước header ADR-018 tính bằng byte. */
 #define CSI_HEADER_SIZE 20
 
-/** Maximum frame buffer size (header + 4 antennas * 256 subcarriers * 2 bytes). */
+/** Kích thước bộ đệm khung tối đa (header + 4 antennas * 256 subcarriers * 2 bytes). */
 #define CSI_MAX_FRAME_SIZE (CSI_HEADER_SIZE + 4 * 256 * 2)
 
-/** Maximum number of channels in the hop table (ADR-029). */
+/** Số kênh tối đa trong bảng nhảy (ADR-029). */
 #define CSI_HOP_CHANNELS_MAX 6
 
 /**
- * Initialize CSI collection.
- * Registers the WiFi CSI callback.
+ * Khởi tạo thu thập CSI.
+ * Đăng ký callback WiFi CSI.
  */
 void csi_collector_init(void);
 
 /**
- * Serialize CSI data into ADR-018 binary frame format.
+ * Tuần tự hóa dữ liệu CSI theo định dạng khung nhị phân ADR-018.
  *
  * @param info   WiFi CSI info from the ESP-IDF callback.
  * @param buf    Output buffer (must be at least CSI_MAX_FRAME_SIZE bytes).
@@ -40,7 +40,7 @@ void csi_collector_init(void);
 size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf_len);
 
 /**
- * Configure the channel-hop table for multi-band sensing (ADR-029).
+ * Cấu hình bảng nhảy kênh cho cảm biến đa băng (ADR-029).
  *
  * When hop_count == 1 the collector stays on the single configured channel
  * (backward-compatible with the original single-channel mode).
@@ -52,7 +52,7 @@ size_t csi_serialize_frame(const wifi_csi_info_t *info, uint8_t *buf, size_t buf
 void csi_collector_set_hop_table(const uint8_t *channels, uint8_t hop_count, uint32_t dwell_ms);
 
 /**
- * Advance to the next channel in the hop table.
+ * Chuyển sang kênh tiếp theo trong bảng nhảy.
  *
  * Called by the hop timer callback. If hop_count <= 1 this is a no-op.
  * Calls esp_wifi_set_channel() internally.
@@ -60,7 +60,7 @@ void csi_collector_set_hop_table(const uint8_t *channels, uint8_t hop_count, uin
 void csi_hop_next_channel(void);
 
 /**
- * Start the channel-hop timer.
+ * Khởi động bộ đếm nhảy kênh.
  *
  * Creates an esp_timer periodic callback that fires every dwell_ms
  * milliseconds, calling csi_hop_next_channel(). If hop_count <= 1
@@ -69,7 +69,7 @@ void csi_hop_next_channel(void);
 void csi_collector_start_hop_timer(void);
 
 /**
- * Inject an NDP (Null Data Packet) frame for sensing.
+ * Phát khung NDP (Gói dữ liệu rỗng) cho cảm biến.
  *
  * Uses esp_wifi_80211_tx() to send a preamble-only frame (~24 us airtime)
  * that triggers CSI measurement at all receivers. This is the "sensing-first"

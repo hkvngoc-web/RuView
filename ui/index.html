@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi DensePose: Human Tracking Through Walls</title>
+    <title>WiFi DensePose: Theo Dõi Con Người Xuyên Tường</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
         <!-- Header -->
         <header class="header">
             <h1>WiFi DensePose</h1>
-            <p class="subtitle">Human Tracking Through Walls Using WiFi Signals</p>
+            <p class="subtitle">Theo Dõi Con Người Xuyên Tường Bằng Tín Hiệu WiFi</p>
             <div class="header-info">
                 <span class="api-version"></span>
                 <span class="api-environment"></span>
@@ -19,84 +19,84 @@
             </div>
         </header>
 
-        <!-- Navigation -->
+        <!-- Điều hướng -->
         <nav class="nav-tabs">
-            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="hardware">Hardware</button>
-            <button class="nav-tab" data-tab="demo">Live Demo</button>
-            <button class="nav-tab" data-tab="architecture">Architecture</button>
-            <button class="nav-tab" data-tab="performance">Performance</button>
-            <button class="nav-tab" data-tab="applications">Applications</button>
-            <button class="nav-tab" data-tab="sensing">Sensing</button>
-            <button class="nav-tab" data-tab="training">Training</button>
-            <a href="observatory.html" class="nav-tab" style="text-decoration:none">Observatory</a>
+            <button class="nav-tab active" data-tab="dashboard">Bảng Điều Khiển</button>
+            <button class="nav-tab" data-tab="hardware">Phần Cứng</button>
+            <button class="nav-tab" data-tab="demo">Demo Trực Tiếp</button>
+            <button class="nav-tab" data-tab="architecture">Kiến Trúc</button>
+            <button class="nav-tab" data-tab="performance">Hiệu Năng</button>
+            <button class="nav-tab" data-tab="applications">Ứng Dụng</button>
+            <button class="nav-tab" data-tab="sensing">Cảm Biến</button>
+            <button class="nav-tab" data-tab="training">Huấn Luyện</button>
+            <a href="observatory.html" class="nav-tab" style="text-decoration:none">Đài Quan Sát</a>
         </nav>
 
-        <!-- Dashboard Tab -->
+        <!-- Tab Bảng Điều Khiển -->
         <section id="dashboard" class="tab-content active">
             <div class="hero-section">
-                <h2>Revolutionary WiFi-Based Human Pose Detection</h2>
+                <h2>Phát Hiện Tư Thế Con Người Bằng WiFi — Đột Phá Công Nghệ</h2>
                 <p class="hero-description">
-                    AI can track your full-body movement through walls using just WiFi signals. 
-                    Researchers at Carnegie Mellon have trained a neural network to turn basic WiFi 
-                    signals into detailed wireframe models of human bodies.
+                    AI có thể theo dõi toàn bộ chuyển động cơ thể bạn xuyên tường chỉ bằng tín hiệu WiFi.
+                    Các nhà nghiên cứu tại Carnegie Mellon đã huấn luyện mạng nơ-ron để chuyển đổi tín hiệu
+                    WiFi cơ bản thành mô hình khung xương chi tiết của cơ thể người.
                 </p>
                 
                 <!-- Error container -->
                 <div class="error-container" style="display: none;"></div>
 
-                <!-- Live Status Panel -->
+                <!-- Bảng Trạng Thái Trực Tiếp -->
                 <div class="live-status-panel">
-                    <h3>System Status</h3>
+                    <h3>Trạng Thái Hệ Thống</h3>
                     <div class="status-grid">
                         <div class="component-status" data-component="api">
-                            <span class="component-name">API Server</span>
+                            <span class="component-name">Máy Chủ API</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="hardware">
-                            <span class="component-name">Hardware</span>
+                            <span class="component-name">Phần Cứng</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="inference">
-                            <span class="component-name">Inference</span>
+                            <span class="component-name">Suy Luận</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="streaming">
-                            <span class="component-name">Streaming</span>
+                            <span class="component-name">Truyền Phát</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="datasource" id="dashboard-datasource">
-                            <span class="component-name">Data Source</span>
+                            <span class="component-name">Nguồn Dữ Liệu</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                     </div>
                 </div>
 
-                <!-- System Metrics -->
+                <!-- Chỉ Số Hệ Thống -->
                 <div class="system-metrics-panel">
-                    <h3>System Metrics</h3>
+                    <h3>Chỉ Số Hệ Thống</h3>
                     <div class="metrics-grid">
                         <div class="metric-item">
-                            <span class="metric-label">CPU Usage</span>
+                            <span class="metric-label">Sử Dụng CPU</span>
                             <div class="progress-bar" data-type="cpu">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
                             <span class="cpu-usage">0%</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Memory Usage</span>
+                            <span class="metric-label">Sử Dụng Bộ Nhớ</span>
                             <div class="progress-bar" data-type="memory">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
                             <span class="memory-usage">0%</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Disk Usage</span>
+                            <span class="metric-label">Sử Dụng Ổ Đĩa</span>
                             <div class="progress-bar" data-type="disk">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
@@ -105,32 +105,32 @@
                     </div>
                 </div>
 
-                <!-- Features Status -->
+                <!-- Trạng Thái Tính Năng -->
                 <div class="features-panel">
-                    <h3>Features</h3>
+                    <h3>Tính Năng</h3>
                     <div class="features-status"></div>
                 </div>
 
-                <!-- Live Statistics -->
+                <!-- Thống Kê Trực Tiếp -->
                 <div class="live-stats-panel">
-                    <h3>Live Statistics</h3>
+                    <h3>Thống Kê Trực Tiếp</h3>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Active Persons</span>
+                            <span class="stat-label">Số Người Hoạt Động</span>
                             <span class="person-count">0</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Avg Confidence</span>
+                            <span class="stat-label">Độ Tin Cậy TB</span>
                             <span class="avg-confidence">0%</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Total Detections</span>
+                            <span class="stat-label">Tổng Phát Hiện</span>
                             <span class="detection-count">0</span>
                         </div>
                     </div>
                     
                     <div class="zones-panel">
-                        <h4>Zone Occupancy</h4>
+                        <h4>Phân Bố Theo Vùng</h4>
                         <div class="zones-summary"></div>
                     </div>
                 </div>
@@ -138,55 +138,55 @@
                 <div class="key-benefits">
                     <div class="benefit-card">
                         <div class="benefit-icon">🏠</div>
-                        <h3>Through Walls</h3>
-                        <p>Works through solid barriers with no line of sight required</p>
+                        <h3>Xuyên Tường</h3>
+                        <p>Hoạt động xuyên qua vật cản rắn mà không cần tầm nhìn trực tiếp</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">🔒</div>
-                        <h3>Privacy-Preserving</h3>
-                        <p>No cameras or visual recording - just WiFi signal analysis</p>
+                        <h3>Bảo Vệ Quyền Riêng Tư</h3>
+                        <p>Không dùng camera hay ghi hình — chỉ phân tích tín hiệu WiFi</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">⚡</div>
-                        <h3>Real-Time</h3>
-                        <p>Maps 24 body regions in real-time at 100Hz sampling rate</p>
+                        <h3>Thời Gian Thực</h3>
+                        <p>Ánh xạ 24 vùng cơ thể theo thời gian thực ở tốc độ lấy mẫu 100Hz</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">💰</div>
-                        <h3>Low Cost</h3>
-                        <p>Built using $30 commercial WiFi hardware</p>
+                        <h3>Chi Phí Thấp</h3>
+                        <p>Xây dựng từ phần cứng WiFi thương mại chỉ $30</p>
                     </div>
                 </div>
 
                 <div class="system-stats">
                     <div class="stat" data-stat="body-regions">
                         <span class="stat-value">24</span>
-                        <span class="stat-label">Body Regions</span>
+                        <span class="stat-label">Vùng Cơ Thể</span>
                     </div>
                     <div class="stat" data-stat="sampling-rate">
                         <span class="stat-value">100Hz</span>
-                        <span class="stat-label">Sampling Rate</span>
+                        <span class="stat-label">Tốc Độ Lấy Mẫu</span>
                     </div>
                     <div class="stat" data-stat="accuracy">
                         <span class="stat-value">87.2%</span>
-                        <span class="stat-label">Accuracy (AP@50)</span>
+                        <span class="stat-label">Độ Chính Xác (AP@50)</span>
                     </div>
                     <div class="stat" data-stat="hardware-cost">
                         <span class="stat-value">$30</span>
-                        <span class="stat-label">Hardware Cost</span>
+                        <span class="stat-label">Chi Phí Phần Cứng</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Hardware Tab -->
+        <!-- Tab Phần Cứng -->
         <section id="hardware" class="tab-content">
-            <h2>Hardware Configuration</h2>
-            
+            <h2>Cấu Hình Phần Cứng</h2>
+
             <div class="hardware-grid">
                 <div class="antenna-section">
-                    <h3>3×3 Antenna Array</h3>
-                    <p class="help-text">Click antennas to toggle their state</p>
+                    <h3>Mảng Ăng-ten 3×3</h3>
+                    <p class="help-text">Nhấn vào ăng-ten để bật/tắt trạng thái</p>
                     <div class="antenna-array">
                         <div class="antenna-grid">
                             <div class="antenna tx active" data-type="TX1"></div>
@@ -202,11 +202,11 @@
                         <div class="antenna-legend">
                             <div class="legend-item">
                                 <div class="legend-color tx"></div>
-                                <span>Transmitters (3)</span>
+                                <span>Bộ phát (3)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color rx"></div>
-                                <span>Receivers (6)</span>
+                                <span>Bộ thu (6)</span>
                             </div>
                         </div>
                         <div class="array-status"></div>
@@ -214,38 +214,38 @@
                 </div>
 
                 <div class="config-section">
-                    <h3>WiFi Configuration</h3>
+                    <h3>Cấu Hình WiFi</h3>
                     <div class="config-grid">
                         <div class="config-item">
-                            <label>Frequency</label>
+                            <label>Tần Số</label>
                             <div class="config-value">2.4GHz ± 20MHz</div>
                         </div>
                         <div class="config-item">
-                            <label>Subcarriers</label>
+                            <label>Sóng Mang Con</label>
                             <div class="config-value">30</div>
                         </div>
                         <div class="config-item">
-                            <label>Sampling Rate</label>
+                            <label>Tốc Độ Lấy Mẫu</label>
                             <div class="config-value">100 Hz</div>
                         </div>
                         <div class="config-item">
-                            <label>Total Cost</label>
+                            <label>Tổng Chi Phí</label>
                             <div class="config-value">$30</div>
                         </div>
                     </div>
 
                     <div class="csi-data">
-                        <h4>Real-time CSI Data</h4>
+                        <h4>Dữ Liệu CSI Thời Gian Thực</h4>
                         <div class="csi-display">
                             <div class="csi-row">
-                                <span>Amplitude:</span>
+                                <span>Biên Độ:</span>
                                 <div class="csi-bar">
                                     <div class="csi-fill amplitude" style="width: 75%"></div>
                                 </div>
                                 <span class="csi-value">0.75</span>
                             </div>
                             <div class="csi-row">
-                                <span>Phase:</span>
+                                <span>Pha:</span>
                                 <div class="csi-bar">
                                     <div class="csi-fill phase" style="width: 60%"></div>
                                 </div>
@@ -257,44 +257,44 @@
             </div>
         </section>
 
-        <!-- Demo Tab -->
+        <!-- Tab Demo -->
         <section id="demo" class="tab-content">
-            <h2>Live Demonstration</h2>
-            
+            <h2>Trình Diễn Trực Tiếp</h2>
+
             <div class="demo-controls">
-                <button id="startDemo" class="btn btn--primary">Start Stream</button>
-                <button id="stopDemo" class="btn btn--secondary" disabled>Stop Stream</button>
+                <button id="startDemo" class="btn btn--primary">Bắt Đầu Luồng</button>
+                <button id="stopDemo" class="btn btn--secondary" disabled>Dừng Luồng</button>
                 <div class="demo-status">
-                    <span class="status status--info" id="demoStatus">Ready</span>
+                    <span class="status status--info" id="demoStatus">Sẵn Sàng</span>
                 </div>
             </div>
 
             <div class="demo-grid">
                 <div class="signal-panel">
-                    <h3>WiFi Signal Analysis</h3>
+                    <h3>Phân Tích Tín Hiệu WiFi</h3>
                     <div class="signal-display">
                         <canvas id="signalCanvas" width="400" height="200"></canvas>
                     </div>
                     <div class="signal-metrics">
                         <div class="metric">
-                            <span>Signal Strength:</span>
+                            <span>Cường Độ Tín Hiệu:</span>
                             <span id="signalStrength">-45 dBm</span>
                         </div>
                         <div class="metric">
-                            <span>Processing Latency:</span>
+                            <span>Độ Trễ Xử Lý:</span>
                             <span id="latency">12 ms</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="pose-panel">
-                    <h3>Human Pose Detection</h3>
+                    <h3>Phát Hiện Tư Thế Con Người</h3>
                     <div class="pose-display">
                         <canvas id="poseCanvas" width="400" height="300"></canvas>
                     </div>
                     <div class="detection-info">
                         <div class="info-item">
-                            <span>Persons Detected:</span>
+                            <span>Số Người Phát Hiện:</span>
                             <span id="personCount">0</span>
                         </div>
                         <div class="info-item">

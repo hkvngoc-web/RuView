@@ -1,10 +1,10 @@
 /**
  * @file main.c
- * @brief ESP32-S3 CSI Node — ADR-018 compliant firmware.
+ * @brief Nút cảm biến ESP32-S3 CSI — phần mềm tuân thủ ADR-018.
  *
- * Initializes NVS, WiFi STA mode, CSI collection, and UDP streaming.
- * CSI frames are serialized in ADR-018 binary format and sent to the
- * aggregator over UDP.
+ * Khởi tạo NVS, chế độ WiFi STA, thu thập CSI, và truyền phát UDP.
+ * Các khung CSI được tuần tự hóa theo định dạng nhị phân ADR-018 và gửi tới
+ * bộ tổng hợp qua UDP.
  */
 
 #include <string.h>
@@ -32,14 +32,14 @@
 
 static const char *TAG = "main";
 
-/* ADR-040: WASM timer handle (calls on_timer at configurable interval). */
+/* ADR-040: Handle bộ đếm WASM (gọi on_timer theo chu kỳ cấu hình). */
 static esp_timer_handle_t s_wasm_timer;
 
-/* Runtime configuration (loaded from NVS or Kconfig defaults).
- * Global so other modules (wasm_upload.c) can access pubkey, etc. */
+/* Cấu hình runtime (tải từ NVS hoặc mặc định Kconfig).
+ * Biến toàn cục để các module khác (wasm_upload.c) truy cập pubkey, v.v. */
 nvs_config_t g_nvs_config;
 
-/* Event group bits */
+/* Các bit nhóm sự kiện */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
@@ -56,13 +56,13 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         if (s_retry_num < MAX_RETRY) {
             esp_wifi_connect();
             s_retry_num++;
-            ESP_LOGI(TAG, "Retrying WiFi connection (%d/%d)", s_retry_num, MAX_RETRY);
+            ESP_LOGI(TAG, "Đang thử kết nối lại WiFi (%d/%d)", s_retry_num, MAX_RETRY);
         } else {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG, "Đã nhận IP: " IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
@@ -92,11 +92,11 @@ static void wifi_init_sta(void)
         },
     };
 
-    /* Copy runtime SSID/password from NVS config */
+    /* Sao chép SSID/mật khẩu runtime từ cấu hình NVS */
     strncpy((char *)wifi_config.sta.ssid, g_nvs_config.wifi_ssid, sizeof(wifi_config.sta.ssid) - 1);
     strncpy((char *)wifi_config.sta.password, g_nvs_config.wifi_password, sizeof(wifi_config.sta.password) - 1);
 
-    /* If password is empty, use open auth */
+    /* Nếu mật khẩu trống, dùng xác thực mở */
     if (strlen((char *)wifi_config.sta.password) == 0) {
         wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
     }
@@ -105,23 +105,23 @@ static void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "WiFi STA initialized, connecting to SSID: %s", g_nvs_config.wifi_ssid);
+    ESP_LOGI(TAG, "WiFi STA đã khởi tạo, đang kết nối tới SSID: %s", g_nvs_config.wifi_ssid);
 
-    /* Wait for connection */
+    /* Chờ kết nối */
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
         pdFALSE, pdFALSE, portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to WiFi");
+        ESP_LOGI(TAG, "Đã kết nối WiFi thành công");
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGE(TAG, "Failed to connect to WiFi after %d retries", MAX_RETRY);
+        ESP_LOGE(TAG, "Kết nối WiFi thất bại sau %d lần thử", MAX_RETRY);
     }
 }
 
 void app_main(void)
 {
-    /* Initialize NVS */
+    /* Khởi tạo NVS */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -129,24 +129,24 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    /* Load runtime config (NVS overrides Kconfig defaults) */
+    /* Tải cấu hình runtime (NVS ghi đè mặc định Kconfig) */
     nvs_config_load(&g_nvs_config);
 
-    ESP_LOGI(TAG, "ESP32-S3 CSI Node (ADR-018) — Node ID: %d", g_nvs_config.node_id);
+    ESP_LOGI(TAG, "Nút cảm biến ESP32-S3 CSI (ADR-018) — Mã nút: %d", g_nvs_config.node_id);
 
-    /* Initialize WiFi STA */
+    /* Khởi tạo WiFi STA */
     wifi_init_sta();
 
-    /* Initialize UDP sender with runtime target */
+    /* Khởi tạo bộ gửi UDP với đích runtime */
     if (stream_sender_init_with(g_nvs_config.target_ip, g_nvs_config.target_port) != 0) {
-        ESP_LOGE(TAG, "Failed to initialize UDP sender");
+        ESP_LOGE(TAG, "Khởi tạo bộ gửi UDP thất bại");
         return;
     }
 
-    /* Initialize CSI collection */
+    /* Khởi tạo thu thập CSI */
     csi_collector_init();
 
-    /* ADR-039: Initialize edge processing pipeline. */
+    /* ADR-039: Khởi tạo pipeline xử lý biên. */
     edge_config_t edge_cfg = {
         .tier              = g_nvs_config.edge_tier,
         .presence_thresh   = g_nvs_config.presence_thresh,
@@ -158,28 +158,28 @@ void app_main(void)
     };
     esp_err_t edge_ret = edge_processing_init(&edge_cfg);
     if (edge_ret != ESP_OK) {
-        ESP_LOGW(TAG, "Edge processing init failed: %s (continuing without edge DSP)",
+        ESP_LOGW(TAG, "Khởi tạo xử lý biên thất bại: %s (tiếp tục không có DSP biên)",
                  esp_err_to_name(edge_ret));
     }
 
-    /* Initialize OTA update HTTP server. */
+    /* Khởi tạo máy chủ cập nhật OTA qua HTTP. */
     httpd_handle_t ota_server = NULL;
     esp_err_t ota_ret = ota_update_init_ex(&ota_server);
     if (ota_ret != ESP_OK) {
-        ESP_LOGW(TAG, "OTA server init failed: %s", esp_err_to_name(ota_ret));
+        ESP_LOGW(TAG, "Khởi tạo máy chủ OTA thất bại: %s", esp_err_to_name(ota_ret));
     }
 
-    /* ADR-040: Initialize WASM programmable sensing runtime. */
+    /* ADR-040: Khởi tạo runtime cảm biến lập trình WASM. */
     esp_err_t wasm_ret = wasm_runtime_init();
     if (wasm_ret != ESP_OK) {
-        ESP_LOGW(TAG, "WASM runtime init failed: %s", esp_err_to_name(wasm_ret));
+        ESP_LOGW(TAG, "Khởi tạo runtime WASM thất bại: %s", esp_err_to_name(wasm_ret));
     } else {
-        /* Register WASM upload endpoints on the OTA HTTP server. */
+        /* Đăng ký endpoint tải lên WASM trên máy chủ HTTP OTA. */
         if (ota_server != NULL) {
             wasm_upload_register(ota_server);
         }
 
-        /* Start periodic timer for wasm_runtime_on_timer(). */
+        /* Khởi động bộ đếm định kỳ cho wasm_runtime_on_timer(). */
         esp_timer_create_args_t timer_args = {
             .callback = (void (*)(void *))wasm_runtime_on_timer,
             .arg = NULL,
@@ -194,29 +194,29 @@ void app_main(void)
             uint64_t interval_us = 1000000ULL;  /* Default: 1 second. */
 #endif
             esp_timer_start_periodic(s_wasm_timer, interval_us);
-            ESP_LOGI(TAG, "WASM on_timer() periodic: %llu ms",
+            ESP_LOGI(TAG, "WASM on_timer() định kỳ: %llu ms",
                      (unsigned long long)(interval_us / 1000));
         } else {
-            ESP_LOGW(TAG, "WASM timer create failed: %s", esp_err_to_name(timer_ret));
+            ESP_LOGW(TAG, "Tạo bộ đếm WASM thất bại: %s", esp_err_to_name(timer_ret));
         }
     }
 
-    /* Initialize power management. */
+    /* Khởi tạo quản lý nguồn. */
     power_mgmt_init(g_nvs_config.power_duty);
 
-    /* ADR-045: Start AMOLED display task (gracefully skips if no display). */
+    /* ADR-045: Khởi động tác vụ màn hình AMOLED (bỏ qua nếu không có màn hình). */
     esp_err_t disp_ret = display_task_start();
     if (disp_ret != ESP_OK) {
-        ESP_LOGW(TAG, "Display init returned: %s", esp_err_to_name(disp_ret));
+        ESP_LOGW(TAG, "Khởi tạo màn hình trả về: %s", esp_err_to_name(disp_ret));
     }
 
-    ESP_LOGI(TAG, "CSI streaming active → %s:%d (edge_tier=%u, OTA=%s, WASM=%s)",
+    ESP_LOGI(TAG, "Luồng CSI đang hoạt động → %s:%d (edge_tier=%u, OTA=%s, WASM=%s)",
              g_nvs_config.target_ip, g_nvs_config.target_port,
              g_nvs_config.edge_tier,
              (ota_ret == ESP_OK) ? "ready" : "off",
              (wasm_ret == ESP_OK) ? "ready" : "off");
 
-    /* Main loop — keep alive */
+    /* Vòng lặp chính — duy trì hoạt động */
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10000));
     }

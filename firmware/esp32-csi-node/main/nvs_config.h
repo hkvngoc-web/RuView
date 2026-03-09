@@ -1,11 +1,11 @@
 /**
  * @file nvs_config.h
- * @brief Runtime configuration via NVS (Non-Volatile Storage).
+ * @brief Cấu hình runtime qua NVS (Bộ nhớ không bay hơi).
  *
- * Reads WiFi credentials and aggregator target from NVS.
- * Falls back to compile-time Kconfig defaults if NVS keys are absent.
- * This allows a single firmware binary to be shipped and configured
- * per-device using the provisioning script.
+ * Đọc thông tin WiFi và đích bộ tổng hợp từ NVS.
+ * Quay về mặc định Kconfig khi biên dịch nếu không có khóa NVS.
+ * Cho phép giao một bản firmware duy nhất và cấu hình
+ * từng thiết bị bằng script cấp phát.
  */
 
 #ifndef NVS_CONFIG_H
@@ -13,15 +13,15 @@
 
 #include <stdint.h>
 
-/** Maximum lengths for NVS string fields. */
+/** Độ dài tối đa cho các trường chuỗi NVS. */
 #define NVS_CFG_SSID_MAX     33
 #define NVS_CFG_PASS_MAX     65
 #define NVS_CFG_IP_MAX       16
 
-/** Maximum channels in the hop list (must match CSI_HOP_CHANNELS_MAX). */
+/** Số kênh tối đa trong danh sách nhảy (must match CSI_HOP_CHANNELS_MAX). */
 #define NVS_CFG_HOP_MAX      6
 
-/** Runtime configuration loaded from NVS or Kconfig defaults. */
+/** Cấu hình runtime tải từ NVS hoặc mặc định Kconfig. */
 typedef struct {
     char     wifi_ssid[NVS_CFG_SSID_MAX];
     char     wifi_password[NVS_CFG_PASS_MAX];
@@ -53,9 +53,9 @@ typedef struct {
 } nvs_config_t;
 
 /**
- * Load configuration from NVS, falling back to Kconfig defaults.
+ * Tải cấu hình từ NVS, quay về mặc định Kconfig.
  *
- * Must be called after nvs_flash_init().
+ * Phải gọi sau nvs_flash_init().
  *
  * @param cfg  Output configuration struct.
  */

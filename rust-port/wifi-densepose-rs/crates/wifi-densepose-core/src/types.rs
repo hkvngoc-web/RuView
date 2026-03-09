@@ -1,15 +1,15 @@
-//! Core data types for the WiFi-DensePose system.
+//! Các kiểu dữ liệu cốt lõi cho hệ thống WiFi-DensePose.
 //!
-//! This module defines the fundamental data structures used throughout the
-//! WiFi-DensePose ecosystem for representing CSI data, processed signals,
-//! and pose estimation results.
+//! Module này định nghĩa các cấu trúc dữ liệu nền tảng được sử dụng xuyên suốt
+//! hệ sinh thái WiFi-DensePose để biểu diễn dữ liệu CSI, tín hiệu đã xử lý,
+//! và kết quả ước lượng tư thế.
 //!
-//! # Type Categories
+//! # Phân Loại Kiểu
 //!
-//! - **CSI Types**: [`CsiFrame`], [`CsiMetadata`], [`AntennaConfig`]
-//! - **Signal Types**: [`ProcessedSignal`], [`SignalFeatures`], [`FrequencyBand`]
-//! - **Pose Types**: [`PoseEstimate`], [`PersonPose`], [`Keypoint`], [`KeypointType`]
-//! - **Common Types**: [`Confidence`], [`Timestamp`], [`FrameId`], [`DeviceId`]
+//! - **Kiểu CSI**: [`CsiFrame`], [`CsiMetadata`], [`AntennaConfig`]
+//! - **Kiểu Tín Hiệu**: [`ProcessedSignal`], [`SignalFeatures`], [`FrequencyBand`]
+//! - **Kiểu Tư Thế**: [`PoseEstimate`], [`PersonPose`], [`Keypoint`], [`KeypointType`]
+//! - **Kiểu Dùng Chung**: [`Confidence`], [`Timestamp`], [`FrameId`], [`DeviceId`]
 
 use chrono::{DateTime, Utc};
 use ndarray::{Array1, Array2, Array3};
@@ -23,28 +23,28 @@ use crate::error::{CoreError, CoreResult};
 use crate::{DEFAULT_CONFIDENCE_THRESHOLD, MAX_KEYPOINTS};
 
 // =============================================================================
-// Common Types
+// Kiểu Dùng Chung
 // =============================================================================
 
-/// Unique identifier for a CSI frame.
+/// Định danh duy nhất cho một khung CSI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FrameId(Uuid);
 
 impl FrameId {
-    /// Creates a new unique frame ID.
+    /// Tạo một ID khung duy nhất mới.
     #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
-    /// Creates a frame ID from an existing UUID.
+    /// Tạo ID khung từ một UUID có sẵn.
     #[must_use]
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
-    /// Returns the inner UUID.
+    /// Trả về UUID bên trong.
     #[must_use]
     pub fn as_uuid(&self) -> &Uuid {
         &self.0
@@ -63,19 +63,19 @@ impl std::fmt::Display for FrameId {
     }
 }
 
-/// Unique identifier for a `WiFi` device.
+/// Định danh duy nhất cho một thiết bị `WiFi`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DeviceId(String);
 
 impl DeviceId {
-    /// Creates a new device ID from a string.
+    /// Tạo ID thiết bị mới từ chuỗi.
     #[must_use]
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
 
-    /// Returns the device ID as a string slice.
+    /// Trả về ID thiết bị dưới dạng slice chuỗi.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -88,24 +88,24 @@ impl std::fmt::Display for DeviceId {
     }
 }
 
-/// High-precision timestamp for CSI data.
+/// Dấu thời gian độ chính xác cao cho dữ liệu CSI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Timestamp {
-    /// Seconds since Unix epoch
+    /// Số giây kể từ Unix epoch
     pub seconds: i64,
-    /// Nanoseconds within the second
+    /// Số nano giây trong giây
     pub nanos: u32,
 }
 
 impl Timestamp {
-    /// Creates a new timestamp from seconds and nanoseconds.
+    /// Tạo dấu thời gian mới từ giây và nano giây.
     #[must_use]
     pub fn new(seconds: i64, nanos: u32) -> Self {
         Self { seconds, nanos }
     }
 
-    /// Creates a timestamp from the current time.
+    /// Tạo dấu thời gian từ thời điểm hiện tại.
     #[must_use]
     pub fn now() -> Self {
         let now = Utc::now();
@@ -115,7 +115,7 @@ impl Timestamp {
         }
     }
 
-    /// Creates a timestamp from a `DateTime<Utc>`.
+    /// Tạo dấu thời gian từ `DateTime<Utc>`.
     #[must_use]
     pub fn from_datetime(dt: DateTime<Utc>) -> Self {
         Self {
@@ -124,19 +124,19 @@ impl Timestamp {
         }
     }
 
-    /// Converts to `DateTime<Utc>`.
+    /// Chuyển đổi sang `DateTime<Utc>`.
     #[must_use]
     pub fn to_datetime(&self) -> Option<DateTime<Utc>> {
         DateTime::from_timestamp(self.seconds, self.nanos)
     }
 
-    /// Returns the timestamp as total nanoseconds since epoch.
+    /// Trả về dấu thời gian dưới dạng tổng nano giây kể từ epoch.
     #[must_use]
     pub fn as_nanos(&self) -> i128 {
         i128::from(self.seconds) * 1_000_000_000 + i128::from(self.nanos)
     }
 
-    /// Returns the duration between two timestamps in seconds.
+    /// Trả về khoảng thời gian giữa hai dấu thời gian tính bằng giây.
     #[must_use]
     pub fn duration_since(&self, earlier: &Self) -> f64 {
         let diff_nanos = self.as_nanos() - earlier.as_nanos();
@@ -150,50 +150,50 @@ impl Default for Timestamp {
     }
 }
 
-/// Confidence score in the range [0.0, 1.0].
+/// Điểm số độ tin cậy trong phạm vi [0.0, 1.0].
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Confidence(f32);
 
 impl Confidence {
-    /// Creates a new confidence value.
+    /// Tạo giá trị độ tin cậy mới.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the value is not in the range [0.0, 1.0].
+    /// Trả về lỗi nếu giá trị không nằm trong phạm vi [0.0, 1.0].
     pub fn new(value: f32) -> CoreResult<Self> {
         if !(0.0..=1.0).contains(&value) {
             return Err(CoreError::validation(format!(
-                "Confidence must be in [0.0, 1.0], got {value}"
+                "Độ tin cậy phải nằm trong [0.0, 1.0], nhận được {value}"
             )));
         }
         Ok(Self(value))
     }
 
-    /// Creates a confidence value without validation (for internal use).
+    /// Tạo giá trị độ tin cậy không cần xác thực (dùng nội bộ).
     ///
-    /// Returns the raw confidence value.
+    /// Trả về giá trị độ tin cậy thô.
     #[must_use]
     pub fn value(&self) -> f32 {
         self.0
     }
 
-    /// Returns `true` if the confidence exceeds the default threshold.
+    /// Trả về `true` nếu độ tin cậy vượt ngưỡng mặc định.
     #[must_use]
     pub fn is_high(&self) -> bool {
         self.0 >= DEFAULT_CONFIDENCE_THRESHOLD
     }
 
-    /// Returns `true` if the confidence exceeds the given threshold.
+    /// Trả về `true` nếu độ tin cậy vượt ngưỡng cho trước.
     #[must_use]
     pub fn exceeds(&self, threshold: f32) -> bool {
         self.0 >= threshold
     }
 
-    /// Maximum confidence (1.0).
+    /// Độ tin cậy tối đa (1.0).
     pub const MAX: Self = Self(1.0);
 
-    /// Minimum confidence (0.0).
+    /// Độ tin cậy tối thiểu (0.0).
     pub const MIN: Self = Self(0.0);
 }
 
@@ -204,23 +204,23 @@ impl Default for Confidence {
 }
 
 // =============================================================================
-// CSI Types
+// Kiểu CSI
 // =============================================================================
 
-/// `WiFi` frequency band.
+/// Băng tần `WiFi`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrequencyBand {
-    /// 2.4 GHz band (802.11b/g/n)
+    /// Băng 2.4 GHz (802.11b/g/n)
     Band2_4GHz,
-    /// 5 GHz band (802.11a/n/ac)
+    /// Băng 5 GHz (802.11a/n/ac)
     Band5GHz,
-    /// 6 GHz band (802.11ax/WiFi 6E)
+    /// Băng 6 GHz (802.11ax/WiFi 6E)
     Band6GHz,
 }
 
 impl FrequencyBand {
-    /// Returns the center frequency in MHz.
+    /// Trả về tần số trung tâm tính bằng MHz.
     #[must_use]
     pub fn center_frequency_mhz(&self) -> u32 {
         match self {
@@ -230,7 +230,7 @@ impl FrequencyBand {
         }
     }
 
-    /// Returns the typical number of subcarriers for this band.
+    /// Trả về số sóng mang con điển hình cho băng tần này.
     #[must_use]
     pub fn typical_subcarriers(&self) -> usize {
         match self {
@@ -241,20 +241,20 @@ impl FrequencyBand {
     }
 }
 
-/// Antenna configuration for MIMO systems.
+/// Cấu hình ăng-ten cho hệ thống MIMO.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AntennaConfig {
-    /// Number of transmit antennas
+    /// Số ăng-ten phát
     pub tx_antennas: u8,
-    /// Number of receive antennas
+    /// Số ăng-ten thu
     pub rx_antennas: u8,
-    /// Antenna spacing in millimeters (if known)
+    /// Khoảng cách ăng-ten tính bằng mili-mét (nếu biết)
     pub spacing_mm: Option<f32>,
 }
 
 impl AntennaConfig {
-    /// Creates a new antenna configuration.
+    /// Tạo cấu hình ăng-ten mới.
     #[must_use]
     pub fn new(tx_antennas: u8, rx_antennas: u8) -> Self {
         Self {
@@ -264,34 +264,34 @@ impl AntennaConfig {
         }
     }
 
-    /// Sets the antenna spacing.
+    /// Đặt khoảng cách ăng-ten.
     #[must_use]
     pub fn with_spacing(mut self, spacing_mm: f32) -> Self {
         self.spacing_mm = Some(spacing_mm);
         self
     }
 
-    /// Returns the total number of spatial streams.
+    /// Trả về tổng số luồng không gian.
     #[must_use]
     pub fn spatial_streams(&self) -> usize {
         usize::from(self.tx_antennas) * usize::from(self.rx_antennas)
     }
 
-    /// Common 1x3 SIMO configuration.
+    /// Cấu hình SIMO 1x3 phổ biến.
     pub const SIMO_1X3: Self = Self {
         tx_antennas: 1,
         rx_antennas: 3,
         spacing_mm: None,
     };
 
-    /// Common 2x2 MIMO configuration.
+    /// Cấu hình MIMO 2x2 phổ biến.
     pub const MIMO_2X2: Self = Self {
         tx_antennas: 2,
         rx_antennas: 2,
         spacing_mm: None,
     };
 
-    /// Common 3x3 MIMO configuration.
+    /// Cấu hình MIMO 3x3 phổ biến.
     pub const MIMO_3X3: Self = Self {
         tx_antennas: 3,
         rx_antennas: 3,
@@ -305,32 +305,32 @@ impl Default for AntennaConfig {
     }
 }
 
-/// Metadata associated with a CSI frame.
+/// Siêu dữ liệu liên kết với một khung CSI.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CsiMetadata {
-    /// Timestamp when the frame was captured
+    /// Dấu thời gian khi khung được thu thập
     pub timestamp: Timestamp,
-    /// Source device identifier
+    /// Định danh thiết bị nguồn
     pub device_id: DeviceId,
-    /// Frequency band
+    /// Băng tần
     pub frequency_band: FrequencyBand,
-    /// Channel number
+    /// Số kênh
     pub channel: u8,
-    /// Bandwidth in MHz
+    /// Băng thông tính bằng MHz
     pub bandwidth_mhz: u16,
-    /// Antenna configuration
+    /// Cấu hình ăng-ten
     pub antenna_config: AntennaConfig,
-    /// Received Signal Strength Indicator (dBm)
+    /// Chỉ số cường độ tín hiệu thu (dBm)
     pub rssi_dbm: i8,
-    /// Noise floor (dBm)
+    /// Nền nhiễu (dBm)
     pub noise_floor_dbm: i8,
-    /// Frame sequence number
+    /// Số thứ tự khung
     pub sequence_number: u32,
 }
 
 impl CsiMetadata {
-    /// Creates new CSI metadata with required fields.
+    /// Tạo siêu dữ liệu CSI mới với các trường bắt buộc.
     #[must_use]
     pub fn new(device_id: DeviceId, frequency_band: FrequencyBand, channel: u8) -> Self {
         Self {
@@ -346,38 +346,38 @@ impl CsiMetadata {
         }
     }
 
-    /// Returns the Signal-to-Noise Ratio in dB.
+    /// Trả về Tỷ số Tín hiệu trên Nhiễu tính bằng dB.
     #[must_use]
     pub fn snr_db(&self) -> f64 {
         f64::from(self.rssi_dbm) - f64::from(self.noise_floor_dbm)
     }
 }
 
-/// A single frame of Channel State Information (CSI) data.
+/// Một khung dữ liệu Thông tin Trạng thái Kênh (CSI) đơn lẻ.
 ///
-/// CSI captures the frequency response of the wireless channel, encoding
-/// information about signal amplitude and phase across multiple subcarriers
-/// and antenna pairs.
+/// CSI thu thập đáp ứng tần số của kênh không dây, mã hoá
+/// thông tin về biên độ và pha tín hiệu trên nhiều sóng mang con
+/// và cặp ăng-ten.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CsiFrame {
-    /// Unique frame identifier
+    /// Định danh khung duy nhất
     pub id: FrameId,
-    /// Frame metadata
+    /// Siêu dữ liệu khung
     pub metadata: CsiMetadata,
-    /// Complex CSI data: [spatial_streams, subcarriers]
+    /// Dữ liệu CSI phức: [luồng_không_gian, sóng_mang_con]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub data: Array2<Complex64>,
-    /// Amplitude data (magnitude of complex values)
+    /// Dữ liệu biên độ (độ lớn của giá trị phức)
     #[cfg_attr(feature = "serde", serde(skip))]
     pub amplitude: Array2<f64>,
-    /// Phase data (angle of complex values, in radians)
+    /// Dữ liệu pha (góc của giá trị phức, tính bằng radian)
     #[cfg_attr(feature = "serde", serde(skip))]
     pub phase: Array2<f64>,
 }
 
 impl CsiFrame {
-    /// Creates a new CSI frame from raw complex data.
+    /// Tạo khung CSI mới từ dữ liệu phức thô.
     pub fn new(metadata: CsiMetadata, data: Array2<Complex64>) -> Self {
         let amplitude = data.mapv(num_complex::Complex::norm);
         let phase = data.mapv(num_complex::Complex::arg);
@@ -391,25 +391,25 @@ impl CsiFrame {
         }
     }
 
-    /// Returns the number of spatial streams (antenna pairs).
+    /// Trả về số luồng không gian (cặp ăng-ten).
     #[must_use]
     pub fn num_spatial_streams(&self) -> usize {
         self.data.nrows()
     }
 
-    /// Returns the number of subcarriers.
+    /// Trả về số sóng mang con.
     #[must_use]
     pub fn num_subcarriers(&self) -> usize {
         self.data.ncols()
     }
 
-    /// Returns the mean amplitude across all subcarriers and streams.
+    /// Trả về biên độ trung bình trên tất cả sóng mang con và luồng.
     #[must_use]
     pub fn mean_amplitude(&self) -> f64 {
         self.amplitude.mean().unwrap_or(0.0)
     }
 
-    /// Returns the amplitude variance, useful for motion detection.
+    /// Trả về phương sai biên độ, hữu ích cho phát hiện chuyển động.
     #[must_use]
     pub fn amplitude_variance(&self) -> f64 {
         self.amplitude.var(0.0)
@@ -417,24 +417,24 @@ impl CsiFrame {
 }
 
 // =============================================================================
-// Signal Types
+// Kiểu Tín Hiệu
 // =============================================================================
 
-/// Features extracted from processed CSI signals.
+/// Các đặc trưng trích xuất từ tín hiệu CSI đã xử lý.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SignalFeatures {
-    /// Doppler velocity estimates (m/s)
+    /// Ước lượng vận tốc Doppler (m/s)
     pub doppler_velocities: Vec<f64>,
-    /// Time-of-flight estimates (ns)
+    /// Ước lượng thời gian bay (ns)
     pub time_of_flight: Vec<f64>,
-    /// Angle-of-arrival estimates (radians)
+    /// Ước lượng góc đến (radian)
     pub angle_of_arrival: Vec<f64>,
-    /// Motion detection confidence
+    /// Độ tin cậy phát hiện chuyển động
     pub motion_confidence: Confidence,
-    /// Presence detection confidence
+    /// Độ tin cậy phát hiện sự hiện diện
     pub presence_confidence: Confidence,
-    /// Number of detected bodies
+    /// Số lượng cơ thể phát hiện được
     pub body_count: u8,
 }
 
@@ -451,28 +451,28 @@ impl Default for SignalFeatures {
     }
 }
 
-/// Processed CSI signal ready for neural network inference.
+/// Tín hiệu CSI đã xử lý sẵn sàng cho suy luận mạng nơ-ron.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ProcessedSignal {
-    /// Source frame IDs that contributed to this processed signal
+    /// ID các khung nguồn đã đóng góp vào tín hiệu đã xử lý này
     pub source_frame_ids: Vec<FrameId>,
-    /// Timestamp of the most recent source frame
+    /// Dấu thời gian của khung nguồn gần nhất
     pub timestamp: Timestamp,
-    /// Processed amplitude tensor: [time_steps, spatial_streams, subcarriers]
+    /// Tensor biên độ đã xử lý: [bước_thời_gian, luồng_không_gian, sóng_mang_con]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub amplitude_tensor: Array3<f32>,
-    /// Processed phase tensor: [time_steps, spatial_streams, subcarriers]
+    /// Tensor pha đã xử lý: [bước_thời_gian, luồng_không_gian, sóng_mang_con]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub phase_tensor: Array3<f32>,
-    /// Extracted signal features
+    /// Các đặc trưng tín hiệu đã trích xuất
     pub features: SignalFeatures,
-    /// Device that captured this data
+    /// Thiết bị đã thu thập dữ liệu này
     pub device_id: DeviceId,
 }
 
 impl ProcessedSignal {
-    /// Creates a new processed signal.
+    /// Tạo tín hiệu đã xử lý mới.
     #[must_use]
     pub fn new(
         source_frame_ids: Vec<FrameId>,
@@ -491,14 +491,14 @@ impl ProcessedSignal {
         }
     }
 
-    /// Returns the shape of the signal tensor [time, streams, subcarriers].
+    /// Trả về kích thước của tensor tín hiệu [thời_gian, luồng, sóng_mang_con].
     #[must_use]
     pub fn shape(&self) -> (usize, usize, usize) {
         let shape = self.amplitude_tensor.shape();
         (shape[0], shape[1], shape[2])
     }
 
-    /// Returns the total number of time steps in the signal.
+    /// Trả về tổng số bước thời gian trong tín hiệu.
     #[must_use]
     pub fn num_time_steps(&self) -> usize {
         self.amplitude_tensor.shape()[0]
@@ -506,52 +506,52 @@ impl ProcessedSignal {
 }
 
 // =============================================================================
-// Pose Types
+// Kiểu Tư Thế
 // =============================================================================
 
-/// Types of body keypoints following COCO format.
+/// Các loại điểm khớp cơ thể theo định dạng COCO.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum KeypointType {
-    /// Nose
+    /// Mũi
     Nose = 0,
-    /// Left eye
+    /// Mắt trái
     LeftEye = 1,
-    /// Right eye
+    /// Mắt phải
     RightEye = 2,
-    /// Left ear
+    /// Tai trái
     LeftEar = 3,
-    /// Right ear
+    /// Tai phải
     RightEar = 4,
-    /// Left shoulder
+    /// Vai trái
     LeftShoulder = 5,
-    /// Right shoulder
+    /// Vai phải
     RightShoulder = 6,
-    /// Left elbow
+    /// Khuỷu tay trái
     LeftElbow = 7,
-    /// Right elbow
+    /// Khuỷu tay phải
     RightElbow = 8,
-    /// Left wrist
+    /// Cổ tay trái
     LeftWrist = 9,
-    /// Right wrist
+    /// Cổ tay phải
     RightWrist = 10,
-    /// Left hip
+    /// Hông trái
     LeftHip = 11,
-    /// Right hip
+    /// Hông phải
     RightHip = 12,
-    /// Left knee
+    /// Đầu gối trái
     LeftKnee = 13,
-    /// Right knee
+    /// Đầu gối phải
     RightKnee = 14,
-    /// Left ankle
+    /// Mắt cá chân trái
     LeftAnkle = 15,
-    /// Right ankle
+    /// Mắt cá chân phải
     RightAnkle = 16,
 }
 
 impl KeypointType {
-    /// Returns all keypoint types in order.
+    /// Trả về tất cả các loại điểm khớp theo thứ tự.
     #[must_use]
     pub fn all() -> &'static [Self; MAX_KEYPOINTS] {
         &[
@@ -575,7 +575,7 @@ impl KeypointType {
         ]
     }
 
-    /// Returns the keypoint name as a string.
+    /// Trả về tên điểm khớp dưới dạng chuỗi.
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
@@ -599,7 +599,7 @@ impl KeypointType {
         }
     }
 
-    /// Returns `true` if this is a face keypoint.
+    /// Trả về `true` nếu đây là điểm khớp trên mặt.
     #[must_use]
     pub fn is_face(&self) -> bool {
         matches!(
@@ -608,7 +608,7 @@ impl KeypointType {
         )
     }
 
-    /// Returns `true` if this is an upper body keypoint.
+    /// Trả về `true` nếu đây là điểm khớp phần thân trên.
     #[must_use]
     pub fn is_upper_body(&self) -> bool {
         matches!(
@@ -622,7 +622,7 @@ impl KeypointType {
         )
     }
 
-    /// Returns `true` if this is a lower body keypoint.
+    /// Trả về `true` nếu đây là điểm khớp phần thân dưới.
     #[must_use]
     pub fn is_lower_body(&self) -> bool {
         matches!(
@@ -660,30 +660,30 @@ impl TryFrom<u8> for KeypointType {
             15 => Ok(Self::LeftAnkle),
             16 => Ok(Self::RightAnkle),
             _ => Err(CoreError::validation(format!(
-                "Invalid keypoint type: {value}"
+                "Loại điểm khớp không hợp lệ: {value}"
             ))),
         }
     }
 }
 
-/// A single body keypoint with position and confidence.
+/// Một điểm khớp cơ thể đơn lẻ với vị trí và độ tin cậy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Keypoint {
-    /// Type of keypoint
+    /// Loại điểm khớp
     pub keypoint_type: KeypointType,
-    /// X coordinate (normalized 0.0-1.0 or absolute pixels)
+    /// Toạ độ X (chuẩn hoá 0.0-1.0 hoặc pixel tuyệt đối)
     pub x: f32,
-    /// Y coordinate (normalized 0.0-1.0 or absolute pixels)
+    /// Toạ độ Y (chuẩn hoá 0.0-1.0 hoặc pixel tuyệt đối)
     pub y: f32,
-    /// Z coordinate (depth, if available)
+    /// Toạ độ Z (độ sâu, nếu có)
     pub z: Option<f32>,
-    /// Detection confidence
+    /// Độ tin cậy phát hiện
     pub confidence: Confidence,
 }
 
 impl Keypoint {
-    /// Creates a new 2D keypoint.
+    /// Tạo điểm khớp 2D mới.
     #[must_use]
     pub fn new(keypoint_type: KeypointType, x: f32, y: f32, confidence: Confidence) -> Self {
         Self {
@@ -695,7 +695,7 @@ impl Keypoint {
         }
     }
 
-    /// Creates a new 3D keypoint.
+    /// Tạo điểm khớp 3D mới.
     #[must_use]
     pub fn new_3d(
         keypoint_type: KeypointType,
@@ -713,25 +713,25 @@ impl Keypoint {
         }
     }
 
-    /// Returns `true` if this keypoint should be considered visible.
+    /// Trả về `true` nếu điểm khớp này nên được coi là nhìn thấy được.
     #[must_use]
     pub fn is_visible(&self) -> bool {
         self.confidence.is_high()
     }
 
-    /// Returns the 2D position as a tuple.
+    /// Trả về vị trí 2D dưới dạng tuple.
     #[must_use]
     pub fn position_2d(&self) -> (f32, f32) {
         (self.x, self.y)
     }
 
-    /// Returns the 3D position as a tuple, if available.
+    /// Trả về vị trí 3D dưới dạng tuple, nếu có.
     #[must_use]
     pub fn position_3d(&self) -> Option<(f32, f32, f32)> {
         self.z.map(|z| (self.x, self.y, z))
     }
 
-    /// Calculates the Euclidean distance to another keypoint.
+    /// Tính khoảng cách Euclid đến điểm khớp khác.
     #[must_use]
     pub fn distance_to(&self, other: &Self) -> f32 {
         let dx = self.x - other.x;
@@ -746,22 +746,22 @@ impl Keypoint {
     }
 }
 
-/// Axis-aligned bounding box.
+/// Khung bao căn chỉnh theo trục.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BoundingBox {
-    /// Left edge X coordinate
+    /// Toạ độ X cạnh trái
     pub x_min: f32,
-    /// Top edge Y coordinate
+    /// Toạ độ Y cạnh trên
     pub y_min: f32,
-    /// Right edge X coordinate
+    /// Toạ độ X cạnh phải
     pub x_max: f32,
-    /// Bottom edge Y coordinate
+    /// Toạ độ Y cạnh dưới
     pub y_max: f32,
 }
 
 impl BoundingBox {
-    /// Creates a new bounding box.
+    /// Tạo khung bao mới.
     #[must_use]
     pub fn new(x_min: f32, y_min: f32, x_max: f32, y_max: f32) -> Self {
         Self {
@@ -772,7 +772,7 @@ impl BoundingBox {
         }
     }
 
-    /// Creates a bounding box from center, width, and height.
+    /// Tạo khung bao từ tâm, chiều rộng và chiều cao.
     #[must_use]
     pub fn from_center(cx: f32, cy: f32, width: f32, height: f32) -> Self {
         let half_w = width / 2.0;
@@ -785,31 +785,31 @@ impl BoundingBox {
         }
     }
 
-    /// Returns the width of the bounding box.
+    /// Trả về chiều rộng của khung bao.
     #[must_use]
     pub fn width(&self) -> f32 {
         self.x_max - self.x_min
     }
 
-    /// Returns the height of the bounding box.
+    /// Trả về chiều cao của khung bao.
     #[must_use]
     pub fn height(&self) -> f32 {
         self.y_max - self.y_min
     }
 
-    /// Returns the area of the bounding box.
+    /// Trả về diện tích của khung bao.
     #[must_use]
     pub fn area(&self) -> f32 {
         self.width() * self.height()
     }
 
-    /// Returns the center point of the bounding box.
+    /// Trả về điểm tâm của khung bao.
     #[must_use]
     pub fn center(&self) -> (f32, f32) {
         ((self.x_min + self.x_max) / 2.0, (self.y_min + self.y_max) / 2.0)
     }
 
-    /// Computes the Intersection over Union (IoU) with another bounding box.
+    /// Tính Giao trên Hợp (IoU) với khung bao khác.
     #[must_use]
     pub fn iou(&self, other: &Self) -> f32 {
         let x_min = self.x_min.max(other.x_min);
@@ -831,29 +831,29 @@ impl BoundingBox {
         }
     }
 
-    /// Returns `true` if the point is inside the bounding box.
+    /// Trả về `true` nếu điểm nằm bên trong khung bao.
     #[must_use]
     pub fn contains(&self, x: f32, y: f32) -> bool {
         x >= self.x_min && x <= self.x_max && y >= self.y_min && y <= self.y_max
     }
 }
 
-/// Pose estimation for a single person.
+/// Ước lượng tư thế cho một người đơn lẻ.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PersonPose {
-    /// Unique identifier for this person (for tracking)
+    /// Định danh duy nhất cho người này (để theo dõi)
     pub id: Option<u32>,
-    /// All detected keypoints
+    /// Tất cả các điểm khớp phát hiện được
     pub keypoints: [Option<Keypoint>; MAX_KEYPOINTS],
-    /// Bounding box around the person
+    /// Khung bao quanh người
     pub bounding_box: Option<BoundingBox>,
-    /// Overall pose confidence
+    /// Độ tin cậy tổng thể của tư thế
     pub confidence: Confidence,
 }
 
 impl PersonPose {
-    /// Creates a new empty person pose.
+    /// Tạo tư thế người trống mới.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -864,7 +864,7 @@ impl PersonPose {
         }
     }
 
-    /// Sets a keypoint.
+    /// Đặt một điểm khớp.
     pub fn set_keypoint(&mut self, keypoint: Keypoint) {
         let idx = keypoint.keypoint_type as usize;
         if idx < MAX_KEYPOINTS {
@@ -872,13 +872,13 @@ impl PersonPose {
         }
     }
 
-    /// Gets a keypoint by type.
+    /// Lấy điểm khớp theo loại.
     #[must_use]
     pub fn get_keypoint(&self, keypoint_type: KeypointType) -> Option<&Keypoint> {
         self.keypoints[keypoint_type as usize].as_ref()
     }
 
-    /// Returns the number of visible keypoints.
+    /// Trả về số điểm khớp nhìn thấy được.
     #[must_use]
     pub fn visible_keypoint_count(&self) -> usize {
         self.keypoints
@@ -887,7 +887,7 @@ impl PersonPose {
             .count()
     }
 
-    /// Returns all visible keypoints.
+    /// Trả về tất cả các điểm khớp nhìn thấy được.
     #[must_use]
     pub fn visible_keypoints(&self) -> Vec<&Keypoint> {
         self.keypoints
@@ -897,7 +897,7 @@ impl PersonPose {
             .collect()
     }
 
-    /// Computes the bounding box from visible keypoints.
+    /// Tính khung bao từ các điểm khớp nhìn thấy được.
     #[must_use]
     pub fn compute_bounding_box(&self) -> Option<BoundingBox> {
         let visible: Vec<_> = self.visible_keypoints();
@@ -920,7 +920,7 @@ impl PersonPose {
         Some(BoundingBox::new(x_min, y_min, x_max, y_max))
     }
 
-    /// Converts keypoints to a flat array [x0, y0, conf0, x1, y1, conf1, ...].
+    /// Chuyển đổi các điểm khớp thành mảng phẳng [x0, y0, conf0, x1, y1, conf1, ...].
     #[must_use]
     pub fn to_flat_array(&self) -> Array1<f32> {
         let mut arr = Array1::zeros(MAX_KEYPOINTS * 3);
@@ -941,28 +941,28 @@ impl Default for PersonPose {
     }
 }
 
-/// Complete pose estimation result for a frame.
+/// Kết quả ước lượng tư thế hoàn chỉnh cho một khung.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PoseEstimate {
-    /// Unique identifier for this estimate
+    /// Định danh duy nhất cho ước lượng này
     pub id: FrameId,
-    /// Timestamp of the estimate
+    /// Dấu thời gian của ước lượng
     pub timestamp: Timestamp,
-    /// Source signal that produced this estimate
+    /// Tín hiệu nguồn đã tạo ra ước lượng này
     pub source_signal_ids: Vec<FrameId>,
-    /// All detected persons
+    /// Tất cả những người phát hiện được
     pub persons: Vec<PersonPose>,
-    /// Overall inference confidence
+    /// Độ tin cậy suy luận tổng thể
     pub confidence: Confidence,
-    /// Inference latency in milliseconds
+    /// Độ trễ suy luận tính bằng mili giây
     pub latency_ms: f32,
-    /// Model version used for inference
+    /// Phiên bản mô hình sử dụng cho suy luận
     pub model_version: String,
 }
 
 impl PoseEstimate {
-    /// Creates a new pose estimate.
+    /// Tạo ước lượng tư thế mới.
     #[must_use]
     pub fn new(
         source_signal_ids: Vec<FrameId>,
@@ -982,19 +982,19 @@ impl PoseEstimate {
         }
     }
 
-    /// Returns the number of detected persons.
+    /// Trả về số người phát hiện được.
     #[must_use]
     pub fn person_count(&self) -> usize {
         self.persons.len()
     }
 
-    /// Returns `true` if any person was detected.
+    /// Trả về `true` nếu có người nào được phát hiện.
     #[must_use]
     pub fn has_detections(&self) -> bool {
         !self.persons.is_empty()
     }
 
-    /// Returns the person with the highest confidence.
+    /// Trả về người có độ tin cậy cao nhất.
     #[must_use]
     pub fn highest_confidence_person(&self) -> Option<&PersonPose> {
         self.persons
@@ -1045,7 +1045,7 @@ mod tests {
         let box2 = BoundingBox::new(5.0, 5.0, 15.0, 15.0);
 
         let iou = box1.iou(&box2);
-        // Intersection: 5x5 = 25, Union: 100 + 100 - 25 = 175
+        // Giao: 5x5 = 25, Hợp: 100 + 100 - 25 = 175
         assert!((iou - 25.0 / 175.0).abs() < 0.001);
     }
 

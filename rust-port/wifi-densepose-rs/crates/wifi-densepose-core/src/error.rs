@@ -1,101 +1,101 @@
-//! Error types for the WiFi-DensePose system.
+//! Các kiểu lỗi cho hệ thống WiFi-DensePose.
 //!
-//! This module provides comprehensive error handling using [`thiserror`] for
-//! automatic `Display` and `Error` trait implementations.
+//! Module này cung cấp xử lý lỗi toàn diện sử dụng [`thiserror`] để
+//! tự động triển khai trait `Display` và `Error`.
 //!
-//! # Error Hierarchy
+//! # Phân Cấp Lỗi
 //!
-//! - [`CoreError`]: Top-level error type that encompasses all subsystem errors
-//! - [`SignalError`]: Errors related to CSI signal processing
-//! - [`InferenceError`]: Errors from neural network inference
-//! - [`StorageError`]: Errors from data persistence operations
+//! - [`CoreError`]: Kiểu lỗi cấp cao nhất bao quát tất cả lỗi hệ thống con
+//! - [`SignalError`]: Lỗi liên quan đến xử lý tín hiệu CSI
+//! - [`InferenceError`]: Lỗi từ suy luận mạng nơ-ron
+//! - [`StorageError`]: Lỗi từ các thao tác lưu trữ dữ liệu
 //!
-//! # Example
+//! # Ví Dụ
 //!
 //! ```rust
 //! use wifi_densepose_core::error::{CoreError, SignalError};
 //!
 //! fn process_signal() -> Result<(), CoreError> {
-//!     // Signal processing that might fail
+//!     // Xử lý tín hiệu có thể thất bại
 //!     Err(SignalError::InvalidSubcarrierCount { expected: 256, actual: 128 }.into())
 //! }
 //! ```
 
 use thiserror::Error;
 
-/// A specialized `Result` type for core operations.
+/// Kiểu `Result` chuyên dụng cho các thao tác cốt lõi.
 pub type CoreResult<T> = Result<T, CoreError>;
 
-/// Top-level error type for the WiFi-DensePose system.
+/// Kiểu lỗi cấp cao nhất cho hệ thống WiFi-DensePose.
 ///
-/// This enum encompasses all possible errors that can occur within the core
-/// system, providing a unified error type for the entire crate.
+/// Enum này bao quát tất cả các lỗi có thể xảy ra trong hệ thống
+/// cốt lõi, cung cấp kiểu lỗi thống nhất cho toàn bộ crate.
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum CoreError {
-    /// Signal processing error
-    #[error("Signal processing error: {0}")]
+    /// Lỗi xử lý tín hiệu
+    #[error("Lỗi xử lý tín hiệu: {0}")]
     Signal(#[from] SignalError),
 
-    /// Neural network inference error
-    #[error("Inference error: {0}")]
+    /// Lỗi suy luận mạng nơ-ron
+    #[error("Lỗi suy luận: {0}")]
     Inference(#[from] InferenceError),
 
-    /// Data storage error
-    #[error("Storage error: {0}")]
+    /// Lỗi lưu trữ dữ liệu
+    #[error("Lỗi lưu trữ: {0}")]
     Storage(#[from] StorageError),
 
-    /// Configuration error
-    #[error("Configuration error: {message}")]
+    /// Lỗi cấu hình
+    #[error("Lỗi cấu hình: {message}")]
     Configuration {
-        /// Description of the configuration error
+        /// Mô tả lỗi cấu hình
         message: String,
     },
 
-    /// Validation error for input data
-    #[error("Validation error: {message}")]
+    /// Lỗi xác thực dữ liệu đầu vào
+    #[error("Lỗi xác thực: {message}")]
     Validation {
-        /// Description of what validation failed
+        /// Mô tả xác thực nào thất bại
         message: String,
     },
 
-    /// Resource not found
-    #[error("Resource not found: {resource_type} with id '{id}'")]
+    /// Không tìm thấy tài nguyên
+    #[error("Không tìm thấy tài nguyên: {resource_type} với id '{id}'")]
     NotFound {
-        /// Type of resource that was not found
+        /// Loại tài nguyên không tìm thấy
         resource_type: &'static str,
-        /// Identifier of the missing resource
+        /// Định danh của tài nguyên bị thiếu
         id: String,
     },
 
-    /// Operation timed out
-    #[error("Operation timed out after {duration_ms}ms: {operation}")]
+    /// Thao tác hết thời gian chờ
+    #[error("Thao tác hết thời gian chờ sau {duration_ms}ms: {operation}")]
     Timeout {
-        /// The operation that timed out
+        /// Thao tác bị hết thời gian
         operation: String,
-        /// Duration in milliseconds before timeout
+        /// Thời lượng tính bằng mili giây trước khi hết giờ
         duration_ms: u64,
     },
 
-    /// Invalid state for the requested operation
-    #[error("Invalid state: expected {expected}, found {actual}")]
+    /// Trạng thái không hợp lệ cho thao tác yêu cầu
+    #[error("Trạng thái không hợp lệ: mong đợi {expected}, nhận được {actual}")]
     InvalidState {
-        /// Expected state
+        /// Trạng thái mong đợi
         expected: String,
-        /// Actual state
+        /// Trạng thái thực tế
         actual: String,
     },
 
-    /// Internal error (should not happen in normal operation)
-    #[error("Internal error: {message}")]
+    /// Lỗi nội bộ (không nên xảy ra trong hoạt động bình thường)
+    #[error("Lỗi nội bộ: {message}")]
     Internal {
-        /// Description of the internal error
+        /// Mô tả lỗi nội bộ
         message: String,
     },
 }
 
 impl CoreError {
-    /// Creates a new configuration error.
+    /// Tạo lỗi cấu hình mới.
     #[must_use]
     pub fn configuration(message: impl Into<String>) -> Self {
         Self::Configuration {
@@ -103,7 +103,7 @@ impl CoreError {
         }
     }
 
-    /// Creates a new validation error.
+    /// Tạo lỗi xác thực mới.
     #[must_use]
     pub fn validation(message: impl Into<String>) -> Self {
         Self::Validation {
@@ -111,7 +111,7 @@ impl CoreError {
         }
     }
 
-    /// Creates a new not found error.
+    /// Tạo lỗi không tìm thấy mới.
     #[must_use]
     pub fn not_found(resource_type: &'static str, id: impl Into<String>) -> Self {
         Self::NotFound {
@@ -120,7 +120,7 @@ impl CoreError {
         }
     }
 
-    /// Creates a new timeout error.
+    /// Tạo lỗi hết thời gian mới.
     #[must_use]
     pub fn timeout(operation: impl Into<String>, duration_ms: u64) -> Self {
         Self::Timeout {
@@ -129,7 +129,7 @@ impl CoreError {
         }
     }
 
-    /// Creates a new invalid state error.
+    /// Tạo lỗi trạng thái không hợp lệ mới.
     #[must_use]
     pub fn invalid_state(expected: impl Into<String>, actual: impl Into<String>) -> Self {
         Self::InvalidState {
@@ -138,7 +138,7 @@ impl CoreError {
         }
     }
 
-    /// Creates a new internal error.
+    /// Tạo lỗi nội bộ mới.
     #[must_use]
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
@@ -146,7 +146,7 @@ impl CoreError {
         }
     }
 
-    /// Returns `true` if this error is recoverable.
+    /// Trả về `true` nếu lỗi này có thể khôi phục được.
     #[must_use]
     pub fn is_recoverable(&self) -> bool {
         match self {
@@ -163,93 +163,93 @@ impl CoreError {
     }
 }
 
-/// Errors related to CSI signal processing.
+/// Các lỗi liên quan đến xử lý tín hiệu CSI.
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum SignalError {
-    /// Invalid number of subcarriers in CSI data
-    #[error("Invalid subcarrier count: expected {expected}, got {actual}")]
+    /// Số lượng sóng mang con không hợp lệ trong dữ liệu CSI
+    #[error("Số lượng sóng mang con không hợp lệ: mong đợi {expected}, nhận được {actual}")]
     InvalidSubcarrierCount {
-        /// Expected number of subcarriers
+        /// Số sóng mang con mong đợi
         expected: usize,
-        /// Actual number of subcarriers received
+        /// Số sóng mang con thực tế nhận được
         actual: usize,
     },
 
-    /// Invalid antenna configuration
-    #[error("Invalid antenna configuration: {message}")]
+    /// Cấu hình ăng-ten không hợp lệ
+    #[error("Cấu hình ăng-ten không hợp lệ: {message}")]
     InvalidAntennaConfig {
-        /// Description of the configuration error
+        /// Mô tả lỗi cấu hình
         message: String,
     },
 
-    /// Signal amplitude out of valid range
-    #[error("Signal amplitude {value} out of range [{min}, {max}]")]
+    /// Biên độ tín hiệu ngoài phạm vi hợp lệ
+    #[error("Biên độ tín hiệu {value} ngoài phạm vi [{min}, {max}]")]
     AmplitudeOutOfRange {
-        /// The invalid amplitude value
+        /// Giá trị biên độ không hợp lệ
         value: f64,
-        /// Minimum valid amplitude
+        /// Biên độ hợp lệ tối thiểu
         min: f64,
-        /// Maximum valid amplitude
+        /// Biên độ hợp lệ tối đa
         max: f64,
     },
 
-    /// Phase unwrapping failed
-    #[error("Phase unwrapping failed: {reason}")]
+    /// Tháo cuộn pha thất bại
+    #[error("Tháo cuộn pha thất bại: {reason}")]
     PhaseUnwrapFailed {
-        /// Reason for the failure
+        /// Lý do thất bại
         reason: String,
     },
 
-    /// FFT operation failed
-    #[error("FFT operation failed: {message}")]
+    /// Thao tác FFT thất bại
+    #[error("Thao tác FFT thất bại: {message}")]
     FftFailed {
-        /// Description of the FFT error
+        /// Mô tả lỗi FFT
         message: String,
     },
 
-    /// Filter design or application error
-    #[error("Filter error: {message}")]
+    /// Lỗi thiết kế hoặc áp dụng bộ lọc
+    #[error("Lỗi bộ lọc: {message}")]
     FilterError {
-        /// Description of the filter error
+        /// Mô tả lỗi bộ lọc
         message: String,
     },
 
-    /// Insufficient samples for processing
-    #[error("Insufficient samples: need at least {required}, got {available}")]
+    /// Không đủ mẫu để xử lý
+    #[error("Không đủ mẫu: cần ít nhất {required}, có {available}")]
     InsufficientSamples {
-        /// Minimum required samples
+        /// Số mẫu tối thiểu cần thiết
         required: usize,
-        /// Available samples
+        /// Số mẫu hiện có
         available: usize,
     },
 
-    /// Signal quality too low for reliable processing
-    #[error("Signal quality too low: SNR {snr_db:.2} dB below threshold {threshold_db:.2} dB")]
+    /// Chất lượng tín hiệu quá thấp để xử lý đáng tin cậy
+    #[error("Chất lượng tín hiệu quá thấp: SNR {snr_db:.2} dB dưới ngưỡng {threshold_db:.2} dB")]
     LowSignalQuality {
-        /// Measured SNR in dB
+        /// SNR đo được tính bằng dB
         snr_db: f64,
-        /// Required minimum SNR in dB
+        /// SNR tối thiểu yêu cầu tính bằng dB
         threshold_db: f64,
     },
 
-    /// Timestamp synchronization error
-    #[error("Timestamp synchronization error: {message}")]
+    /// Lỗi đồng bộ dấu thời gian
+    #[error("Lỗi đồng bộ dấu thời gian: {message}")]
     TimestampSync {
-        /// Description of the sync error
+        /// Mô tả lỗi đồng bộ
         message: String,
     },
 
-    /// Invalid frequency band
-    #[error("Invalid frequency band: {band}")]
+    /// Băng tần không hợp lệ
+    #[error("Băng tần không hợp lệ: {band}")]
     InvalidFrequencyBand {
-        /// The invalid band identifier
+        /// Định danh băng tần không hợp lệ
         band: String,
     },
 }
 
 impl SignalError {
-    /// Returns `true` if this error is recoverable.
+    /// Trả về `true` nếu lỗi này có thể khôi phục được.
     #[must_use]
     pub const fn is_recoverable(&self) -> bool {
         match self {
@@ -267,84 +267,84 @@ impl SignalError {
     }
 }
 
-/// Errors related to neural network inference.
+/// Các lỗi liên quan đến suy luận mạng nơ-ron.
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum InferenceError {
-    /// Model file not found or could not be loaded
-    #[error("Failed to load model from '{path}': {reason}")]
+    /// Không tìm thấy hoặc không thể tải file mô hình
+    #[error("Không thể tải mô hình từ '{path}': {reason}")]
     ModelLoadFailed {
-        /// Path to the model file
+        /// Đường dẫn đến file mô hình
         path: String,
-        /// Reason for the failure
+        /// Lý do thất bại
         reason: String,
     },
 
-    /// Input tensor shape mismatch
-    #[error("Input shape mismatch: expected {expected:?}, got {actual:?}")]
+    /// Kích thước tensor đầu vào không khớp
+    #[error("Kích thước đầu vào không khớp: mong đợi {expected:?}, nhận được {actual:?}")]
     InputShapeMismatch {
-        /// Expected tensor shape
+        /// Kích thước tensor mong đợi
         expected: Vec<usize>,
-        /// Actual tensor shape
+        /// Kích thước tensor thực tế
         actual: Vec<usize>,
     },
 
-    /// Output tensor shape mismatch
-    #[error("Output shape mismatch: expected {expected:?}, got {actual:?}")]
+    /// Kích thước tensor đầu ra không khớp
+    #[error("Kích thước đầu ra không khớp: mong đợi {expected:?}, nhận được {actual:?}")]
     OutputShapeMismatch {
-        /// Expected tensor shape
+        /// Kích thước tensor mong đợi
         expected: Vec<usize>,
-        /// Actual tensor shape
+        /// Kích thước tensor thực tế
         actual: Vec<usize>,
     },
 
-    /// CUDA/GPU error
-    #[error("GPU error: {message}")]
+    /// Lỗi CUDA/GPU
+    #[error("Lỗi GPU: {message}")]
     GpuError {
-        /// Description of the GPU error
+        /// Mô tả lỗi GPU
         message: String,
     },
 
-    /// Model inference failed
-    #[error("Inference failed: {message}")]
+    /// Suy luận mô hình thất bại
+    #[error("Suy luận thất bại: {message}")]
     InferenceFailed {
-        /// Description of the failure
+        /// Mô tả lỗi
         message: String,
     },
 
-    /// Model not initialized
-    #[error("Model not initialized: {name}")]
+    /// Mô hình chưa được khởi tạo
+    #[error("Mô hình chưa được khởi tạo: {name}")]
     ModelNotInitialized {
-        /// Name of the uninitialized model
+        /// Tên mô hình chưa khởi tạo
         name: String,
     },
 
-    /// Unsupported model format
-    #[error("Unsupported model format: {format}")]
+    /// Định dạng mô hình không được hỗ trợ
+    #[error("Định dạng mô hình không được hỗ trợ: {format}")]
     UnsupportedFormat {
-        /// The unsupported format
+        /// Định dạng không được hỗ trợ
         format: String,
     },
 
-    /// Quantization error
-    #[error("Quantization error: {message}")]
+    /// Lỗi lượng tử hoá
+    #[error("Lỗi lượng tử hoá: {message}")]
     QuantizationError {
-        /// Description of the quantization error
+        /// Mô tả lỗi lượng tử hoá
         message: String,
     },
 
-    /// Batch size error
-    #[error("Invalid batch size: {size}, maximum is {max_size}")]
+    /// Lỗi kích thước batch
+    #[error("Kích thước batch không hợp lệ: {size}, tối đa là {max_size}")]
     InvalidBatchSize {
-        /// The invalid batch size
+        /// Kích thước batch không hợp lệ
         size: usize,
-        /// Maximum allowed batch size
+        /// Kích thước batch tối đa cho phép
         max_size: usize,
     },
 }
 
 impl InferenceError {
-    /// Returns `true` if this error is recoverable.
+    /// Trả về `true` nếu lỗi này có thể khôi phục được.
     #[must_use]
     pub const fn is_recoverable(&self) -> bool {
         match self {
@@ -360,84 +360,84 @@ impl InferenceError {
     }
 }
 
-/// Errors related to data storage and persistence.
+/// Các lỗi liên quan đến lưu trữ và bền hoá dữ liệu.
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum StorageError {
-    /// Database connection failed
-    #[error("Database connection failed: {message}")]
+    /// Kết nối cơ sở dữ liệu thất bại
+    #[error("Kết nối cơ sở dữ liệu thất bại: {message}")]
     ConnectionFailed {
-        /// Description of the connection error
+        /// Mô tả lỗi kết nối
         message: String,
     },
 
-    /// Query execution failed
-    #[error("Query failed: {query_type} - {message}")]
+    /// Thực thi truy vấn thất bại
+    #[error("Truy vấn thất bại: {query_type} - {message}")]
     QueryFailed {
-        /// Type of query that failed
+        /// Loại truy vấn thất bại
         query_type: String,
-        /// Error message
+        /// Thông báo lỗi
         message: String,
     },
 
-    /// Record not found
-    #[error("Record not found: {table}.{id}")]
+    /// Không tìm thấy bản ghi
+    #[error("Không tìm thấy bản ghi: {table}.{id}")]
     RecordNotFound {
-        /// Table name
+        /// Tên bảng
         table: String,
-        /// Record identifier
+        /// Định danh bản ghi
         id: String,
     },
 
-    /// Duplicate key violation
-    #[error("Duplicate key in {table}: {key}")]
+    /// Vi phạm khoá trùng lặp
+    #[error("Khoá trùng lặp trong {table}: {key}")]
     DuplicateKey {
-        /// Table name
+        /// Tên bảng
         table: String,
-        /// The duplicate key
+        /// Khoá trùng lặp
         key: String,
     },
 
-    /// Transaction error
-    #[error("Transaction error: {message}")]
+    /// Lỗi giao dịch
+    #[error("Lỗi giao dịch: {message}")]
     TransactionError {
-        /// Description of the transaction error
+        /// Mô tả lỗi giao dịch
         message: String,
     },
 
-    /// Serialization/deserialization error
-    #[error("Serialization error: {message}")]
+    /// Lỗi tuần tự hoá/giải tuần tự hoá
+    #[error("Lỗi tuần tự hoá: {message}")]
     SerializationError {
-        /// Description of the serialization error
+        /// Mô tả lỗi tuần tự hoá
         message: String,
     },
 
-    /// Cache error
-    #[error("Cache error: {message}")]
+    /// Lỗi bộ nhớ đệm
+    #[error("Lỗi bộ nhớ đệm: {message}")]
     CacheError {
-        /// Description of the cache error
+        /// Mô tả lỗi bộ nhớ đệm
         message: String,
     },
 
-    /// Migration error
-    #[error("Migration error: {message}")]
+    /// Lỗi di chuyển dữ liệu
+    #[error("Lỗi di chuyển dữ liệu: {message}")]
     MigrationError {
-        /// Description of the migration error
+        /// Mô tả lỗi di chuyển
         message: String,
     },
 
-    /// Storage capacity exceeded
-    #[error("Storage capacity exceeded: {current} / {limit} bytes")]
+    /// Vượt quá dung lượng lưu trữ
+    #[error("Vượt quá dung lượng lưu trữ: {current} / {limit} byte")]
     CapacityExceeded {
-        /// Current storage usage
+        /// Dung lượng sử dụng hiện tại
         current: u64,
-        /// Storage limit
+        /// Giới hạn lưu trữ
         limit: u64,
     },
 }
 
 impl StorageError {
-    /// Returns `true` if this error is recoverable.
+    /// Trả về `true` nếu lỗi này có thể khôi phục được.
     #[must_use]
     pub const fn is_recoverable(&self) -> bool {
         match self {
@@ -460,9 +460,9 @@ mod tests {
 
     #[test]
     fn test_core_error_display() {
-        let err = CoreError::configuration("Invalid threshold value");
-        assert!(err.to_string().contains("Configuration error"));
-        assert!(err.to_string().contains("Invalid threshold"));
+        let err = CoreError::configuration("Giá trị ngưỡng không hợp lệ");
+        assert!(err.to_string().contains("Lỗi cấu hình"));
+        assert!(err.to_string().contains("ngưỡng không hợp lệ"));
     }
 
     #[test]
@@ -499,8 +499,8 @@ mod tests {
 
     #[test]
     fn test_timeout_error() {
-        let err = CoreError::timeout("inference", 5000);
+        let err = CoreError::timeout("suy luận", 5000);
         assert!(err.to_string().contains("5000ms"));
-        assert!(err.to_string().contains("inference"));
+        assert!(err.to_string().contains("suy luận"));
     }
 }

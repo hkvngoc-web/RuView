@@ -1,26 +1,26 @@
-//! Common utility functions for the WiFi-DensePose system.
+//! Các hàm tiện ích dùng chung cho hệ thống WiFi-DensePose.
 //!
-//! This module provides helper functions used throughout the crate.
+//! Module này cung cấp các hàm trợ giúp được sử dụng xuyên suốt crate.
 
 use ndarray::{Array1, Array2};
 use num_complex::Complex64;
 
-/// Computes the magnitude (absolute value) of complex numbers.
+/// Tính độ lớn (giá trị tuyệt đối) của số phức.
 #[must_use]
 pub fn complex_magnitude(data: &Array2<Complex64>) -> Array2<f64> {
     data.mapv(num_complex::Complex::norm)
 }
 
-/// Computes the phase (argument) of complex numbers in radians.
+/// Tính pha (đối số) của số phức tính bằng radian.
 #[must_use]
 pub fn complex_phase(data: &Array2<Complex64>) -> Array2<f64> {
     data.mapv(num_complex::Complex::arg)
 }
 
-/// Unwraps phase values to remove discontinuities.
+/// Tháo cuộn giá trị pha để loại bỏ gián đoạn.
 ///
-/// Phase unwrapping corrects for the 2*pi jumps that occur when phase
-/// values wrap around from pi to -pi.
+/// Tháo cuộn pha sửa các bước nhảy 2*pi xảy ra khi giá trị pha
+/// cuộn vòng từ pi sang -pi.
 #[must_use]
 pub fn unwrap_phase(phase: &Array1<f64>) -> Array1<f64> {
     let mut unwrapped = phase.clone();
@@ -43,7 +43,7 @@ pub fn unwrap_phase(phase: &Array1<f64>) -> Array1<f64> {
     unwrapped
 }
 
-/// Normalizes values to the range [0, 1].
+/// Chuẩn hoá giá trị về phạm vi [0, 1].
 #[must_use]
 pub fn normalize_min_max(data: &Array1<f64>) -> Array1<f64> {
     let min = data.iter().copied().fold(f64::INFINITY, f64::min);
@@ -56,7 +56,7 @@ pub fn normalize_min_max(data: &Array1<f64>) -> Array1<f64> {
     data.mapv(|x| (x - min) / (max - min))
 }
 
-/// Normalizes values using z-score normalization.
+/// Chuẩn hoá giá trị sử dụng chuẩn hoá z-score.
 #[must_use]
 pub fn normalize_zscore(data: &Array1<f64>) -> Array1<f64> {
     let mean = data.mean().unwrap_or(0.0);
@@ -69,7 +69,7 @@ pub fn normalize_zscore(data: &Array1<f64>) -> Array1<f64> {
     data.mapv(|x| (x - mean) / std)
 }
 
-/// Calculates the Signal-to-Noise Ratio in dB.
+/// Tính Tỷ số Tín hiệu trên Nhiễu tính bằng dB.
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
 pub fn calculate_snr_db(signal: &Array1<f64>, noise: &Array1<f64>) -> f64 {
@@ -83,11 +83,11 @@ pub fn calculate_snr_db(signal: &Array1<f64>, noise: &Array1<f64>) -> f64 {
     10.0 * (signal_power / noise_power).log10()
 }
 
-/// Applies a moving average filter.
+/// Áp dụng bộ lọc trung bình trượt.
 ///
-/// # Panics
+/// # Panic
 ///
-/// Panics if the data array is not contiguous in memory.
+/// Panic nếu mảng dữ liệu không liên tục trong bộ nhớ.
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
 pub fn moving_average(data: &Array1<f64>, window_size: usize) -> Array1<f64> {
@@ -98,7 +98,7 @@ pub fn moving_average(data: &Array1<f64>, window_size: usize) -> Array1<f64> {
     let mut result = Array1::zeros(data.len());
     let half_window = window_size / 2;
 
-    // ndarray Array1 is always contiguous, but handle gracefully if not
+    // ndarray Array1 luôn liên tục, nhưng xử lý mượt mà nếu không
     let slice = match data.as_slice() {
         Some(s) => s,
         None => return data.clone(),
@@ -114,7 +114,7 @@ pub fn moving_average(data: &Array1<f64>, window_size: usize) -> Array1<f64> {
     result
 }
 
-/// Clamps a value to a range.
+/// Kẹp giá trị vào một phạm vi.
 #[must_use]
 pub fn clamp<T: PartialOrd>(value: T, min: T, max: T) -> T {
     if value < min {
@@ -126,25 +126,25 @@ pub fn clamp<T: PartialOrd>(value: T, min: T, max: T) -> T {
     }
 }
 
-/// Linearly interpolates between two values.
+/// Nội suy tuyến tính giữa hai giá trị.
 #[must_use]
 pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
     (b - a).mul_add(t, a)
 }
 
-/// Converts degrees to radians.
+/// Chuyển đổi độ sang radian.
 #[must_use]
 pub fn deg_to_rad(degrees: f64) -> f64 {
     degrees.to_radians()
 }
 
-/// Converts radians to degrees.
+/// Chuyển đổi radian sang độ.
 #[must_use]
 pub fn rad_to_deg(radians: f64) -> f64 {
     radians.to_degrees()
 }
 
-/// Calculates the Euclidean distance between two points.
+/// Tính khoảng cách Euclid giữa hai điểm.
 #[must_use]
 pub fn euclidean_distance(p1: (f64, f64), p2: (f64, f64)) -> f64 {
     let dx = p2.0 - p1.0;
@@ -152,7 +152,7 @@ pub fn euclidean_distance(p1: (f64, f64), p2: (f64, f64)) -> f64 {
     dx.hypot(dy)
 }
 
-/// Calculates the Euclidean distance in 3D.
+/// Tính khoảng cách Euclid trong không gian 3D.
 #[must_use]
 pub fn euclidean_distance_3d(p1: (f64, f64, f64), p2: (f64, f64, f64)) -> f64 {
     let dx = p2.0 - p1.0;
@@ -181,7 +181,7 @@ mod tests {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let normalized = normalize_zscore(&data);
 
-        // Mean should be approximately 0
+        // Trung bình phải xấp xỉ 0
         assert!(normalized.mean().unwrap().abs() < 1e-10);
     }
 
@@ -190,7 +190,7 @@ mod tests {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let smoothed = moving_average(&data, 3);
 
-        // Middle value should be average of 2, 3, 4
+        // Giá trị giữa phải là trung bình của 2, 3, 4
         assert!((smoothed[2] - 3.0).abs() < 1e-10);
     }
 
@@ -227,16 +227,16 @@ mod tests {
     #[test]
     fn test_unwrap_phase() {
         let pi = std::f64::consts::PI;
-        // Simulate a phase wrap
+        // Mô phỏng cuộn pha
         let phase = array![0.0, pi / 2.0, pi, -pi + 0.1, -pi / 2.0];
         let unwrapped = unwrap_phase(&phase);
 
-        // After unwrapping, the phase should be monotonically increasing
+        // Sau khi tháo cuộn, pha phải tăng đơn điệu
         for i in 1..unwrapped.len() {
-            // Allow some tolerance for the discontinuity correction
+            // Cho phép dung sai cho việc sửa gián đoạn
             assert!(
                 unwrapped[i] >= unwrapped[i - 1] - 0.5,
-                "Phase should be mostly increasing after unwrapping"
+                "Pha phải tăng dần sau khi tháo cuộn"
             );
         }
     }
@@ -247,7 +247,7 @@ mod tests {
         let noise = array![0.1, 0.1, 0.1, 0.1];
 
         let snr = calculate_snr_db(&signal, &noise);
-        // SNR should be 20 dB (10 * log10(1/0.01) = 10 * log10(100) = 20)
+        // SNR phải là 20 dB (10 * log10(1/0.01) = 10 * log10(100) = 20)
         assert!((snr - 20.0).abs() < 1e-10);
     }
 }

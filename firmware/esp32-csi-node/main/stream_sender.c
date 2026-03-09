@@ -1,8 +1,8 @@
 /**
  * @file stream_sender.c
- * @brief UDP stream sender for CSI frames.
+ * @brief Bộ gửi luồng UDP cho các khung CSI.
  *
- * Opens a UDP socket and sends serialized ADR-018 frames to the aggregator.
+ * Mở socket UDP và gửi các khung ADR-018 đã tuần tự hóa tới bộ tổng hợp.
  */
 
 #include "stream_sender.h"
@@ -21,7 +21,7 @@ static struct sockaddr_in s_dest_addr;
 
 /**
  * ENOMEM backoff state.
- * When sendto fails with ENOMEM (errno 12), we suppress further sends for
+ * Khi gửi thất bại với ENOMEM (errno 12), we suppress further sends for
  * a cooldown period to let lwIP reclaim packet buffers.  Without this,
  * rapid-fire CSI callbacks can exhaust the pbuf pool and crash the device.
  */
@@ -34,7 +34,7 @@ static int sender_init_internal(const char *ip, uint16_t port)
 {
     s_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s_sock < 0) {
-        ESP_LOGE(TAG, "Failed to create socket: errno %d", errno);
+        ESP_LOGE(TAG, "Tạo socket thất bại: errno %d", errno);
         return -1;
     }
 
@@ -43,13 +43,13 @@ static int sender_init_internal(const char *ip, uint16_t port)
     s_dest_addr.sin_port = htons(port);
 
     if (inet_pton(AF_INET, ip, &s_dest_addr.sin_addr) <= 0) {
-        ESP_LOGE(TAG, "Invalid target IP: %s", ip);
+        ESP_LOGE(TAG, "IP đích không hợp lệ: %s", ip);
         close(s_sock);
         s_sock = -1;
         return -1;
     }
 
-    ESP_LOGI(TAG, "UDP sender initialized: %s:%d", ip, port);
+    ESP_LOGI(TAG, "Bộ gửi UDP đã khởi tạo: %s:%d", ip, port);
     return 0;
 }
 
@@ -69,7 +69,7 @@ int stream_sender_send(const uint8_t *data, size_t len)
         return -1;
     }
 
-    /* ENOMEM backoff: if we recently exhausted lwIP buffers, skip sends
+    /* Lùi ENOMEM: nếu gần đây đã cạn kiệt bộ đệm lwIP, skip sends
      * until the cooldown expires.  This prevents the cascade of failed
      * sendto calls that leads to a guru meditation crash. */
     if (s_backoff_until_us > 0) {
@@ -77,13 +77,13 @@ int stream_sender_send(const uint8_t *data, size_t len)
         if (now < s_backoff_until_us) {
             s_enomem_suppressed++;
             if ((s_enomem_suppressed % ENOMEM_LOG_INTERVAL) == 1) {
-                ESP_LOGW(TAG, "sendto suppressed (ENOMEM backoff, %lu dropped)",
+                ESP_LOGW(TAG, "gửi bị chặn (lùi ENOMEM, %lu bị bỏ)",
                          (unsigned long)s_enomem_suppressed);
             }
             return -1;
         }
-        /* Cooldown expired — resume sending */
-        ESP_LOGI(TAG, "ENOMEM backoff expired, resuming sends (%lu were suppressed)",
+        /* Hết thời gian chờ — tiếp tục gửi */
+        ESP_LOGI(TAG, "Hết thời gian lùi ENOMEM, tiếp tục gửi (%lu đã bị chặn)",
                  (unsigned long)s_enomem_suppressed);
         s_backoff_until_us = 0;
         s_enomem_suppressed = 0;
@@ -93,12 +93,12 @@ int stream_sender_send(const uint8_t *data, size_t len)
                       (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
     if (sent < 0) {
         if (errno == ENOMEM) {
-            /* Start backoff to let lwIP reclaim buffers */
+            /* Bắt đầu lùi để lwIP thu hồi bộ đệm */
             s_backoff_until_us = esp_timer_get_time() +
                                  (int64_t)ENOMEM_COOLDOWN_MS * 1000;
-            ESP_LOGW(TAG, "sendto ENOMEM — backing off for %d ms", ENOMEM_COOLDOWN_MS);
+            ESP_LOGW(TAG, "gửi ENOMEM — lùi lại %d ms", ENOMEM_COOLDOWN_MS);
         } else {
-            ESP_LOGW(TAG, "sendto failed: errno %d", errno);
+            ESP_LOGW(TAG, "gửi thất bại: errno %d", errno);
         }
         return -1;
     }
@@ -111,6 +111,6 @@ void stream_sender_deinit(void)
     if (s_sock >= 0) {
         close(s_sock);
         s_sock = -1;
-        ESP_LOGI(TAG, "UDP sender closed");
+        ESP_LOGI(TAG, "Đã đóng bộ gửi UDP");
     }
 }

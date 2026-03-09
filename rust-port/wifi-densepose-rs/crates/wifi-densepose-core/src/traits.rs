@@ -1,43 +1,43 @@
-//! Core trait definitions for the WiFi-DensePose system.
+//! Định nghĩa các trait cốt lõi cho hệ thống WiFi-DensePose.
 //!
-//! This module defines the fundamental abstractions used throughout the system,
-//! enabling a modular and testable architecture.
+//! Module này định nghĩa các trừu tượng nền tảng được sử dụng xuyên suốt hệ thống,
+//! cho phép kiến trúc mô-đun và dễ kiểm thử.
 //!
-//! # Traits
+//! # Trait
 //!
-//! - [`SignalProcessor`]: Process raw CSI frames into neural network-ready tensors
-//! - [`NeuralInference`]: Run pose estimation inference on processed signals
-//! - [`DataStore`]: Persist and retrieve CSI data and pose estimates
+//! - [`SignalProcessor`]: Xử lý khung CSI thô thành tensor sẵn sàng cho mạng nơ-ron
+//! - [`NeuralInference`]: Chạy suy luận ước lượng tư thế trên tín hiệu đã xử lý
+//! - [`DataStore`]: Lưu trữ và truy xuất dữ liệu CSI và ước lượng tư thế
 //!
-//! # Design Philosophy
+//! # Triết Lý Thiết Kế
 //!
-//! These traits are designed with the following principles:
+//! Các trait này được thiết kế với các nguyên tắc sau:
 //!
-//! 1. **Single Responsibility**: Each trait handles one concern
-//! 2. **Testability**: All traits can be easily mocked for unit testing
-//! 3. **Async-Ready**: Async versions available with the `async` feature
-//! 4. **Error Handling**: Consistent use of `Result` types with domain errors
+//! 1. **Trách Nhiệm Đơn Lẻ**: Mỗi trait xử lý một mối quan tâm
+//! 2. **Khả Năng Kiểm Thử**: Tất cả trait có thể dễ dàng mock cho unit test
+//! 3. **Sẵn Sàng Bất Đồng Bộ**: Phiên bản async có sẵn với tính năng `async`
+//! 4. **Xử Lý Lỗi**: Sử dụng nhất quán kiểu `Result` với lỗi miền
 
 use crate::error::{CoreResult, InferenceError, SignalError, StorageError};
 use crate::types::{CsiFrame, FrameId, PoseEstimate, ProcessedSignal, Timestamp};
 
-/// Configuration for signal processing.
+/// Cấu hình cho xử lý tín hiệu.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SignalProcessorConfig {
-    /// Number of frames to buffer before processing
+    /// Số khung đệm trước khi xử lý
     pub buffer_size: usize,
-    /// Sampling rate in Hz
+    /// Tần số lấy mẫu tính bằng Hz
     pub sample_rate_hz: f64,
-    /// Whether to apply noise filtering
+    /// Có áp dụng bộ lọc nhiễu hay không
     pub apply_noise_filter: bool,
-    /// Noise filter cutoff frequency in Hz
+    /// Tần số cắt bộ lọc nhiễu tính bằng Hz
     pub filter_cutoff_hz: f64,
-    /// Whether to normalize amplitudes
+    /// Có chuẩn hoá biên độ hay không
     pub normalize_amplitude: bool,
-    /// Whether to unwrap phases
+    /// Có tháo cuộn pha hay không
     pub unwrap_phase: bool,
-    /// Window function for spectral analysis
+    /// Hàm cửa sổ cho phân tích phổ
     pub window_function: WindowFunction,
 }
 
@@ -55,32 +55,32 @@ impl Default for SignalProcessorConfig {
     }
 }
 
-/// Window functions for spectral analysis.
+/// Các hàm cửa sổ cho phân tích phổ.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowFunction {
-    /// Rectangular window (no windowing)
+    /// Cửa sổ hình chữ nhật (không cửa sổ hoá)
     Rectangular,
-    /// Hann window
+    /// Cửa sổ Hann
     #[default]
     Hann,
-    /// Hamming window
+    /// Cửa sổ Hamming
     Hamming,
-    /// Blackman window
+    /// Cửa sổ Blackman
     Blackman,
-    /// Kaiser window
+    /// Cửa sổ Kaiser
     Kaiser,
 }
 
-/// Signal processor for converting raw CSI frames into processed signals.
+/// Bộ xử lý tín hiệu để chuyển đổi khung CSI thô thành tín hiệu đã xử lý.
 ///
-/// Implementations of this trait handle:
-/// - Buffering and aggregating CSI frames
-/// - Noise filtering and signal conditioning
-/// - Phase unwrapping and amplitude normalization
-/// - Feature extraction
+/// Các triển khai của trait này xử lý:
+/// - Đệm và tổng hợp khung CSI
+/// - Lọc nhiễu và điều hoà tín hiệu
+/// - Tháo cuộn pha và chuẩn hoá biên độ
+/// - Trích xuất đặc trưng
 ///
-/// # Example
+/// # Ví Dụ
 ///
 /// ```ignore
 /// use wifi_densepose_core::{SignalProcessor, CsiFrame};
@@ -88,77 +88,77 @@ pub enum WindowFunction {
 /// fn process_frames(processor: &mut impl SignalProcessor, frames: Vec<CsiFrame>) {
 ///     for frame in frames {
 ///         if let Err(e) = processor.push_frame(frame) {
-///             eprintln!("Failed to push frame: {}", e);
+///             eprintln!("Không thể đẩy khung: {}", e);
 ///         }
 ///     }
 ///
 ///     if let Some(signal) = processor.try_process() {
-///         println!("Processed signal with {} time steps", signal.num_time_steps());
+///         println!("Tín hiệu đã xử lý với {} bước thời gian", signal.num_time_steps());
 ///     }
 /// }
 /// ```
 pub trait SignalProcessor: Send + Sync {
-    /// Returns the current configuration.
+    /// Trả về cấu hình hiện tại.
     fn config(&self) -> &SignalProcessorConfig;
 
-    /// Updates the configuration.
+    /// Cập nhật cấu hình.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the configuration is invalid.
+    /// Trả về lỗi nếu cấu hình không hợp lệ.
     fn set_config(&mut self, config: SignalProcessorConfig) -> Result<(), SignalError>;
 
-    /// Pushes a new CSI frame into the processing buffer.
+    /// Đẩy một khung CSI mới vào bộ đệm xử lý.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the frame is invalid or the buffer is full.
+    /// Trả về lỗi nếu khung không hợp lệ hoặc bộ đệm đầy.
     fn push_frame(&mut self, frame: CsiFrame) -> Result<(), SignalError>;
 
-    /// Attempts to process the buffered frames.
+    /// Cố gắng xử lý các khung đã đệm.
     ///
-    /// Returns `None` if insufficient frames are buffered.
-    /// Returns `Some(ProcessedSignal)` on successful processing.
+    /// Trả về `None` nếu không đủ khung được đệm.
+    /// Trả về `Some(ProcessedSignal)` khi xử lý thành công.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if processing fails.
+    /// Trả về lỗi nếu xử lý thất bại.
     fn try_process(&mut self) -> Result<Option<ProcessedSignal>, SignalError>;
 
-    /// Forces processing of whatever frames are buffered.
+    /// Buộc xử lý bất kỳ khung nào đang đệm.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if no frames are buffered or processing fails.
+    /// Trả về lỗi nếu không có khung nào được đệm hoặc xử lý thất bại.
     fn force_process(&mut self) -> Result<ProcessedSignal, SignalError>;
 
-    /// Returns the number of frames currently buffered.
+    /// Trả về số khung hiện đang đệm.
     fn buffered_frame_count(&self) -> usize;
 
-    /// Clears the frame buffer.
+    /// Xoá bộ đệm khung.
     fn clear_buffer(&mut self);
 
-    /// Resets the processor to its initial state.
+    /// Đặt lại bộ xử lý về trạng thái ban đầu.
     fn reset(&mut self);
 }
 
-/// Configuration for neural network inference.
+/// Cấu hình cho suy luận mạng nơ-ron.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InferenceConfig {
-    /// Path to the model file
+    /// Đường dẫn đến file mô hình
     pub model_path: String,
-    /// Device to run inference on
+    /// Thiết bị chạy suy luận
     pub device: InferenceDevice,
-    /// Maximum batch size
+    /// Kích thước batch tối đa
     pub max_batch_size: usize,
-    /// Number of threads for CPU inference
+    /// Số luồng cho suy luận CPU
     pub num_threads: usize,
-    /// Confidence threshold for detections
+    /// Ngưỡng độ tin cậy cho phát hiện
     pub confidence_threshold: f32,
-    /// Non-maximum suppression threshold
+    /// Ngưỡng triệt tiêu không cực đại
     pub nms_threshold: f32,
-    /// Whether to use half precision (FP16)
+    /// Có sử dụng nửa chính xác (FP16) hay không
     pub use_fp16: bool,
 }
 
@@ -176,37 +176,37 @@ impl Default for InferenceConfig {
     }
 }
 
-/// Device for running neural network inference.
+/// Thiết bị chạy suy luận mạng nơ-ron.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum InferenceDevice {
-    /// CPU inference
+    /// Suy luận trên CPU
     #[default]
     Cpu,
-    /// CUDA GPU inference
+    /// Suy luận trên GPU CUDA
     Cuda {
-        /// GPU device index
+        /// Chỉ số thiết bị GPU
         device_id: usize,
     },
-    /// TensorRT accelerated inference
+    /// Suy luận tăng tốc TensorRT
     TensorRt {
-        /// GPU device index
+        /// Chỉ số thiết bị GPU
         device_id: usize,
     },
     /// CoreML (Apple Silicon)
     CoreMl,
-    /// WebGPU for browser environments
+    /// WebGPU cho môi trường trình duyệt
     WebGpu,
 }
 
-/// Neural network inference engine for pose estimation.
+/// Bộ suy luận mạng nơ-ron cho ước lượng tư thế.
 ///
-/// Implementations of this trait handle:
-/// - Loading and managing neural network models
-/// - Running inference on processed signals
-/// - Post-processing outputs into pose estimates
+/// Các triển khai của trait này xử lý:
+/// - Tải và quản lý mô hình mạng nơ-ron
+/// - Chạy suy luận trên tín hiệu đã xử lý
+/// - Hậu xử lý đầu ra thành ước lượng tư thế
 ///
-/// # Example
+/// # Ví Dụ
 ///
 /// ```ignore
 /// use wifi_densepose_core::{NeuralInference, ProcessedSignal};
@@ -219,103 +219,103 @@ pub enum InferenceDevice {
 /// }
 /// ```
 pub trait NeuralInference: Send + Sync {
-    /// Returns the current configuration.
+    /// Trả về cấu hình hiện tại.
     fn config(&self) -> &InferenceConfig;
 
-    /// Returns `true` if the model is loaded and ready.
+    /// Trả về `true` nếu mô hình đã tải và sẵn sàng.
     fn is_ready(&self) -> bool;
 
-    /// Returns the model version string.
+    /// Trả về chuỗi phiên bản mô hình.
     fn model_version(&self) -> &str;
 
-    /// Loads the model from the configured path.
+    /// Tải mô hình từ đường dẫn đã cấu hình.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the model cannot be loaded.
+    /// Trả về lỗi nếu không thể tải mô hình.
     fn load_model(&mut self) -> Result<(), InferenceError>;
 
-    /// Unloads the current model to free resources.
+    /// Giải phóng mô hình hiện tại để giải phóng tài nguyên.
     fn unload_model(&mut self);
 
-    /// Runs inference on a single processed signal.
+    /// Chạy suy luận trên một tín hiệu đã xử lý đơn lẻ.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if inference fails.
+    /// Trả về lỗi nếu suy luận thất bại.
     fn infer(&self, signal: &ProcessedSignal) -> Result<PoseEstimate, InferenceError>;
 
-    /// Runs inference on a batch of processed signals.
+    /// Chạy suy luận trên một batch tín hiệu đã xử lý.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if inference fails.
+    /// Trả về lỗi nếu suy luận thất bại.
     fn infer_batch(&self, signals: &[ProcessedSignal])
         -> Result<Vec<PoseEstimate>, InferenceError>;
 
-    /// Warms up the model by running a dummy inference.
+    /// Khởi động mô hình bằng cách chạy suy luận giả.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if warmup fails.
+    /// Trả về lỗi nếu khởi động thất bại.
     fn warmup(&mut self) -> Result<(), InferenceError>;
 
-    /// Returns performance statistics.
+    /// Trả về thống kê hiệu năng.
     fn stats(&self) -> InferenceStats;
 }
 
-/// Performance statistics for neural network inference.
+/// Thống kê hiệu năng cho suy luận mạng nơ-ron.
 #[derive(Debug, Clone, Default)]
 pub struct InferenceStats {
-    /// Total number of inferences performed
+    /// Tổng số lần suy luận đã thực hiện
     pub total_inferences: u64,
-    /// Average inference latency in milliseconds
+    /// Độ trễ suy luận trung bình tính bằng mili giây
     pub avg_latency_ms: f64,
-    /// 95th percentile latency in milliseconds
+    /// Độ trễ phân vị thứ 95 tính bằng mili giây
     pub p95_latency_ms: f64,
-    /// Maximum latency in milliseconds
+    /// Độ trễ tối đa tính bằng mili giây
     pub max_latency_ms: f64,
-    /// Inferences per second throughput
+    /// Thông lượng suy luận mỗi giây
     pub throughput: f64,
-    /// GPU memory usage in bytes (if applicable)
+    /// Bộ nhớ GPU sử dụng tính bằng byte (nếu có)
     pub gpu_memory_bytes: Option<u64>,
 }
 
-/// Query options for data store operations.
+/// Tuỳ chọn truy vấn cho các thao tác kho dữ liệu.
 #[derive(Debug, Clone, Default)]
 pub struct QueryOptions {
-    /// Maximum number of results to return
+    /// Số kết quả tối đa trả về
     pub limit: Option<usize>,
-    /// Number of results to skip
+    /// Số kết quả bỏ qua
     pub offset: Option<usize>,
-    /// Start time filter (inclusive)
+    /// Bộ lọc thời gian bắt đầu (bao gồm)
     pub start_time: Option<Timestamp>,
-    /// End time filter (inclusive)
+    /// Bộ lọc thời gian kết thúc (bao gồm)
     pub end_time: Option<Timestamp>,
-    /// Device ID filter
+    /// Bộ lọc ID thiết bị
     pub device_id: Option<String>,
-    /// Sort order
+    /// Thứ tự sắp xếp
     pub sort_order: SortOrder,
 }
 
-/// Sort order for query results.
+/// Thứ tự sắp xếp cho kết quả truy vấn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SortOrder {
-    /// Ascending order (oldest first)
+    /// Thứ tự tăng dần (cũ nhất trước)
     #[default]
     Ascending,
-    /// Descending order (newest first)
+    /// Thứ tự giảm dần (mới nhất trước)
     Descending,
 }
 
-/// Data storage trait for persisting and retrieving CSI data and pose estimates.
+/// Trait lưu trữ dữ liệu để bền hoá và truy xuất dữ liệu CSI và ước lượng tư thế.
 ///
-/// Implementations can use various backends:
-/// - PostgreSQL/SQLite for relational storage
-/// - Redis for caching
-/// - Time-series databases for efficient temporal queries
+/// Các triển khai có thể sử dụng nhiều backend khác nhau:
+/// - PostgreSQL/SQLite cho lưu trữ quan hệ
+/// - Redis cho bộ nhớ đệm
+/// - Cơ sở dữ liệu chuỗi thời gian cho truy vấn thời gian hiệu quả
 ///
-/// # Example
+/// # Ví Dụ
 ///
 /// ```ignore
 /// use wifi_densepose_core::{DataStore, CsiFrame, PoseEstimate};
@@ -329,259 +329,259 @@ pub enum SortOrder {
 ///     store.store_pose_estimate(&estimate).await?;
 ///
 ///     let recent = store.get_recent_estimates(10).await?;
-///     println!("Found {} recent estimates", recent.len());
+///     println!("Tìm thấy {} ước lượng gần đây", recent.len());
 /// }
 /// ```
 pub trait DataStore: Send + Sync {
-    /// Returns `true` if the store is connected and ready.
+    /// Trả về `true` nếu kho đã kết nối và sẵn sàng.
     fn is_connected(&self) -> bool;
 
-    /// Stores a CSI frame.
+    /// Lưu trữ một khung CSI.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the store operation fails.
+    /// Trả về lỗi nếu thao tác lưu trữ thất bại.
     fn store_csi_frame(&self, frame: &CsiFrame) -> Result<(), StorageError>;
 
-    /// Retrieves a CSI frame by ID.
+    /// Truy xuất khung CSI theo ID.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the frame is not found or retrieval fails.
+    /// Trả về lỗi nếu không tìm thấy khung hoặc truy xuất thất bại.
     fn get_csi_frame(&self, id: &FrameId) -> Result<CsiFrame, StorageError>;
 
-    /// Retrieves CSI frames matching the query options.
+    /// Truy xuất các khung CSI khớp với tuỳ chọn truy vấn.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the query fails.
+    /// Trả về lỗi nếu truy vấn thất bại.
     fn query_csi_frames(&self, options: &QueryOptions) -> Result<Vec<CsiFrame>, StorageError>;
 
-    /// Stores a pose estimate.
+    /// Lưu trữ một ước lượng tư thế.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the store operation fails.
+    /// Trả về lỗi nếu thao tác lưu trữ thất bại.
     fn store_pose_estimate(&self, estimate: &PoseEstimate) -> Result<(), StorageError>;
 
-    /// Retrieves a pose estimate by ID.
+    /// Truy xuất ước lượng tư thế theo ID.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the estimate is not found or retrieval fails.
+    /// Trả về lỗi nếu không tìm thấy ước lượng hoặc truy xuất thất bại.
     fn get_pose_estimate(&self, id: &FrameId) -> Result<PoseEstimate, StorageError>;
 
-    /// Retrieves pose estimates matching the query options.
+    /// Truy xuất các ước lượng tư thế khớp với tuỳ chọn truy vấn.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the query fails.
+    /// Trả về lỗi nếu truy vấn thất bại.
     fn query_pose_estimates(
         &self,
         options: &QueryOptions,
     ) -> Result<Vec<PoseEstimate>, StorageError>;
 
-    /// Retrieves the N most recent pose estimates.
+    /// Truy xuất N ước lượng tư thế gần nhất.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the query fails.
+    /// Trả về lỗi nếu truy vấn thất bại.
     fn get_recent_estimates(&self, count: usize) -> Result<Vec<PoseEstimate>, StorageError>;
 
-    /// Deletes CSI frames older than the given timestamp.
+    /// Xoá các khung CSI cũ hơn dấu thời gian cho trước.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the deletion fails.
+    /// Trả về lỗi nếu thao tác xoá thất bại.
     fn delete_csi_frames_before(&self, timestamp: &Timestamp) -> Result<u64, StorageError>;
 
-    /// Deletes pose estimates older than the given timestamp.
+    /// Xoá các ước lượng tư thế cũ hơn dấu thời gian cho trước.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if the deletion fails.
+    /// Trả về lỗi nếu thao tác xoá thất bại.
     fn delete_pose_estimates_before(&self, timestamp: &Timestamp) -> Result<u64, StorageError>;
 
-    /// Returns storage statistics.
+    /// Trả về thống kê lưu trữ.
     fn stats(&self) -> StorageStats;
 }
 
-/// Storage statistics.
+/// Thống kê lưu trữ.
 #[derive(Debug, Clone, Default)]
 pub struct StorageStats {
-    /// Total number of CSI frames stored
+    /// Tổng số khung CSI đã lưu
     pub csi_frame_count: u64,
-    /// Total number of pose estimates stored
+    /// Tổng số ước lượng tư thế đã lưu
     pub pose_estimate_count: u64,
-    /// Total storage size in bytes
+    /// Tổng dung lượng lưu trữ tính bằng byte
     pub total_size_bytes: u64,
-    /// Oldest record timestamp
+    /// Dấu thời gian bản ghi cũ nhất
     pub oldest_record: Option<Timestamp>,
-    /// Newest record timestamp
+    /// Dấu thời gian bản ghi mới nhất
     pub newest_record: Option<Timestamp>,
 }
 
 // =============================================================================
-// Async Trait Definitions (with `async` feature)
+// Định Nghĩa Trait Bất Đồng Bộ (với tính năng `async`)
 // =============================================================================
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
 
-/// Async version of [`SignalProcessor`].
+/// Phiên bản bất đồng bộ của [`SignalProcessor`].
 #[cfg(feature = "async")]
 #[async_trait]
 pub trait AsyncSignalProcessor: Send + Sync {
-    /// Returns the current configuration.
+    /// Trả về cấu hình hiện tại.
     fn config(&self) -> &SignalProcessorConfig;
 
-    /// Updates the configuration.
+    /// Cập nhật cấu hình.
     async fn set_config(&mut self, config: SignalProcessorConfig) -> Result<(), SignalError>;
 
-    /// Pushes a new CSI frame into the processing buffer.
+    /// Đẩy một khung CSI mới vào bộ đệm xử lý.
     async fn push_frame(&mut self, frame: CsiFrame) -> Result<(), SignalError>;
 
-    /// Attempts to process the buffered frames.
+    /// Cố gắng xử lý các khung đã đệm.
     async fn try_process(&mut self) -> Result<Option<ProcessedSignal>, SignalError>;
 
-    /// Forces processing of whatever frames are buffered.
+    /// Buộc xử lý bất kỳ khung nào đang đệm.
     async fn force_process(&mut self) -> Result<ProcessedSignal, SignalError>;
 
-    /// Returns the number of frames currently buffered.
+    /// Trả về số khung hiện đang đệm.
     fn buffered_frame_count(&self) -> usize;
 
-    /// Clears the frame buffer.
+    /// Xoá bộ đệm khung.
     async fn clear_buffer(&mut self);
 
-    /// Resets the processor to its initial state.
+    /// Đặt lại bộ xử lý về trạng thái ban đầu.
     async fn reset(&mut self);
 }
 
-/// Async version of [`NeuralInference`].
+/// Phiên bản bất đồng bộ của [`NeuralInference`].
 #[cfg(feature = "async")]
 #[async_trait]
 pub trait AsyncNeuralInference: Send + Sync {
-    /// Returns the current configuration.
+    /// Trả về cấu hình hiện tại.
     fn config(&self) -> &InferenceConfig;
 
-    /// Returns `true` if the model is loaded and ready.
+    /// Trả về `true` nếu mô hình đã tải và sẵn sàng.
     fn is_ready(&self) -> bool;
 
-    /// Returns the model version string.
+    /// Trả về chuỗi phiên bản mô hình.
     fn model_version(&self) -> &str;
 
-    /// Loads the model from the configured path.
+    /// Tải mô hình từ đường dẫn đã cấu hình.
     async fn load_model(&mut self) -> Result<(), InferenceError>;
 
-    /// Unloads the current model to free resources.
+    /// Giải phóng mô hình hiện tại để giải phóng tài nguyên.
     async fn unload_model(&mut self);
 
-    /// Runs inference on a single processed signal.
+    /// Chạy suy luận trên một tín hiệu đã xử lý đơn lẻ.
     async fn infer(&self, signal: &ProcessedSignal) -> Result<PoseEstimate, InferenceError>;
 
-    /// Runs inference on a batch of processed signals.
+    /// Chạy suy luận trên một batch tín hiệu đã xử lý.
     async fn infer_batch(
         &self,
         signals: &[ProcessedSignal],
     ) -> Result<Vec<PoseEstimate>, InferenceError>;
 
-    /// Warms up the model by running a dummy inference.
+    /// Khởi động mô hình bằng cách chạy suy luận giả.
     async fn warmup(&mut self) -> Result<(), InferenceError>;
 
-    /// Returns performance statistics.
+    /// Trả về thống kê hiệu năng.
     fn stats(&self) -> InferenceStats;
 }
 
-/// Async version of [`DataStore`].
+/// Phiên bản bất đồng bộ của [`DataStore`].
 #[cfg(feature = "async")]
 #[async_trait]
 pub trait AsyncDataStore: Send + Sync {
-    /// Returns `true` if the store is connected and ready.
+    /// Trả về `true` nếu kho đã kết nối và sẵn sàng.
     fn is_connected(&self) -> bool;
 
-    /// Stores a CSI frame.
+    /// Lưu trữ một khung CSI.
     async fn store_csi_frame(&self, frame: &CsiFrame) -> Result<(), StorageError>;
 
-    /// Retrieves a CSI frame by ID.
+    /// Truy xuất khung CSI theo ID.
     async fn get_csi_frame(&self, id: &FrameId) -> Result<CsiFrame, StorageError>;
 
-    /// Retrieves CSI frames matching the query options.
+    /// Truy xuất các khung CSI khớp với tuỳ chọn truy vấn.
     async fn query_csi_frames(&self, options: &QueryOptions) -> Result<Vec<CsiFrame>, StorageError>;
 
-    /// Stores a pose estimate.
+    /// Lưu trữ một ước lượng tư thế.
     async fn store_pose_estimate(&self, estimate: &PoseEstimate) -> Result<(), StorageError>;
 
-    /// Retrieves a pose estimate by ID.
+    /// Truy xuất ước lượng tư thế theo ID.
     async fn get_pose_estimate(&self, id: &FrameId) -> Result<PoseEstimate, StorageError>;
 
-    /// Retrieves pose estimates matching the query options.
+    /// Truy xuất các ước lượng tư thế khớp với tuỳ chọn truy vấn.
     async fn query_pose_estimates(
         &self,
         options: &QueryOptions,
     ) -> Result<Vec<PoseEstimate>, StorageError>;
 
-    /// Retrieves the N most recent pose estimates.
+    /// Truy xuất N ước lượng tư thế gần nhất.
     async fn get_recent_estimates(&self, count: usize) -> Result<Vec<PoseEstimate>, StorageError>;
 
-    /// Deletes CSI frames older than the given timestamp.
+    /// Xoá các khung CSI cũ hơn dấu thời gian cho trước.
     async fn delete_csi_frames_before(&self, timestamp: &Timestamp) -> Result<u64, StorageError>;
 
-    /// Deletes pose estimates older than the given timestamp.
+    /// Xoá các ước lượng tư thế cũ hơn dấu thời gian cho trước.
     async fn delete_pose_estimates_before(
         &self,
         timestamp: &Timestamp,
     ) -> Result<u64, StorageError>;
 
-    /// Returns storage statistics.
+    /// Trả về thống kê lưu trữ.
     fn stats(&self) -> StorageStats;
 }
 
 // =============================================================================
-// Extension Traits
+// Trait Mở Rộng
 // =============================================================================
 
-/// Extension trait for pipeline composition.
+/// Trait mở rộng cho tổ hợp pipeline.
 pub trait Pipeline: Send + Sync {
-    /// The input type for this pipeline stage.
+    /// Kiểu đầu vào cho giai đoạn pipeline này.
     type Input;
-    /// The output type for this pipeline stage.
+    /// Kiểu đầu ra cho giai đoạn pipeline này.
     type Output;
-    /// The error type for this pipeline stage.
+    /// Kiểu lỗi cho giai đoạn pipeline này.
     type Error;
 
-    /// Processes input and produces output.
+    /// Xử lý đầu vào và tạo ra đầu ra.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error if processing fails.
+    /// Trả về lỗi nếu xử lý thất bại.
     fn process(&self, input: Self::Input) -> Result<Self::Output, Self::Error>;
 }
 
-/// Trait for types that can validate themselves.
+/// Trait cho các kiểu có thể tự xác thực.
 pub trait Validate {
-    /// Validates the instance.
+    /// Xác thực thực thể.
     ///
-    /// # Errors
+    /// # Lỗi
     ///
-    /// Returns an error describing validation failures.
+    /// Trả về lỗi mô tả các lỗi xác thực.
     fn validate(&self) -> CoreResult<()>;
 }
 
-/// Trait for types that can be reset to a default state.
+/// Trait cho các kiểu có thể đặt lại về trạng thái mặc định.
 pub trait Resettable {
-    /// Resets the instance to its initial state.
+    /// Đặt lại thực thể về trạng thái ban đầu.
     fn reset(&mut self);
 }
 
-/// Trait for types that track health status.
+/// Trait cho các kiểu theo dõi trạng thái sức khoẻ.
 pub trait HealthCheck {
-    /// Health status of the component.
+    /// Trạng thái sức khoẻ của thành phần.
     type Status;
 
-    /// Performs a health check and returns the current status.
+    /// Thực hiện kiểm tra sức khoẻ và trả về trạng thái hiện tại.
     fn health_check(&self) -> Self::Status;
 
-    /// Returns `true` if the component is healthy.
+    /// Trả về `true` nếu thành phần khoẻ mạnh.
     fn is_healthy(&self) -> bool;
 }
 

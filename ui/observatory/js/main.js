@@ -1,12 +1,12 @@
 /**
- * RuView Observatory — Main Scene Orchestrator
+ * RuView Observatory — Bộ Điều Phối Cảnh Chính
  *
- * Room-based WiFi sensing visualization with:
- * - Pool of 4 human wireframe figures (multi-person scenarios)
- * - 7 pose types (standing, walking, lying, sitting, fallen, exercising, gesturing, crouching)
- * - Scenario-specific room props (chair, exercise mat, door, rubble wall, screen, desk)
- * - Dot-matrix mist body mass, particle trails, WiFi waves, signal field
- * - Reflective floor, settings dialog, and practical data HUD
+ * Trực quan hoá cảm biến WiFi dựa trên phòng với:
+ * - Nhóm 4 hình khung xương con người (kịch bản đa người)
+ * - 7 loại tư thế (đứng, đi, nằm, ngồi, ngã, tập thể dục, ra cử chỉ, ngồi xổm)
+ * - Đạo cụ phòng theo kịch bản (ghế, thảm tập, cửa, tường đổ, màn hình, bàn)
+ * - Sương ma trận chấm, vệt hạt, sóng WiFi, trường tín hiệu
+ * - Sàn phản chiếu, hộp thoại cài đặt, và HUD dữ liệu thực tiễn
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -19,7 +19,7 @@ import { PoseSystem } from './pose-system.js';
 import { ScenarioProps } from './scenario-props.js';
 import { HudController, DEFAULTS, SETTINGS_VERSION, PRESETS, SCENARIO_NAMES } from './hud-controller.js';
 
-// ---- Palette ----
+// ---- Bảng Màu ----
 const C = {
   greenGlow:  0x00d878,
   greenBright:0x3eff8a,
@@ -31,16 +31,16 @@ const C = {
   bgDeep:     0x080c14,
 };
 
-// SCENARIO_NAMES, DEFAULTS, SETTINGS_VERSION, PRESETS imported from hud-controller.js
+// SCENARIO_NAMES, DEFAULTS, SETTINGS_VERSION, PRESETS nhập từ hud-controller.js
 
-// ---- Main Class ----
+// ---- Lớp Chính ----
 
 class Observatory {
   constructor() {
     this._canvas = document.getElementById('observatory-canvas');
     this.settings = { ...DEFAULTS };
 
-    // Load saved settings
+    // Tải cài đặt đã lưu
     try {
       const ver = localStorage.getItem('ruview-settings-version');
       if (ver === SETTINGS_VERSION) {
@@ -52,7 +52,7 @@ class Observatory {
       }
     } catch {}
 
-    // Renderer
+    // Bộ kết xuất
     this._renderer = new THREE.WebGLRenderer({
       canvas: this._canvas,
       antialias: true,
@@ -65,19 +65,19 @@ class Observatory {
     this._renderer.shadowMap.enabled = true;
     this._renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Scene
+    // Cảnh
     this._scene = new THREE.Scene();
     this._scene.background = new THREE.Color(C.bgDeep);
     this._scene.fog = new THREE.FogExp2(C.bgDeep, 0.005);
 
-    // Camera
+    // Máy ảnh
     this._camera = new THREE.PerspectiveCamera(
       this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 300
     );
     this._camera.position.set(6, 5, 8);
     this._camera.lookAt(0, 1.2, 0);
 
-    // Controls
+    // Điều khiển
     this._controls = new OrbitControls(this._camera, this._canvas);
     this._controls.enableDamping = true;
     this._controls.dampingFactor = 0.08;
@@ -89,7 +89,7 @@ class Observatory {
 
     this._clock = new THREE.Clock();
 
-    // Data
+    // Dữ liệu
     this._demoData = new DemoDataGenerator();
     this._demoData.setCycleDuration(this.settings.cycle || 30);
     if (this.settings.scenario && this.settings.scenario !== 'auto') {
@@ -98,7 +98,7 @@ class Observatory {
     this._currentData = null;
     this._currentScenario = null;
 
-    // Build scene
+    // Xây dựng cảnh
     this._setupLighting();
     this._nebula = new NebulaBackground(this._scene);
     this._buildRoom();
@@ -111,14 +111,14 @@ class Observatory {
     this._buildWifiWaves();
     this._buildSignalField();
 
-    // Post-processing
+    // Hậu xử lý
     this._postProcessing = new PostProcessing(this._renderer, this._scene, this._camera);
     this._applyPostSettings();
 
-    // HUD controller (settings dialog, sparkline, vital displays)
+    // Bộ điều khiển HUD (hộp thoại cài đặt, biểu đồ tia lửa, hiển thị sinh hiệu)
     this._hud = new HudController(this);
 
-    // State
+    // Trạng thái
     this._autopilot = false;
     this._autoAngle = 0;
     this._fpsFrames = 0;
@@ -127,22 +127,22 @@ class Observatory {
     this._showFps = false;
     this._qualityLevel = 2;
 
-    // WebSocket for live data — always try auto-detect on startup
+    // WebSocket cho dữ liệu trực tiếp — luôn thử tự phát hiện khi khởi động
     this._ws = null;
     this._liveData = null;
     this._autoDetectLive();
 
-    // Input
+    // Đầu vào
     this._initKeyboard();
     this._hud.initSettings();
     this._hud.initQuickSelect();
     window.addEventListener('resize', () => this._onResize());
 
-    // Start
+    // Bắt đầu
     this._animate();
   }
 
-  // ---- Lighting ----
+  // ---- Ánh Sáng ----
 
   _setupLighting() {
     this._ambient = new THREE.AmbientLight(0xccccdd, this.settings.ambient * 5.0);
@@ -163,23 +163,23 @@ class Observatory {
     key.shadow.camera.bottom = -8;
     this._scene.add(key);
 
-    // Fill light from opposite side
+    // Đèn lấp đầy từ phía đối diện
     const fill = new THREE.DirectionalLight(0x8899bb, 0.7);
     fill.position.set(-4, 5, -2);
     this._scene.add(fill);
 
-    // Rim light from above/behind for edge definition
+    // Đèn viền từ trên/sau cho định nghĩa cạnh
     const rim = new THREE.DirectionalLight(0x6699cc, 0.5);
     rim.position.set(0, 6, -5);
     this._scene.add(rim);
 
-    // Overhead room light — general illumination
+    // Đèn trần phòng — chiếu sáng tổng quát
     const overhead = new THREE.PointLight(0x8899aa, 1.0, 20, 1.0);
     overhead.position.set(0, 3.8, 0);
     this._scene.add(overhead);
   }
 
-  // ---- Room ----
+  // ---- Phòng ----
 
   _buildRoom() {
     this._grid = new THREE.GridHelper(12, 24, 0x1a4830, 0x0c2818);
@@ -195,7 +195,7 @@ class Observatory {
     this._roomWire.position.y = 2;
     this._scene.add(this._roomWire);
 
-    // Reflective floor
+    // Sàn phản chiếu
     const floorGeo = new THREE.PlaneGeometry(12, 10);
     this._floorMat = new THREE.MeshStandardMaterial({
       color: 0x101810,
@@ -209,7 +209,7 @@ class Observatory {
     floor.receiveShadow = true;
     this._scene.add(floor);
 
-    // Table under router
+    // Bàn dưới bộ phát WiFi
     const tableGeo = new THREE.BoxGeometry(0.8, 0.6, 0.5);
     const tableMat = new THREE.MeshStandardMaterial({ color: 0x6b5840, roughness: 0.55, emissive: 0x1a1408, emissiveIntensity: 0.25 });
     const table = new THREE.Mesh(tableGeo, tableMat);
@@ -218,7 +218,7 @@ class Observatory {
     this._scene.add(table);
   }
 
-  // ---- Router ----
+  // ---- Bộ Phát WiFi ----
 
   _buildRouter() {
     this._routerGroup = new THREE.Group();
@@ -249,7 +249,7 @@ class Observatory {
     this._scene.add(this._routerGroup);
   }
 
-  // ---- WiFi Waves ----
+  // ---- Sóng WiFi ----
 
   _buildWifiWaves() {
     this._wifiWaves = [];
@@ -272,7 +272,7 @@ class Observatory {
   }
 
   // ========================================
-  // DOT MATRIX MIST
+  // SƯƠNG MA TRẬN CHẤM
   // ========================================
 
   _buildDotMatrixMist() {
@@ -319,7 +319,7 @@ class Observatory {
     this._mistCount = COUNT;
   }
 
-  // ---- Particle Trail ----
+  // ---- Vệt Hạt ----
 
   _buildParticleTrail() {
     const COUNT = 200;
@@ -360,7 +360,7 @@ class Observatory {
     this._trailTimer = 0;
   }
 
-  // ---- Signal Field ----
+  // ---- Trường Tín Hiệu ----
 
   _buildSignalField() {
     const gridSize = 20;
@@ -390,7 +390,7 @@ class Observatory {
     this._scene.add(this._fieldPoints);
   }
 
-  // ---- Keyboard ----
+  // ---- Bàn Phím ----
 
   _initKeyboard() {
     window.addEventListener('keydown', (e) => {
@@ -414,7 +414,7 @@ class Observatory {
     });
   }
 
-  // ---- Settings / HUD methods delegated to HudController ----
+  // ---- Các phương thức Cài đặt / HUD ủy quyền cho HudController ----
 
   _applyPostSettings() {
     const pp = this._postProcessing;
@@ -433,22 +433,22 @@ class Observatory {
     this._mistPoints.material.uniforms.uColor.value.copy(wc);
   }
 
-  // ---- WebSocket live data ----
+  // ---- Dữ liệu trực tiếp WebSocket ----
 
   _autoDetectLive() {
-    // Probe sensing server health on same origin, then common ports
+    // Thăm dò sức khỏe máy chủ cảm biến trên cùng nguồn, sau đó các cổng phổ biến
     const host = window.location.hostname || 'localhost';
     const candidates = [
       window.location.origin,                   // same origin (e.g. :3000)
       `http://${host}:8765`,                     // default WS port
       `http://${host}:3000`,                     // default HTTP port
     ];
-    // Deduplicate
+    // Loại trùng lặp
     const unique = [...new Set(candidates)];
 
     const tryNext = (i) => {
       if (i >= unique.length) {
-        console.log('[Observatory] No sensing server detected, using demo mode');
+        console.log('[Observatory] Không phát hiện máy chủ cảm biến, sử dụng chế độ thử nghiệm');
         return;
       }
       const base = unique[i];
@@ -459,7 +459,7 @@ class Observatory {
             const wsProto = base.startsWith('https') ? 'wss:' : 'ws:';
             const urlObj = new URL(base);
             const wsUrl = `${wsProto}//${urlObj.host}/ws/sensing`;
-            console.log('[Observatory] Sensing server detected at', base, '→', wsUrl);
+            console.log('[Observatory] Phát hiện máy chủ cảm biến tại', base, '→', wsUrl);
             this.settings.dataSource = 'ws';
             this.settings.wsUrl = wsUrl;
             this._connectWS(wsUrl);
@@ -477,12 +477,12 @@ class Observatory {
     try {
       this._ws = new WebSocket(url);
       this._ws.onopen = () => {
-        console.log('[Observatory] WebSocket connected');
+        console.log('[Observatory] WebSocket đã kết nối');
         this._hud.updateSourceBadge('ws', this._ws);
       };
       this._ws.onmessage = (evt) => { try { this._liveData = JSON.parse(evt.data); } catch {} };
       this._ws.onclose = () => {
-        console.log('[Observatory] WebSocket closed, falling back to demo');
+        console.log('[Observatory] WebSocket đã đóng, chuyển về chế độ thử nghiệm');
         this._ws = null;
         this.settings.dataSource = 'demo';
         this._hud.updateSourceBadge('demo', null);
@@ -497,7 +497,7 @@ class Observatory {
   }
 
   // ========================================
-  // ANIMATION LOOP
+  // VÒNG LẶP HOẠT HÌNH
   // ========================================
 
   _animate() {
@@ -505,7 +505,7 @@ class Observatory {
     const dt = Math.min(this._clock.getDelta(), 0.1);
     const elapsed = this._clock.getElapsedTime();
 
-    // Data source
+    // Nguồn dữ liệu
     if (this.settings.dataSource === 'ws' && this._liveData) {
       this._currentData = this._liveData;
     } else {
@@ -513,7 +513,7 @@ class Observatory {
     }
     const data = this._currentData;
 
-    // Updates
+    // Cập nhật
     this._nebula.update(dt, elapsed);
     this._figurePool.update(data, elapsed);
     this._scenarioProps.update(data, this._demoData.currentScenario);
@@ -524,11 +524,11 @@ class Observatory {
     this._hud.updateHUD(data, this._demoData);
     this._hud.updateSparkline(data);
 
-    // Router LED
+    // Đèn LED bộ phát WiFi
     this._routerLed.material.opacity = 0.5 + 0.5 * Math.sin(elapsed * 8);
     this._routerLight.intensity = 0.3 + 0.2 * Math.sin(elapsed * 3);
 
-    // Autopilot orbit
+    // Quỹ đạo tự lái
     if (this._autopilot) {
       this._autoAngle += dt * this.settings.orbitSpeed;
       const r = 10;
@@ -548,7 +548,7 @@ class Observatory {
 
 
   // ========================================
-  // MIST & TRAIL
+  // SƯƠNG & VỆT
   // ========================================
 
   _updateDotMatrixMist(data, elapsed) {
@@ -565,7 +565,7 @@ class Observatory {
       return;
     }
 
-    // Follow primary person
+    // Theo dõi người chính
     const pp = persons[0].position || [0, 0, 0];
     const px = pp[0] || 0, pz = pp[2] || 0;
     const ms = persons[0].motion_score || 0;
@@ -614,7 +614,7 @@ class Observatory {
       ages.array[i] = Math.min(1, ages.array[i] + dt * 0.8);
     }
 
-    // Emit from all active persons
+    // Phát từ tất cả người đang hoạt động
     if (isPresent && persons.length > 0) {
       this._trailTimer += dt;
       const ms = persons[0].motion_score || 0;
@@ -637,7 +637,7 @@ class Observatory {
     ages.needsUpdate = true;
   }
 
-  // ---- WiFi Waves ----
+  // ---- Sóng WiFi ----
 
   _updateWifiWaves(elapsed) {
     for (const w of this._wifiWaves) {
@@ -650,7 +650,7 @@ class Observatory {
     }
   }
 
-  // ---- Signal Field ----
+  // ---- Trường Tín Hiệu ----
 
   _updateSignalField(data) {
     const field = data?.signal_field?.values;

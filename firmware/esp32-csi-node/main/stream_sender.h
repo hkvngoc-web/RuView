@@ -1,6 +1,6 @@
 /**
  * @file stream_sender.h
- * @brief UDP stream sender for CSI frames.
+ * @brief Bộ gửi luồng UDP cho các khung CSI.
  */
 
 #ifndef STREAM_SENDER_H
@@ -10,16 +10,16 @@
 #include <stddef.h>
 
 /**
- * Initialize the UDP sender.
- * Creates a UDP socket targeting the configured aggregator.
+ * Khởi tạo bộ gửi UDP.
+ * Tạo socket UDP hướng tới bộ tổng hợp đã cấu hình.
  *
  * @return 0 on success, -1 on error.
  */
 int stream_sender_init(void);
 
 /**
- * Initialize the UDP sender with explicit IP and port.
- * Used when configuration is loaded from NVS at runtime.
+ * Khởi tạo bộ gửi UDP với IP và cổng chỉ định.
+ * Dùng khi cấu hình được tải từ NVS lúc chạy.
  *
  * @param ip   Aggregator IP address string (e.g. "192.168.1.20").
  * @param port Aggregator UDP port.
@@ -28,7 +28,7 @@ int stream_sender_init(void);
 int stream_sender_init_with(const char *ip, uint16_t port);
 
 /**
- * Send a serialized CSI frame over UDP.
+ * Gửi khung CSI đã tuần tự hóa qua UDP.
  *
  * @param data Frame data buffer.
  * @param len  Length of data to send.
@@ -37,7 +37,7 @@ int stream_sender_init_with(const char *ip, uint16_t port);
 int stream_sender_send(const uint8_t *data, size_t len);
 
 /**
- * Close the UDP sender socket.
+ * Đóng socket bộ gửi UDP.
  */
 void stream_sender_deinit(void);
 

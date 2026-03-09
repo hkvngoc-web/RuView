@@ -1,35 +1,35 @@
 //! # WiFi-DensePose Core
 //!
-//! Core types, traits, and utilities for the WiFi-DensePose pose estimation system.
+//! Các kiểu dữ liệu cốt lõi, trait và tiện ích cho hệ thống ước lượng tư thế WiFi-DensePose.
 //!
-//! This crate provides the foundational building blocks used throughout the
-//! WiFi-DensePose ecosystem, including:
+//! Crate này cung cấp các khối xây dựng nền tảng được sử dụng xuyên suốt
+//! hệ sinh thái WiFi-DensePose, bao gồm:
 //!
-//! - **Core Data Types**: [`CsiFrame`], [`ProcessedSignal`], [`PoseEstimate`],
-//!   [`PersonPose`], and [`Keypoint`] for representing `WiFi` CSI data and pose
-//!   estimation results.
+//! - **Kiểu Dữ Liệu Cốt Lõi**: [`CsiFrame`], [`ProcessedSignal`], [`PoseEstimate`],
+//!   [`PersonPose`], và [`Keypoint`] để biểu diễn dữ liệu CSI `WiFi` và kết quả
+//!   ước lượng tư thế.
 //!
-//! - **Error Types**: Comprehensive error handling via the [`error`] module,
-//!   with specific error types for different subsystems.
+//! - **Kiểu Lỗi**: Xử lý lỗi toàn diện qua module [`error`],
+//!   với các kiểu lỗi cụ thể cho từng hệ thống con.
 //!
-//! - **Traits**: Core abstractions like [`SignalProcessor`], [`NeuralInference`],
-//!   and [`DataStore`] that define the contracts for signal processing, neural
-//!   network inference, and data persistence.
+//! - **Trait**: Các trừu tượng cốt lõi như [`SignalProcessor`], [`NeuralInference`],
+//!   và [`DataStore`] định nghĩa giao ước cho xử lý tín hiệu, suy luận
+//!   mạng nơ-ron, và lưu trữ dữ liệu.
 //!
-//! - **Utilities**: Common helper functions and types used across the codebase.
+//! - **Tiện Ích**: Các hàm và kiểu trợ giúp dùng chung trong toàn bộ mã nguồn.
 //!
-//! ## Feature Flags
+//! ## Cờ Tính Năng
 //!
-//! - `std` (default): Enable standard library support
-//! - `serde`: Enable serialization/deserialization via serde
-//! - `async`: Enable async trait definitions
+//! - `std` (mặc định): Bật hỗ trợ thư viện chuẩn
+//! - `serde`: Bật tuần tự hoá/giải tuần tự hoá qua serde
+//! - `async`: Bật định nghĩa trait bất đồng bộ
 //!
-//! ## Example
+//! ## Ví Dụ
 //!
 //! ```rust
 //! use wifi_densepose_core::{CsiFrame, Keypoint, KeypointType, Confidence};
 //!
-//! // Create a keypoint with high confidence
+//! // Tạo một điểm khớp với độ tin cậy cao
 //! let keypoint = Keypoint::new(
 //!     KeypointType::Nose,
 //!     0.5,
@@ -51,37 +51,37 @@ pub mod traits;
 pub mod types;
 pub mod utils;
 
-// Re-export commonly used types at the crate root
+// Tái xuất các kiểu thường dùng ở gốc crate
 pub use error::{CoreError, CoreResult, SignalError, InferenceError, StorageError};
 pub use traits::{SignalProcessor, NeuralInference, DataStore};
 pub use types::{
-    // CSI types
+    // Kiểu CSI
     CsiFrame, CsiMetadata, AntennaConfig,
-    // Signal types
+    // Kiểu tín hiệu
     ProcessedSignal, SignalFeatures, FrequencyBand,
-    // Pose types
+    // Kiểu tư thế
     PoseEstimate, PersonPose, Keypoint, KeypointType,
-    // Common types
+    // Kiểu dùng chung
     Confidence, Timestamp, FrameId, DeviceId,
-    // Bounding box
+    // Khung bao
     BoundingBox,
 };
 
-/// Crate version
+/// Phiên bản crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Maximum number of keypoints per person (COCO format)
+/// Số điểm khớp tối đa mỗi người (định dạng COCO)
 pub const MAX_KEYPOINTS: usize = 17;
 
-/// Maximum number of subcarriers typically used in `WiFi` CSI
+/// Số sóng mang con tối đa thường dùng trong CSI `WiFi`
 pub const MAX_SUBCARRIERS: usize = 256;
 
-/// Default confidence threshold for keypoint visibility
+/// Ngưỡng độ tin cậy mặc định cho khả năng hiển thị điểm khớp
 pub const DEFAULT_CONFIDENCE_THRESHOLD: f32 = 0.5;
 
-/// Prelude module for convenient imports.
+/// Module prelude để import thuận tiện.
 ///
-/// Convenient re-exports of commonly used types and traits.
+/// Tái xuất tiện lợi các kiểu và trait thường dùng.
 ///
 /// ```rust
 /// use wifi_densepose_core::prelude::*;

@@ -1,6 +1,6 @@
 /**
- * Module E — "Statistical Convergence Engine"
- * RSSI waveform, person orbs, classification, fall alert, metric bars
+ * Module E — "Động Cơ Hội Tụ Thống Kê"
+ * Dạng sóng RSSI, cầu người, phân loại, cảnh báo ngã, thanh chỉ số
  */
 import * as THREE from 'three';
 
@@ -12,7 +12,7 @@ export class ConvergenceEngine {
     if (panelGroup) panelGroup.add(this.group);
     else scene.add(this.group);
 
-    // --- RSSI Waveform (scrolling line) ---
+    // --- Dạng sóng RSSI (đường cuộn) ---
     this._rssiHistory = new Float32Array(WAVEFORM_POINTS);
     const waveGeo = new THREE.BufferGeometry();
     this._wavePositions = new Float32Array(WAVEFORM_POINTS * 3);
@@ -32,7 +32,7 @@ export class ConvergenceEngine {
     this._waveform.position.y = 1.5;
     this.group.add(this._waveform);
 
-    // Waveform glow (thicker, dimmer duplicate)
+    // Phát sáng dạng sóng (bản sao dày hơn, mờ hơn)
     const glowMat = new THREE.LineBasicMaterial({
       color: 0x00d4ff,
       transparent: true,
@@ -45,7 +45,7 @@ export class ConvergenceEngine {
     this._waveGlow.scale.set(1, 1.3, 1);
     this.group.add(this._waveGlow);
 
-    // --- Person orbs (up to 4) ---
+    // --- Cầu người (tối đa 4) ---
     this._personOrbs = [];
     for (let i = 0; i < 4; i++) {
       const orbGeo = new THREE.SphereGeometry(0.2, 16, 16);
@@ -65,7 +65,7 @@ export class ConvergenceEngine {
       this._personOrbs.push({ mesh: orb, light, mat: orbMat });
     }
 
-    // --- Classification text sprite ---
+    // --- Sprite văn bản phân loại ---
     this._classCanvas = document.createElement('canvas');
     this._classCanvas.width = 256;
     this._classCanvas.height = 48;
@@ -82,7 +82,7 @@ export class ConvergenceEngine {
     this._classSprite.position.y = 0.3;
     this.group.add(this._classSprite);
 
-    // --- Fall alert ring ---
+    // --- Vòng cảnh báo ngã ---
     const alertGeo = new THREE.TorusGeometry(2.5, 0.05, 8, 48);
     this._alertMat = new THREE.MeshBasicMaterial({
       color: 0xff2244,
@@ -96,9 +96,9 @@ export class ConvergenceEngine {
     this._alertRing.position.y = -1;
     this.group.add(this._alertRing);
 
-    // --- Metric bars (3: frame rate, confidence, variance) ---
+    // --- Thanh chỉ số (3: tần số khung hình, độ tin cậy, phương sai) ---
     this._metricBars = [];
-    const barLabels = ['CONF', 'VAR', 'SPEC'];
+    const barLabels = ['ĐỘ TIN', 'P.SAI', 'PHỔ'];
     for (let i = 0; i < 3; i++) {
       const barGeo = new THREE.PlaneGeometry(0.15, 1.5);
       const barMat = new THREE.MeshBasicMaterial({

@@ -1,21 +1,21 @@
 /**
- * HudController — Extracted HUD update, settings dialog, and scenario UI
+ * HudController — Trích xuất cập nhật HUD, hộp thoại cài đặt, và giao diện kịch bản
  *
- * Manages all DOM-based HUD elements:
- * - Vital sign display with smooth lerp transitions and color coding
- * - Signal metrics, sparkline, and presence indicator
- * - Scenario description and edge module badges
- * - Mini person-count dot visualization
- * - Settings dialog (tabs, ranges, presets, data source)
- * - Quick-select scenario dropdown
+ * Quản lý toàn bộ phần tử HUD dựa trên DOM:
+ * - Hiển thị sinh hiệu với chuyển đổi nội suy mượt và mã màu
+ * - Chỉ số tín hiệu, biểu đồ tia lửa, và chỉ báo hiện diện
+ * - Mô tả kịch bản và huy hiệu mô-đun biên
+ * - Trực quan hoá chấm đếm người mini
+ * - Hộp thoại cài đặt (tab, thanh trượt, preset, nguồn dữ liệu)
+ * - Dropdown chọn nhanh kịch bản
  */
 
-// ---- Constants ----
+// ---- Hằng Số ----
 
 export const SCENARIO_NAMES = [
-  'EMPTY ROOM','VITAL SIGNS','MULTI-PERSON','FALL DETECT',
-  'SLEEP MONITOR','INTRUSION','GESTURE CTRL','CROWD OCCUPANCY',
-  'SEARCH RESCUE','ELDERLY CARE','FITNESS','SECURITY PATROL',
+  'PHÒNG TRỐNG','SINH HIỆU','ĐA NGƯỜI','PHÁT HIỆN NGÃ',
+  'GIÁM SÁT GIẤC NGỦ','XÂM NHẬP','ĐIỀU KHIỂN CỬ CHỈ','MẬT ĐỘ PHÒNG',
+  'TÌM KIẾM CỨU NẠN','CHĂM SÓC NGƯỜI CAO TUỔI','THỂ DỤC','TUẦN TRA AN NINH',
 ];
 
 export const DEFAULTS = {
@@ -64,24 +64,24 @@ export const PRESETS = {
   },
 };
 
-// Scenario descriptions shown below the dropdown
+// Mô tả kịch bản hiển thị bên dưới dropdown
 const SCENARIO_DESCRIPTIONS = {
-  auto:              'Auto-cycling through all sensing scenarios.',
-  empty_room:        'Baseline calibration with no human presence in the monitored zone.',
-  single_breathing:  'Detecting vital signs through WiFi signal micro-variations.',
-  two_walking:       'Tracking multiple people simultaneously via CSI multiplex separation.',
-  fall_event:        'Sudden posture-change detection using acceleration feature analysis.',
-  sleep_monitoring:  'Monitoring breathing patterns and apnea events during sleep.',
-  intrusion_detect:  'Passive perimeter monitoring -- no cameras, pure RF sensing.',
-  gesture_control:   'DTW-based gesture recognition from hand/arm motion signatures.',
-  crowd_occupancy:   'Estimating room occupancy count from aggregate CSI variance.',
-  search_rescue:     'Through-wall survivor detection using WiFi-MAT multistatic mode.',
-  elderly_care:      'Continuous gait analysis for early mobility-decline detection.',
-  fitness_tracking:  'Rep counting and exercise classification from body kinematics.',
-  security_patrol:   'Multi-zone presence patrol with camera-free motion heatmaps.',
+  auto:              'Tự động chuyển qua tất cả kịch bản cảm biến.',
+  empty_room:        'Hiệu chuẩn cơ sở khi không có người trong vùng giám sát.',
+  single_breathing:  'Phát hiện sinh hiệu qua biến đổi vi mô tín hiệu WiFi.',
+  two_walking:       'Theo dõi nhiều người đồng thời qua phân tách ghép kênh CSI.',
+  fall_event:        'Phát hiện thay đổi tư thế đột ngột bằng phân tích đặc trưng gia tốc.',
+  sleep_monitoring:  'Giám sát nhịp thở và sự kiện ngưng thở khi ngủ.',
+  intrusion_detect:  'Giám sát chu vi thụ động -- không camera, cảm biến RF thuần túy.',
+  gesture_control:   'Nhận dạng cử chỉ dựa DTW từ chữ ký chuyển động tay/cánh tay.',
+  crowd_occupancy:   'Ước tính số người trong phòng từ phương sai CSI tổng hợp.',
+  search_rescue:     'Phát hiện người sống sót xuyên tường bằng chế độ đa tĩnh WiFi-MAT.',
+  elderly_care:      'Phân tích dáng đi liên tục để phát hiện sớm suy giảm vận động.',
+  fitness_tracking:  'Đếm số lần lặp và phân loại bài tập từ động học cơ thể.',
+  security_patrol:   'Tuần tra hiện diện đa vùng với bản đồ nhiệt chuyển động không camera.',
 };
 
-// Edge modules active per scenario
+// Mô-đun biên hoạt động theo kịch bản
 const SCENARIO_EDGE_MODULES = {
   auto:              [],
   empty_room:        [],
@@ -98,7 +98,7 @@ const SCENARIO_EDGE_MODULES = {
   security_patrol:   ['PRESENCE', 'ALERT', 'TRACKING'],
 };
 
-// Edge-module badge colors
+// Màu huy hiệu mô-đun biên
 const MODULE_COLORS = {
   VITALS:    'var(--red-heart)',
   GAIT:      'var(--green-glow)',
@@ -113,7 +113,7 @@ const MODULE_COLORS = {
   MAT:       'var(--blue-signal)',
 };
 
-// Vital-sign color-coding thresholds
+// Ngưỡng mã màu sinh hiệu
 function vitalColor(type, value) {
   if (value <= 0) return 'var(--text-secondary)';
   if (type === 'hr') {
@@ -138,7 +138,7 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-// ---- HudController class ----
+// ---- Lớp HudController ----
 
 export class HudController {
   constructor(observatory) {
@@ -147,17 +147,17 @@ export class HudController {
     this._rssiHistory = [];
     this._sparklineCtx = document.getElementById('rssi-sparkline')?.getContext('2d');
 
-    // Lerp state for smooth vital-sign transitions
+    // Trạng thái nội suy cho chuyển đổi sinh hiệu mượt
     this._lerpHr = 0;
     this._lerpBr = 0;
     this._lerpConf = 0;
 
-    // Track current scenario for description/edge updates
+    // Theo dõi kịch bản hiện tại cho cập nhật mô tả/mô-đun biên
     this._currentScenarioKey = null;
   }
 
   // ============================================================
-  // Settings dialog
+  // Hộp thoại cài đặt
   // ============================================================
 
   initSettings() {
@@ -168,7 +168,7 @@ export class HudController {
     closeBtn.addEventListener('click', () => this.toggleSettings());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) this.toggleSettings(); });
 
-    // Tab switching
+    // Chuyển tab
     document.querySelectorAll('.stab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
@@ -181,7 +181,7 @@ export class HudController {
     const obs = this._obs;
     const s = obs.settings;
 
-    // Bind ranges
+    // Gắn thanh trượt
     this._bindRange('opt-bloom', 'bloom', v => { obs._postProcessing._bloomPass.strength = v; });
     this._bindRange('opt-bloom-radius', 'bloomRadius', v => { obs._postProcessing._bloomPass.radius = v; });
     this._bindRange('opt-bloom-thresh', 'bloomThresh', v => { obs._postProcessing._bloomPass.threshold = v; });
@@ -208,7 +208,7 @@ export class HudController {
     this._bindRange('opt-orbit-speed', 'orbitSpeed');
     this._bindRange('opt-cycle', 'cycle', v => { obs._demoData.setCycleDuration(v); });
 
-    // Color pickers
+    // Bộ chọn màu
     document.getElementById('opt-wire-color').value = s.wireColor;
     document.getElementById('opt-wire-color').addEventListener('input', (e) => {
       s.wireColor = e.target.value; obs._applyColors(); this.saveSettings();
@@ -218,7 +218,7 @@ export class HudController {
       s.jointColor = e.target.value; obs._applyColors(); this.saveSettings();
     });
 
-    // Checkboxes
+    // Hộp kiểm
     document.getElementById('opt-grid').checked = s.grid;
     document.getElementById('opt-grid').addEventListener('change', (e) => {
       s.grid = e.target.checked; obs._grid.visible = e.target.checked; this.saveSettings();
@@ -228,7 +228,7 @@ export class HudController {
       s.room = e.target.checked; obs._roomWire.visible = e.target.checked; this.saveSettings();
     });
 
-    // Scenario select
+    // Chọn kịch bản
     const scenarioSel = document.getElementById('opt-scenario');
     scenarioSel.value = s.scenario;
     scenarioSel.addEventListener('change', (e) => {
@@ -237,7 +237,7 @@ export class HudController {
       this.saveSettings();
     });
 
-    // Data source
+    // Nguồn dữ liệu
     const dsSel = document.getElementById('opt-data-source');
     dsSel.value = s.dataSource;
     dsSel.addEventListener('change', (e) => {
@@ -258,7 +258,7 @@ export class HudController {
       this.saveSettings();
     });
 
-    // Buttons
+    // Các nút
     document.getElementById('btn-reset-camera').addEventListener('click', () => {
       obs._camera.position.set(6, 5, 8);
       obs._controls.target.set(0, 1.2, 0);
@@ -286,7 +286,7 @@ export class HudController {
   }
 
   // ============================================================
-  // Quick-select (top bar scenario dropdown)
+  // Chọn nhanh (dropdown kịch bản thanh trên)
   // ============================================================
 
   initQuickSelect() {
@@ -302,7 +302,7 @@ export class HudController {
   }
 
   // ============================================================
-  // Toggle / save / preset
+  // Bật/tắt / lưu / preset
   // ============================================================
 
   toggleSettings() {
@@ -356,21 +356,21 @@ export class HudController {
   }
 
   // ============================================================
-  // Source badge
+  // Huy hiệu nguồn dữ liệu
   // ============================================================
 
   updateSourceBadge(dataSource, ws) {
     const dot = document.querySelector('#data-source-badge .dot');
     const label = document.getElementById('data-source-label');
     if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {
-      dot.className = 'dot dot--live'; label.textContent = 'LIVE';
+      dot.className = 'dot dot--live'; label.textContent = 'TRỰC TIẾP';
     } else {
-      dot.className = 'dot dot--demo'; label.textContent = 'DEMO';
+      dot.className = 'dot dot--demo'; label.textContent = 'THỬ NGHIỆM';
     }
   }
 
   // ============================================================
-  // HUD update (called every frame)
+  // Cập nhật HUD (gọi mỗi khung hình)
   // ============================================================
 
   updateHUD(data, demoData) {
@@ -379,7 +379,7 @@ export class HudController {
     const feat = data.features || {};
     const cls = data.classification || {};
 
-    // Sync scenario dropdown
+    // Đồng bộ dropdown kịch bản
     const quickSel = document.getElementById('scenario-quick-select');
     const cur = demoData._autoMode ? 'auto' : demoData.currentScenario;
     if (quickSel && quickSel.value !== cur) quickSel.value = cur;
@@ -390,7 +390,7 @@ export class HudController {
     const targetBr = vs.breathing_rate_bpm || 0;
     const targetConf = Math.round((cls.confidence || 0) * 100);
 
-    // Smooth lerp transitions (blend 4% per frame toward target — very stable)
+    // Chuyển đổi nội suy mượt (trộn 4% mỗi khung về đích — rất ổn định)
     const lerpFactor = 0.04;
     this._lerpHr = targetHr > 0 ? lerp(this._lerpHr, targetHr, lerpFactor) : 0;
     this._lerpBr = targetBr > 0 ? lerp(this._lerpBr, targetBr, lerpFactor) : 0;
@@ -407,12 +407,12 @@ export class HudController {
     this._setWidth('br-bar', Math.min(100, this._lerpBr / 30 * 100));
     this._setWidth('conf-bar', this._lerpConf);
 
-    // Color-code vital values
+    // Mã màu giá trị sinh hiệu
     this._setColor('hr-value', vitalColor('hr', this._lerpHr));
     this._setColor('br-value', vitalColor('br', this._lerpBr));
     this._setColor('conf-value', vitalColor('conf', this._lerpConf));
 
-    // Color-code bar fills to match
+    // Mã màu thanh tiến độ tương ứng
     this._setBarColor('hr-bar', vitalColor('hr', this._lerpHr));
     this._setBarColor('br-bar', vitalColor('br', this._lerpBr));
     this._setBarColor('conf-bar', vitalColor('conf', this._lerpConf));
@@ -421,7 +421,7 @@ export class HudController {
     this._setText('var-value', (feat.variance || 0).toFixed(2));
     this._setText('motion-value', (feat.motion_band_power || 0).toFixed(3));
 
-    // Mini person-count dots
+    // Chấm đếm người mini
     const personCount = data.estimated_persons || 0;
     this._updatePersonDots(personCount);
 
@@ -430,15 +430,15 @@ export class HudController {
     if (presEl) {
       const ml = cls.motion_level || 'absent';
       presEl.className = 'presence-state';
-      if (ml === 'active') { presEl.classList.add('presence--active'); presLabel.textContent = 'ACTIVE'; }
-      else if (cls.presence) { presEl.classList.add('presence--present'); presLabel.textContent = 'PRESENT'; }
-      else { presEl.classList.add('presence--absent'); presLabel.textContent = 'ABSENT'; }
+      if (ml === 'active') { presEl.classList.add('presence--active'); presLabel.textContent = 'HOẠT ĐỘNG'; }
+      else if (cls.presence) { presEl.classList.add('presence--present'); presLabel.textContent = 'CÓ MẶT'; }
+      else { presEl.classList.add('presence--absent'); presLabel.textContent = 'VẮNG MẶT'; }
     }
 
     const fallEl = document.getElementById('fall-alert');
     if (fallEl) fallEl.style.display = cls.fall_detected ? 'block' : 'none';
 
-    // Scenario description and edge modules
+    // Mô tả kịch bản và mô-đun biên
     const scenarioKey = demoData._autoMode ? (demoData.currentScenario || 'auto') : (demoData.currentScenario || 'auto');
     if (scenarioKey !== this._currentScenarioKey) {
       this._currentScenarioKey = scenarioKey;
@@ -448,7 +448,7 @@ export class HudController {
   }
 
   // ============================================================
-  // Sparkline
+  // Biểu đồ tia lửa
   // ============================================================
 
   updateSparkline(data) {
@@ -486,7 +486,7 @@ export class HudController {
   }
 
   // ============================================================
-  // Private helpers
+  // Hàm hỗ trợ nội bộ
   // ============================================================
 
   _setText(id, val) {
@@ -527,11 +527,11 @@ export class HudController {
   _updatePersonDots(count) {
     const container = document.getElementById('persons-dots');
     if (!container) {
-      // Fall back to text-only display
+      // Dự phòng hiển thị chỉ bằng text
       this._setText('persons-value', count);
       return;
     }
-    // Build dot icons: filled for detected persons, dim for empty slots (max 8)
+    // Xây dựng biểu tượng chấm: tô đầy cho người phát hiện, mờ cho vị trí trống (tối đa 8)
     const maxDots = 8;
     const clamped = Math.min(count, maxDots);
     let html = '';

@@ -1,6 +1,6 @@
 /**
  * @file nvs_config.c
- * @brief Runtime configuration via NVS (Non-Volatile Storage).
+ * @brief Cấu hình runtime qua NVS (Bộ nhớ không bay hơi).
  *
  * Checks NVS namespace "csi_cfg" for keys: ssid, password, target_ip,
  * target_port, node_id.  Falls back to Kconfig defaults when absent.
@@ -19,11 +19,11 @@ static const char *TAG = "nvs_config";
 void nvs_config_load(nvs_config_t *cfg)
 {
     if (cfg == NULL) {
-        ESP_LOGE(TAG, "nvs_config_load: cfg is NULL");
+        ESP_LOGE(TAG, "nvs_config_load: cfg bị rỗng");
         return;
     }
 
-    /* Start with Kconfig compiled defaults */
+    /* Bắt đầu với giá trị mặc định Kconfig */
     strncpy(cfg->wifi_ssid, CONFIG_CSI_WIFI_SSID, NVS_CFG_SSID_MAX - 1);
     cfg->wifi_ssid[NVS_CFG_SSID_MAX - 1] = '\0';
 
@@ -91,11 +91,11 @@ void nvs_config_load(nvs_config_t *cfg)
     cfg->wasm_verify = 0;  /* Kconfig disabled signature verification. */
 #endif
 
-    /* Try to override from NVS */
+    /* Thử ghi đè từ NVS */
     nvs_handle_t handle;
     esp_err_t err = nvs_open("csi_cfg", NVS_READONLY, &handle);
     if (err != ESP_OK) {
-        ESP_LOGI(TAG, "No NVS config found, using compiled defaults");
+        ESP_LOGI(TAG, "Không tìm thấy cấu hình NVS, sử dụng mặc định biên dịch");
         return;
     }
 
@@ -107,7 +107,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_str(handle, "ssid", buf, &len) == ESP_OK && len > 1) {
         strncpy(cfg->wifi_ssid, buf, NVS_CFG_SSID_MAX - 1);
         cfg->wifi_ssid[NVS_CFG_SSID_MAX - 1] = '\0';
-        ESP_LOGI(TAG, "NVS override: ssid=%s", cfg->wifi_ssid);
+        ESP_LOGI(TAG, "Ghi đè NVS: ssid=%s", cfg->wifi_ssid);
     }
 
     /* WiFi password */
@@ -115,7 +115,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_str(handle, "password", buf, &len) == ESP_OK) {
         strncpy(cfg->wifi_password, buf, NVS_CFG_PASS_MAX - 1);
         cfg->wifi_password[NVS_CFG_PASS_MAX - 1] = '\0';
-        ESP_LOGI(TAG, "NVS override: password=***");
+        ESP_LOGI(TAG, "Ghi đè NVS: mật_khẩu=***");
     }
 
     /* Target IP */
@@ -123,21 +123,21 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_str(handle, "target_ip", buf, &len) == ESP_OK && len > 1) {
         strncpy(cfg->target_ip, buf, NVS_CFG_IP_MAX - 1);
         cfg->target_ip[NVS_CFG_IP_MAX - 1] = '\0';
-        ESP_LOGI(TAG, "NVS override: target_ip=%s", cfg->target_ip);
+        ESP_LOGI(TAG, "Ghi đè NVS: ip_đích=%s", cfg->target_ip);
     }
 
     /* Target port */
     uint16_t port_val;
     if (nvs_get_u16(handle, "target_port", &port_val) == ESP_OK) {
         cfg->target_port = port_val;
-        ESP_LOGI(TAG, "NVS override: target_port=%u", cfg->target_port);
+        ESP_LOGI(TAG, "Ghi đè NVS: cổng_đích=%u", cfg->target_port);
     }
 
     /* Node ID */
     uint8_t node_val;
     if (nvs_get_u8(handle, "node_id", &node_val) == ESP_OK) {
         cfg->node_id = node_val;
-        ESP_LOGI(TAG, "NVS override: node_id=%u", cfg->node_id);
+        ESP_LOGI(TAG, "Ghi đè NVS: mã_nút=%u", cfg->node_id);
     }
 
     /* ADR-029: Channel hop count */
@@ -145,9 +145,9 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "hop_count", &hop_count_val) == ESP_OK) {
         if (hop_count_val >= 1 && hop_count_val <= NVS_CFG_HOP_MAX) {
             cfg->channel_hop_count = hop_count_val;
-            ESP_LOGI(TAG, "NVS override: hop_count=%u", (unsigned)cfg->channel_hop_count);
+            ESP_LOGI(TAG, "Ghi đè NVS: số_nhảy=%u", (unsigned)cfg->channel_hop_count);
         } else {
-            ESP_LOGW(TAG, "NVS hop_count=%u out of range [1..%u], ignored",
+            ESP_LOGW(TAG, "NVS hop_count=%u ngoài phạm vi [1..%u], bỏ qua",
                      (unsigned)hop_count_val, (unsigned)NVS_CFG_HOP_MAX);
         }
     }
@@ -160,7 +160,7 @@ void nvs_config_load(nvs_config_t *cfg)
         for (uint8_t i = 0; i < count; i++) {
             cfg->channel_list[i] = ch_blob[i];
         }
-        ESP_LOGI(TAG, "NVS override: chan_list loaded (%u channels)", (unsigned)count);
+        ESP_LOGI(TAG, "Ghi đè NVS: danh sách kênh đã tải (%u kênh)", (unsigned)count);
     }
 
     /* ADR-029: Dwell time */
@@ -168,9 +168,9 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u32(handle, "dwell_ms", &dwell_val) == ESP_OK) {
         if (dwell_val >= 10) {
             cfg->dwell_ms = dwell_val;
-            ESP_LOGI(TAG, "NVS override: dwell_ms=%lu", (unsigned long)cfg->dwell_ms);
+            ESP_LOGI(TAG, "Ghi đè NVS: dwell_ms=%lu", (unsigned long)cfg->dwell_ms);
         } else {
-            ESP_LOGW(TAG, "NVS dwell_ms=%lu too small, ignored", (unsigned long)dwell_val);
+            ESP_LOGW(TAG, "NVS dwell_ms=%lu quá nhỏ, bỏ qua", (unsigned long)dwell_val);
         }
     }
 
@@ -178,7 +178,7 @@ void nvs_config_load(nvs_config_t *cfg)
     uint8_t slot_val;
     if (nvs_get_u8(handle, "tdm_slot", &slot_val) == ESP_OK) {
         cfg->tdm_slot_index = slot_val;
-        ESP_LOGI(TAG, "NVS override: tdm_slot_index=%u", (unsigned)cfg->tdm_slot_index);
+        ESP_LOGI(TAG, "Ghi đè NVS: chỉ_mục_TDM=%u", (unsigned)cfg->tdm_slot_index);
     }
 
     /* ADR-029/031: TDM node count */
@@ -186,9 +186,9 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "tdm_nodes", &tdm_nodes_val) == ESP_OK) {
         if (tdm_nodes_val >= 1) {
             cfg->tdm_node_count = tdm_nodes_val;
-            ESP_LOGI(TAG, "NVS override: tdm_node_count=%u", (unsigned)cfg->tdm_node_count);
+            ESP_LOGI(TAG, "Ghi đè NVS: số_nút_TDM=%u", (unsigned)cfg->tdm_node_count);
         } else {
-            ESP_LOGW(TAG, "NVS tdm_nodes=%u invalid, ignored", (unsigned)tdm_nodes_val);
+            ESP_LOGW(TAG, "NVS tdm_nodes=%u không hợp lệ, bỏ qua", (unsigned)tdm_nodes_val);
         }
     }
 
@@ -197,7 +197,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "edge_tier", &edge_tier_val) == ESP_OK) {
         if (edge_tier_val <= 2) {
             cfg->edge_tier = edge_tier_val;
-            ESP_LOGI(TAG, "NVS override: edge_tier=%u", (unsigned)cfg->edge_tier);
+            ESP_LOGI(TAG, "Ghi đè NVS: tầng_biên=%u", (unsigned)cfg->edge_tier);
         }
     }
 
@@ -205,21 +205,21 @@ void nvs_config_load(nvs_config_t *cfg)
     uint16_t pres_thresh_val;
     if (nvs_get_u16(handle, "pres_thresh", &pres_thresh_val) == ESP_OK) {
         cfg->presence_thresh = (float)pres_thresh_val / 1000.0f;
-        ESP_LOGI(TAG, "NVS override: presence_thresh=%.3f", cfg->presence_thresh);
+        ESP_LOGI(TAG, "Ghi đè NVS: ngưỡng_hiện_diện=%.3f", cfg->presence_thresh);
     }
 
     /* Fall threshold stored as u16 (value * 1000). */
     uint16_t fall_thresh_val;
     if (nvs_get_u16(handle, "fall_thresh", &fall_thresh_val) == ESP_OK) {
         cfg->fall_thresh = (float)fall_thresh_val / 1000.0f;
-        ESP_LOGI(TAG, "NVS override: fall_thresh=%.3f", cfg->fall_thresh);
+        ESP_LOGI(TAG, "Ghi đè NVS: ngưỡng_ngã=%.3f", cfg->fall_thresh);
     }
 
     uint16_t vital_win_val;
     if (nvs_get_u16(handle, "vital_win", &vital_win_val) == ESP_OK) {
         if (vital_win_val >= 32 && vital_win_val <= 256) {
             cfg->vital_window = vital_win_val;
-            ESP_LOGI(TAG, "NVS override: vital_window=%u", cfg->vital_window);
+            ESP_LOGI(TAG, "Ghi đè NVS: cửa_sổ_sinh_hiệu=%u", cfg->vital_window);
         }
     }
 
@@ -227,7 +227,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u16(handle, "vital_int", &vital_int_val) == ESP_OK) {
         if (vital_int_val >= 100) {
             cfg->vital_interval_ms = vital_int_val;
-            ESP_LOGI(TAG, "NVS override: vital_interval_ms=%u", cfg->vital_interval_ms);
+            ESP_LOGI(TAG, "Ghi đè NVS: chu_kỳ_sinh_hiệu_ms=%u", cfg->vital_interval_ms);
         }
     }
 
@@ -235,7 +235,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "subk_count", &topk_val) == ESP_OK) {
         if (topk_val >= 1 && topk_val <= 32) {
             cfg->top_k_count = topk_val;
-            ESP_LOGI(TAG, "NVS override: top_k_count=%u", (unsigned)cfg->top_k_count);
+            ESP_LOGI(TAG, "Ghi đè NVS: top_k=%u", (unsigned)cfg->top_k_count);
         }
     }
 
@@ -243,7 +243,7 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "power_duty", &duty_val) == ESP_OK) {
         if (duty_val >= 10 && duty_val <= 100) {
             cfg->power_duty = duty_val;
-            ESP_LOGI(TAG, "NVS override: power_duty=%u%%", (unsigned)cfg->power_duty);
+            ESP_LOGI(TAG, "Ghi đè NVS: chu_kỳ_nguồn=%u%%", (unsigned)cfg->power_duty);
         }
     }
 
@@ -252,14 +252,14 @@ void nvs_config_load(nvs_config_t *cfg)
     if (nvs_get_u8(handle, "wasm_max", &wasm_max_val) == ESP_OK) {
         if (wasm_max_val >= 1 && wasm_max_val <= 8) {
             cfg->wasm_max_modules = wasm_max_val;
-            ESP_LOGI(TAG, "NVS override: wasm_max_modules=%u", (unsigned)cfg->wasm_max_modules);
+            ESP_LOGI(TAG, "Ghi đè NVS: module_wasm_tối_đa=%u", (unsigned)cfg->wasm_max_modules);
         }
     }
 
     uint8_t wasm_verify_val;
     if (nvs_get_u8(handle, "wasm_verify", &wasm_verify_val) == ESP_OK) {
         cfg->wasm_verify = wasm_verify_val ? 1 : 0;
-        ESP_LOGI(TAG, "NVS override: wasm_verify=%u", (unsigned)cfg->wasm_verify);
+        ESP_LOGI(TAG, "Ghi đè NVS: xác_minh_wasm=%u", (unsigned)cfg->wasm_verify);
     }
 
     /* ADR-040: Load WASM signing public key from NVS (32-byte blob). */
@@ -274,12 +274,12 @@ void nvs_config_load(nvs_config_t *cfg)
                  cfg->wasm_pubkey[0], cfg->wasm_pubkey[1],
                  cfg->wasm_pubkey[30], cfg->wasm_pubkey[31]);
     } else if (cfg->wasm_verify) {
-        ESP_LOGW(TAG, "wasm_verify=1 but no wasm_pubkey in NVS — uploads will be rejected");
+        ESP_LOGW(TAG, "wasm_verify=1 nhưng không có wasm_pubkey trong NVS — các bản tải lên sẽ bị từ chối");
     }
 
-    /* Validate tdm_slot_index < tdm_node_count */
+    /* Kiểm tra tdm_slot_index < tdm_node_count */
     if (cfg->tdm_slot_index >= cfg->tdm_node_count) {
-        ESP_LOGW(TAG, "tdm_slot_index=%u >= tdm_node_count=%u, clamping to 0",
+        ESP_LOGW(TAG, "tdm_slot_index=%u >= tdm_node_count=%u, giới hạn về 0",
                  (unsigned)cfg->tdm_slot_index, (unsigned)cfg->tdm_node_count);
         cfg->tdm_slot_index = 0;
     }
