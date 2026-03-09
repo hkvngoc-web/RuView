@@ -125,18 +125,18 @@ export class ModelService {
       const data = await apiService.get('/api/v1/models/lora/profiles');
       return data?.profiles ?? [];
     } catch (error) {
-      this.logger.error('Failed to get LoRA profiles', { error: error.message });
+      this.logger.error('Không thể lấy hồ sơ LoRA', { error: error.message });
       throw error;
     }
   }
 
   async deleteModel(id) {
     try {
-      this.logger.info('Deleting model', { id });
+      this.logger.info('Đang xoá mô hình', { id });
       const data = await apiService.delete(`/api/v1/models/${encodeURIComponent(id)}`);
       return data;
     } catch (error) {
-      this.logger.error('Failed to delete model', { id, error: error.message });
+      this.logger.error('Không thể xoá mô hình', { id, error: error.message });
       throw error;
     }
   }
@@ -144,9 +144,9 @@ export class ModelService {
   dispose() {
     this.listeners = {};
     this.activeModel = null;
-    this.logger.info('ModelService disposed');
+    this.logger.info('Đã giải phóng ModelService');
   }
 }
 
-// Create singleton instance
+// Tạo thể hiện singleton
 export const modelService = new ModelService();

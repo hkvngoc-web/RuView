@@ -1,4 +1,4 @@
-// Pose Service for WiFi-DensePose UI
+// Dịch vụ Tư thế cho Giao diện WiFi-DensePose
 
 import { API_CONFIG } from '../config/api.config.js';
 import { apiService } from './api.service.js';
@@ -22,10 +22,10 @@ export class PoseService {
     this.validationErrors = [];
     this.logger = this.createLogger();
 
-    // Model inference mode tracking
+    // Theo dõi chế độ suy luận mô hình
     this.modelActive = false;
 
-    // Configuration
+    // Cấu hình
     this.config = {
       enableValidation: true,
       enablePerformanceTracking: true,
