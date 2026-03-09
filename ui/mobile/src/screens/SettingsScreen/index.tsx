@@ -108,7 +108,7 @@ export const SettingsScreen = () => {
   const handleOpenGitHub = async () => {
     const handled = await Linking.canOpenURL('https://github.com');
     if (!handled) {
-      Alert.alert('Unable to open link', 'Please open https://github.com manually in your browser.');
+      Alert.alert('Không thể mở liên kết', 'Vui lòng mở https://github.com thủ công trong trình duyệt.');
       return;
     }
 
@@ -122,31 +122,31 @@ export const SettingsScreen = () => {
           paddingBottom: spacing.xl,
         }}
       >
-        <GlowCard title="SERVER">
+        <GlowCard title="MÁY CHỦ">
           <ServerUrlInput value={draftUrl} onChange={setDraftUrl} onSave={handleSaveUrl} />
         </GlowCard>
 
-        <GlowCard title="SENSING">
+        <GlowCard title="CẢM BIẾN">
           <RssiToggle enabled={rssiScanEnabled} onChange={setRssiScanEnabled} />
           <ThemedText preset="bodyMd" style={{ marginTop: spacing.md }}>
             Scan interval
           </ThemedText>
           <ScanIntervalPicker value={scanInterval} onChange={setScanInterval} />
           <ThemedText preset="bodySm" style={{ color: colors.textSecondary, marginTop: spacing.sm }}>
-            Active interval: {intervalSummary}
+            Khoảng thời gian hoạt động: {intervalSummary}
           </ThemedText>
           {Platform.OS === 'ios' && (
             <ThemedText preset="bodySm" style={{ color: colors.textSecondary, marginTop: spacing.sm }}>
-              iOS: RSSI scanning uses stubbed telemetry in this build.
+              iOS: Quét RSSI sử dụng dữ liệu giả lập trong bản build này.
             </ThemedText>
           )}
         </GlowCard>
 
-        <GlowCard title="APPEARANCE">
+        <GlowCard title="GIAO DIỆN">
           <ThemePicker value={theme} onChange={setTheme} />
         </GlowCard>
 
-        <GlowCard title="ABOUT">
+        <GlowCard title="GIỚI THIỆU">
           <ThemedText preset="bodyMd" style={{ marginBottom: spacing.xs }}>
             WiFi-DensePose Mobile v1.0.0
           </ThemedText>
@@ -159,7 +159,7 @@ export const SettingsScreen = () => {
           </ThemedText>
           <ThemedText preset="bodySm">WebSocket: {WS_PATH}</ThemedText>
           <ThemedText preset="bodySm" style={{ color: colors.textSecondary }}>
-            Triage priority mapping: Immediate/Delayed/Minor/Deceased/Unknown
+            Bản đồ ưu tiên phân loại: Tức thì/Trì hoãn/Nhẹ/Tử vong/Không rõ
           </ThemedText>
         </GlowCard>
       </ScrollView>

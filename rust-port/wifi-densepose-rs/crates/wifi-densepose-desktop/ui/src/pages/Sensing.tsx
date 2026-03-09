@@ -6,7 +6,7 @@ import type { SensingUpdate } from "../types";
 // Log entry model
 // ---------------------------------------------------------------------------
 
-type LogLevel = "INFO" | "WARN" | "ERROR";
+type LogLevel = "INFO" | "WARN" | "LỖI";
 
 interface LogEntry {
   id: number;
@@ -25,14 +25,14 @@ const MOCK_LOG_TEMPLATES: { level: LogLevel; source: string; message: string }[]
   { level: "INFO", source: "udp_receiver", message: "CSI frame from 192.168.1.42" },
   { level: "WARN", source: "vital_signs", message: "Low signal quality on node 2" },
   { level: "INFO", source: "pose_engine", message: "Activity: walking (confidence: 0.87)" },
-  { level: "ERROR", source: "ws_session", message: "Client disconnected unexpectedly" },
+  { level: "LỖI", source: "ws_session", message: "Máy khách ngắt kết nối bất ngờ" },
   { level: "INFO", source: "udp_receiver", message: "CSI frame from 192.168.1.15" },
   { level: "INFO", source: "pose_engine", message: "Activity: sitting (confidence: 0.93)" },
   { level: "INFO", source: "sensing-server", message: "WebSocket client connected from 127.0.0.1" },
   { level: "WARN", source: "mesh_sync", message: "Node 4 heartbeat delayed by 1200ms" },
   { level: "INFO", source: "pose_engine", message: "Activity: standing (confidence: 0.91)" },
   { level: "INFO", source: "udp_receiver", message: "CSI frame from 192.168.1.78" },
-  { level: "ERROR", source: "udp_receiver", message: "Malformed CSI payload (len=0)" },
+  { level: "LỖI", source: "udp_receiver", message: "Malformed CSI payload (len=0)" },
   { level: "INFO", source: "csi_pipeline", message: "Subcarrier FFT complete (52 bins)" },
   { level: "WARN", source: "vital_signs", message: "Breathing rate out of range on node 5" },
   { level: "INFO", source: "pose_engine", message: "Activity: sleeping (confidence: 0.78)" },
@@ -163,7 +163,7 @@ function LogViewer({
               fontWeight: 500,
             }}
           >
-            {paused ? "Resume" : "Pause"}
+            {paused ? "Tiếp tục" : "Tạm dừng"}
           </button>
           <button
             onClick={onClear}
@@ -196,7 +196,7 @@ function LogViewer({
       >
         {entries.length === 0 ? (
           <div style={{ color: "var(--text-muted)", padding: "var(--space-4)", textAlign: "center" }}>
-            No log entries yet.
+            Chưa có mục nhật ký nào.
           </div>
         ) : (
           entries.map((entry) => (
@@ -205,7 +205,7 @@ function LogViewer({
               <span
                 style={{
                   color: LEVEL_COLOR[entry.level],
-                  fontWeight: entry.level === "ERROR" ? 700 : 500,
+                  fontWeight: entry.level === "LỖI" ? 700 : 500,
                   display: "inline-block",
                   minWidth: 40,
                 }}
@@ -330,7 +330,7 @@ export const Sensing: React.FC = () => {
                 Sensing Server
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
-                {isRunning ? "Running" : "Stopped"}
+                {isRunning ? "Đang chạy" : "Đã dừng"}
               </div>
             </div>
 
@@ -369,7 +369,7 @@ export const Sensing: React.FC = () => {
               opacity: starting || stopping ? 0.6 : 1,
             }}
           >
-            {starting ? "Starting..." : stopping ? "Stopping..." : isRunning ? "Stop Server" : "Start Server"}
+            {starting ? "Đang khởi động..." : stopping ? "Đang dừng..." : isRunning ? "Dừng Máy Chủ" : "Khởi Động Máy Chủ"}
           </button>
         </div>
 
@@ -429,7 +429,7 @@ export const Sensing: React.FC = () => {
 
         {activities.length === 0 ? (
           <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "var(--space-4)" }}>
-            Waiting for sensing data...
+            Đang chờ dữ liệu cảm biến...
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>

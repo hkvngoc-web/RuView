@@ -1,6 +1,6 @@
 /**
- * Room Atmosphere Background — Warm dark gradient with subtle particles
- * Matches RuView Foundation aesthetic: deep blue-black with warm undertones
+ * Nền Bầu Không Khí Phòng — Gradient tối ấm với hạt tinh tế
+ * Phù hợp thẩm mỹ RuView Foundation: xanh đen sâu với sắc ấm
  */
 import * as THREE from 'three';
 
@@ -50,11 +50,11 @@ float fbm(vec3 p, float octaves) {
 void main() {
   vec3 dir = normalize(vWorldPos);
 
-  // Warm dark atmosphere with subtle color variation
+  // Bầu không khí tối ấm với biến đổi màu tinh tế
   float n1 = fbm(dir * 2.5 + uTime * 0.008, uOctaves);
   float n2 = fbm(dir * 4.0 - uTime * 0.005, max(1.0, uOctaves - 1.0));
 
-  // Foundation palette: deep blue-black with warm undertones
+  // Bảng màu Foundation: xanh đen sâu với sắc ấm
   vec3 deepBlack  = vec3(0.03, 0.04, 0.06);
   vec3 warmNavy   = vec3(0.04, 0.05, 0.10);
   vec3 greenTint  = vec3(0.01, 0.06, 0.04);
@@ -62,11 +62,11 @@ void main() {
   vec3 bg = mix(deepBlack, warmNavy, n1 * 0.5);
   bg = mix(bg, greenTint, n2 * 0.15);
 
-  // Subtle top-down gradient (lighter ceiling)
+  // Gradient trên-xuống tinh tế (trần sáng hơn)
   float upFactor = max(0.0, dir.y) * 0.08;
   bg += vec3(0.02, 0.03, 0.05) * upFactor;
 
-  // Very subtle dim stars (distant)
+  // Ngôi sao mờ rất tinh tế (xa xăm)
   vec3 c = floor(dir * 200.0);
   vec3 h = hash33(c);
   float star = step(0.998, h.x) * h.y * 0.15;

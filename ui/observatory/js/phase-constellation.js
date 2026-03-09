@@ -1,6 +1,6 @@
 /**
- * Module D — "The Phase Constellation"
- * I/Q star map with constellation lines and rotating temporal view
+ * Mô-đun D — "Chòm Sao Pha"
+ * Bản đồ sao I/Q với đường chòm sao và góc nhìn thời gian xoay
  */
 import * as THREE from 'three';
 
@@ -12,7 +12,7 @@ export class PhaseConstellation {
     if (panelGroup) panelGroup.add(this.group);
     else scene.add(this.group);
 
-    // Star points (current frame)
+    // Điểm sao (khung hình hiện tại)
     const starGeo = new THREE.BufferGeometry();
     this._positions = new Float32Array(NUM_SUBCARRIERS * 3);
     this._colors = new Float32Array(NUM_SUBCARRIERS * 3);
@@ -34,7 +34,7 @@ export class PhaseConstellation {
     this._stars = new THREE.Points(starGeo, starMat);
     this.group.add(this._stars);
 
-    // Ghost layer (previous frame)
+    // Lớp bóng ma (khung hình trước)
     const ghostGeo = new THREE.BufferGeometry();
     this._ghostPos = new Float32Array(NUM_SUBCARRIERS * 3);
     ghostGeo.setAttribute('position', new THREE.BufferAttribute(this._ghostPos, 3));
@@ -51,7 +51,7 @@ export class PhaseConstellation {
     this._ghosts = new THREE.Points(ghostGeo, ghostMat);
     this.group.add(this._ghosts);
 
-    // Constellation lines (connecting adjacent subcarriers)
+    // Đường chòm sao (kết nối sóng mang con liền kề)
     const lineGeo = new THREE.BufferGeometry();
     this._linePos = new Float32Array(NUM_SUBCARRIERS * 2 * 3); // pairs
     lineGeo.setAttribute('position', new THREE.BufferAttribute(this._linePos, 3));
@@ -66,7 +66,7 @@ export class PhaseConstellation {
     this._lines = new THREE.LineSegments(lineGeo, lineMat);
     this.group.add(this._lines);
 
-    // Axes
+    // Trục toạ độ
     this._addAxes();
 
     this._prevIQ = null;
@@ -79,14 +79,14 @@ export class PhaseConstellation {
       opacity: 0.1,
     });
 
-    // I axis
+    // Trục I
     const iGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-2.5, 0, 0),
       new THREE.Vector3(2.5, 0, 0),
     ]);
     this.group.add(new THREE.Line(iGeo, axesMat));
 
-    // Q axis
+    // Trục Q
     const qGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, -2.5, 0),
       new THREE.Vector3(0, 2.5, 0),
@@ -99,16 +99,16 @@ export class PhaseConstellation {
     const variance = data?._observatory?.per_subcarrier_variance;
     const amplitude = data?.nodes?.[0]?.amplitude;
 
-    // Slow Y rotation for temporal evolution
+    // Xoay Y chậm cho diễn biến thời gian
     this.group.rotation.y = elapsed * 0.05;
 
     if (!iq || iq.length < NUM_SUBCARRIERS) return;
 
-    // Copy current to ghost
+    // Sao chép hiện tại sang bóng ma
     this._ghostPos.set(this._positions);
     this._ghosts.geometry.attributes.position.needsUpdate = true;
 
-    // Update current positions from I/Q
+    // Cập nhật vị trí hiện tại từ I/Q
     for (let s = 0; s < NUM_SUBCARRIERS; s++) {
       const i3 = s * 3;
       const iVal = (iq[s]?.i || 0) * 4; // scale for visibility
@@ -118,11 +118,11 @@ export class PhaseConstellation {
       this._positions[i3 + 1] = qVal;
       this._positions[i3 + 2] = 0;
 
-      // Size from amplitude
+      // Kích thước từ biên độ
       const amp = amplitude ? (amplitude[s % amplitude.length] || 0.1) : 0.1;
       this._sizes[s] = 0.06 + amp * 0.15;
 
-      // Color from variance: blue(low) -> amber(high)
+      // Màu từ phương sai: xanh(thấp) -> hổ phách(cao)
       const v = variance ? Math.min(1, (variance[s] || 0) * 2) : 0;
       this._colors[i3] = v * 1.0;              // R
       this._colors[i3 + 1] = 0.5 + v * 0.3;   // G
@@ -133,7 +133,7 @@ export class PhaseConstellation {
     this._stars.geometry.attributes.color.needsUpdate = true;
     this._stars.geometry.attributes.size.needsUpdate = true;
 
-    // Update constellation lines
+    // Cập nhật đường chòm sao
     for (let s = 0; s < NUM_SUBCARRIERS - 1; s++) {
       const li = s * 6;
       const i3a = s * 3;
@@ -146,7 +146,7 @@ export class PhaseConstellation {
       this._linePos[li + 4] = this._positions[i3b + 1];
       this._linePos[li + 5] = this._positions[i3b + 2];
     }
-    // Last pair: wrap around
+    // Cặp cuối cùng: quay vòng
     const lastLi = (NUM_SUBCARRIERS - 1) * 6;
     const lastI3 = (NUM_SUBCARRIERS - 1) * 3;
     this._linePos[lastLi] = this._positions[lastI3];

@@ -1,53 +1,53 @@
-//! Cross-Channel Phase Alignment (ADR-029 Section 2.3)
+//! Căn Chỉnh Pha Chéo Kênh (ADR-029 Mục 2.3)
 //!
-//! When the ESP32 hops between WiFi channels, the local oscillator (LO)
-//! introduces a channel-dependent phase rotation. The observed phase on
-//! channel c is:
+//! Khi ESP32 nhảy giữa các kênh WiFi, bộ dao động nội (LO)
+//! tạo ra xoay pha phụ thuộc kênh. Pha quan sát trên
+//! kênh c là:
 //!
 //!   phi_c = phi_body + delta_c
 //!
-//! where `delta_c` is the LO offset for channel c. This module estimates
-//! and removes the `delta_c` offsets by fitting against the static
-//! subcarrier components, which should have zero body-caused phase shift.
+//! trong đó `delta_c` là độ lệch LO cho kênh c. Module này ước lượng
+//! và loại bỏ các độ lệch `delta_c` bằng cách khớp với các
+//! sóng mang con tĩnh, vốn không có dịch pha do cơ thể gây ra.
 //!
-//! # RuVector Integration
+//! # Tích Hợp RuVector
 //!
-//! Uses `ruvector-solver::NeumannSolver` concepts for iterative convergence
-//! on the phase offset estimation. The solver achieves O(sqrt(n)) convergence.
+//! Sử dụng khái niệm `ruvector-solver::NeumannSolver` cho hội tụ lặp
+//! trên ước lượng độ lệch pha. Bộ giải đạt hội tụ O(sqrt(n)).
 
 use crate::hardware_norm::CanonicalCsiFrame;
 use std::f32::consts::PI;
 
-/// Errors from phase alignment.
+/// Các lỗi từ căn chỉnh pha.
 #[derive(Debug, thiserror::Error)]
 pub enum PhaseAlignError {
-    /// No frames provided.
-    #[error("No frames provided for phase alignment")]
+    /// Không có khung nào được cung cấp.
+    #[error("Không có khung nào được cung cấp cho căn chỉnh pha")]
     NoFrames,
 
-    /// Insufficient static subcarriers for alignment.
-    #[error("Need at least {needed} static subcarriers, found {found}")]
+    /// Không đủ sóng mang con tĩnh để căn chỉnh.
+    #[error("Cần ít nhất {needed} sóng mang con tĩnh, tìm thấy {found}")]
     InsufficientStatic { needed: usize, found: usize },
 
-    /// Phase data length mismatch.
-    #[error("Phase length {got} does not match expected {expected}")]
+    /// Độ dài dữ liệu pha không khớp.
+    #[error("Độ dài pha {got} không khớp với kỳ vọng {expected}")]
     PhaseLengthMismatch { expected: usize, got: usize },
 
-    /// Convergence failure.
-    #[error("Phase alignment failed to converge after {iterations} iterations")]
+    /// Hội tụ thất bại.
+    #[error("Căn chỉnh pha không hội tụ sau {iterations} lần lặp")]
     ConvergenceFailed { iterations: usize },
 }
 
-/// Configuration for the phase aligner.
+/// Cấu hình cho bộ căn chỉnh pha.
 #[derive(Debug, Clone)]
 pub struct PhaseAlignConfig {
-    /// Maximum iterations for the Neumann solver.
+    /// Số lần lặp tối đa cho bộ giải Neumann.
     pub max_iterations: usize,
-    /// Convergence tolerance (radians).
+    /// Dung sai hội tụ (radian).
     pub tolerance: f32,
-    /// Fraction of subcarriers considered "static" (lowest variance).
+    /// Tỷ lệ sóng mang con được coi là "tĩnh" (phương sai thấp nhất).
     pub static_fraction: f32,
-    /// Minimum number of static subcarriers required.
+    /// Số sóng mang con tĩnh tối thiểu cần thiết.
     pub min_static_subcarriers: usize,
 }
 
@@ -62,22 +62,22 @@ impl Default for PhaseAlignConfig {
     }
 }
 
-/// Cross-channel phase aligner.
+/// Bộ căn chỉnh pha chéo kênh.
 ///
-/// Estimates per-channel LO phase offsets from static subcarriers and
-/// removes them to produce phase-coherent multi-band observations.
+/// Ước lượng độ lệch pha LO mỗi kênh từ các sóng mang con tĩnh và
+/// loại bỏ chúng để tạo ra quan sát đa băng tương hợp pha.
 #[derive(Debug)]
 pub struct PhaseAligner {
-    /// Number of channels expected.
+    /// Số kênh kỳ vọng.
     num_channels: usize,
-    /// Configuration parameters.
+    /// Tham số cấu hình.
     config: PhaseAlignConfig,
-    /// Last estimated offsets (one per channel), updated after each `align`.
+    /// Độ lệch ước lượng gần nhất (một mỗi kênh), cập nhật sau mỗi `align`.
     last_offsets: Vec<f32>,
 }
 
 impl PhaseAligner {
-    /// Create a new aligner for the given number of channels.
+    /// Tạo bộ căn chỉnh mới cho số kênh cho trước.
     pub fn new(num_channels: usize) -> Self {
         Self {
             num_channels,
@@ -86,7 +86,7 @@ impl PhaseAligner {
         }
     }
 
-    /// Create a new aligner with custom configuration.
+    /// Tạo bộ căn chỉnh mới với cấu hình tùy chỉnh.
     pub fn with_config(num_channels: usize, config: PhaseAlignConfig) -> Self {
         Self {
             num_channels,
@@ -95,24 +95,24 @@ impl PhaseAligner {
         }
     }
 
-    /// Return the last estimated phase offsets (radians).
+    /// Trả về các độ lệch pha ước lượng gần nhất (radian).
     pub fn last_offsets(&self) -> &[f32] {
         &self.last_offsets
     }
 
-    /// Align phases across channels.
+    /// Căn chỉnh pha chéo kênh.
     ///
-    /// Takes a slice of per-channel `CanonicalCsiFrame`s and returns corrected
-    /// frames with LO phase offsets removed. The first channel is used as the
-    /// reference (delta_0 = 0).
+    /// Nhận một slice các `CanonicalCsiFrame` mỗi kênh và trả về các khung
+    /// đã sửa với độ lệch pha LO được loại bỏ. Kênh đầu tiên được dùng làm
+    /// tham chiếu (delta_0 = 0).
     ///
-    /// # Algorithm
+    /// # Thuật Toán
     ///
-    /// 1. Identify static subcarriers (lowest amplitude variance across channels).
-    /// 2. For each channel c, compute mean phase on static subcarriers.
-    /// 3. Estimate delta_c as the difference from the reference channel.
-    /// 4. Iterate with Neumann-style refinement until convergence.
-    /// 5. Subtract delta_c from all subcarrier phases on channel c.
+    /// 1. Xác định sóng mang con tĩnh (phương sai biên độ thấp nhất giữa các kênh).
+    /// 2. Với mỗi kênh c, tính pha trung bình trên sóng mang con tĩnh.
+    /// 3. Ước lượng delta_c là hiệu so với kênh tham chiếu.
+    /// 4. Lặp với tinh chỉnh kiểu Neumann cho đến khi hội tụ.
+    /// 5. Trừ delta_c khỏi tất cả pha sóng mang con trên kênh c.
     pub fn align(
         &mut self,
         frames: &[CanonicalCsiFrame],
@@ -122,7 +122,7 @@ impl PhaseAligner {
         }
 
         if frames.len() == 1 {
-            // Single channel: no alignment needed
+            // Một kênh: không cần căn chỉnh
             self.last_offsets = vec![0.0];
             return Ok(frames.to_vec());
         }
@@ -137,13 +137,13 @@ impl PhaseAligner {
             }
         }
 
-        // Step 1: Find static subcarriers (lowest amplitude variance across channels)
+        // Bước 1: Tìm sóng mang con tĩnh (phương sai biên độ thấp nhất giữa các kênh)
         let static_indices = find_static_subcarriers(frames, &self.config)?;
 
-        // Step 2-4: Estimate phase offsets with iterative refinement
+        // Bước 2-4: Ước lượng độ lệch pha với tinh chỉnh lặp
         let offsets = estimate_phase_offsets(frames, &static_indices, &self.config)?;
 
-        // Step 5: Apply correction
+        // Bước 5: Áp dụng sửa lỗi
         let corrected = apply_phase_correction(frames, &offsets);
 
         self.last_offsets = offsets;
@@ -151,7 +151,7 @@ impl PhaseAligner {
     }
 }
 
-/// Find the indices of static subcarriers (lowest amplitude variance).
+/// Tìm chỉ số của các sóng mang con tĩnh (phương sai biên độ thấp nhất).
 fn find_static_subcarriers(
     frames: &[CanonicalCsiFrame],
     config: &PhaseAlignConfig,
@@ -159,7 +159,7 @@ fn find_static_subcarriers(
     let n_sub = frames[0].amplitude.len();
     let n_ch = frames.len();
 
-    // Compute variance of amplitude across channels for each subcarrier
+    // Tính phương sai biên độ giữa các kênh cho mỗi sóng mang con
     let mut variances: Vec<(usize, f32)> = (0..n_sub)
         .map(|s| {
             let mean: f32 = frames.iter().map(|f| f.amplitude[s]).sum::<f32>() / n_ch as f32;
@@ -175,7 +175,7 @@ fn find_static_subcarriers(
         })
         .collect();
 
-    // Sort by variance (ascending) and take the bottom fraction
+    // Sắp xếp theo phương sai (tăng dần) và lấy phần dưới cùng
     variances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
     let n_static = ((n_sub as f32 * config.static_fraction).ceil() as usize)
@@ -198,9 +198,9 @@ fn find_static_subcarriers(
     Ok(indices)
 }
 
-/// Estimate per-channel phase offsets using iterative Neumann-style refinement.
+/// Ước lượng độ lệch pha mỗi kênh sử dụng tinh chỉnh lặp kiểu Neumann.
 ///
-/// Channel 0 is the reference (offset = 0).
+/// Kênh 0 là tham chiếu (offset = 0).
 fn estimate_phase_offsets(
     frames: &[CanonicalCsiFrame],
     static_indices: &[usize],
@@ -209,22 +209,22 @@ fn estimate_phase_offsets(
     let n_ch = frames.len();
     let mut offsets = vec![0.0_f32; n_ch];
 
-    // Reference: mean phase on static subcarriers for channel 0
+    // Tham chiếu: pha trung bình trên sóng mang con tĩnh cho kênh 0
     let ref_mean = mean_phase_on_indices(&frames[0].phase, static_indices);
 
-    // Initial estimate: difference of mean static phase from reference
+    // Ước lượng ban đầu: hiệu pha tĩnh trung bình so với tham chiếu
     for c in 1..n_ch {
         let ch_mean = mean_phase_on_indices(&frames[c].phase, static_indices);
         offsets[c] = wrap_phase(ch_mean - ref_mean);
     }
 
-    // Iterative refinement (Neumann-style)
+    // Tinh chỉnh lặp (kiểu Neumann)
     for _iter in 0..config.max_iterations {
         let mut max_update = 0.0_f32;
 
         for c in 1..n_ch {
-            // Compute residual: for each static subcarrier, the corrected
-            // phase should match the reference channel's phase.
+            // Tính phần dư: với mỗi sóng mang con tĩnh, pha đã sửa
+            // phải khớp với pha kênh tham chiếu.
             let mut residual_sum = 0.0_f32;
             for &s in static_indices {
                 let corrected = frames[c].phase[s] - offsets[c];
@@ -233,8 +233,8 @@ fn estimate_phase_offsets(
             }
             let mean_residual = residual_sum / static_indices.len() as f32;
 
-            // Update offset
-            let update = mean_residual * 0.5; // damped update
+            // Cập nhật offset
+            let update = mean_residual * 0.5; // cập nhật giảm chấn
             offsets[c] = wrap_phase(offsets[c] + update);
             max_update = max_update.max(update.abs());
         }
@@ -244,11 +244,11 @@ fn estimate_phase_offsets(
         }
     }
 
-    // Even if we do not converge tightly, return best estimate
+    // Ngay cả khi không hội tụ chặt, trả về ước lượng tốt nhất
     Ok(offsets)
 }
 
-/// Apply phase correction: subtract offset from each subcarrier phase.
+/// Áp dụng sửa pha: trừ offset khỏi pha mỗi sóng mang con.
 fn apply_phase_correction(
     frames: &[CanonicalCsiFrame],
     offsets: &[f32],
@@ -271,17 +271,17 @@ fn apply_phase_correction(
         .collect()
 }
 
-/// Compute mean phase on the given subcarrier indices.
+/// Tính pha trung bình trên các chỉ số sóng mang con cho trước.
 fn mean_phase_on_indices(phase: &[f32], indices: &[usize]) -> f32 {
     if indices.is_empty() {
         return 0.0;
     }
 
-    // Use circular mean to handle phase wrapping
+    // Sử dụng trung bình vòng tròn để xử lý cuộn pha
     let mut sin_sum = 0.0_f32;
     let mut cos_sum = 0.0_f32;
     for &i in indices {
-        // Defensive bounds check: skip out-of-range indices rather than panic
+        // Kiểm tra giới hạn phòng thủ: bỏ qua chỉ số ngoài phạm vi thay vì panic
         if let Some(&p) = phase.get(i) {
             sin_sum += p.sin();
             cos_sum += p.cos();
@@ -291,7 +291,7 @@ fn mean_phase_on_indices(phase: &[f32], indices: &[usize]) -> f32 {
     sin_sum.atan2(cos_sum)
 }
 
-/// Wrap phase into [-pi, pi].
+/// Cuộn pha vào [-pi, pi].
 fn wrap_phase(phase: f32) -> f32 {
     let mut p = phase % (2.0 * PI);
     if p > PI {
@@ -349,9 +349,9 @@ mod tests {
         let f = make_frame_with_phase(56, 0.5, 0.0);
         let result = aligner.align(&[f.clone(), f.clone(), f.clone()]).unwrap();
         assert_eq!(result.len(), 3);
-        // All offsets should be ~0
+        // Tất cả offset phải xấp xỉ 0
         for &off in aligner.last_offsets() {
-            assert!(off.abs() < 0.1, "Expected near-zero offset, got {}", off);
+            assert!(off.abs() < 0.1, "Kỳ vọng offset gần zero, nhận được {}", off);
         }
     }
 
@@ -364,7 +364,7 @@ mod tests {
 
         let result = aligner.align(&[f0.clone(), f1]).unwrap();
 
-        // After correction, channel 1 phases should be close to channel 0
+        // Sau khi sửa, pha kênh 1 phải gần với kênh 0
         let max_diff: f32 = result[0]
             .phase
             .iter()
@@ -374,7 +374,7 @@ mod tests {
 
         assert!(
             max_diff < 0.2,
-            "Max phase difference after alignment: {} (should be <0.2)",
+            "Hiệu pha tối đa sau căn chỉnh: {} (phải <0.2)",
             max_diff
         );
     }
@@ -430,7 +430,7 @@ mod tests {
         let result = aligner.align(&[f0, f1, f2]).unwrap();
         assert_eq!(result.len(), 3);
 
-        // Reference channel offset should be 0
+        // Offset kênh tham chiếu phải bằng 0
         assert!(aligner.last_offsets()[0].abs() < 1e-6);
     }
 
@@ -450,7 +450,7 @@ mod tests {
         let f1 = make_frame_with_phase(56, 0.0, 1.0);
 
         let result = aligner.align(&[f0.clone(), f1.clone()]).unwrap();
-        // Amplitude should be unchanged
+        // Biên độ phải không thay đổi
         assert_eq!(result[0].amplitude, f0.amplitude);
         assert_eq!(result[1].amplitude, f1.amplitude);
     }

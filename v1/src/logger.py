@@ -1,5 +1,5 @@
 """
-Logging configuration for WiFi-DensePose API
+Cấu hình ghi log cho WiFi-DensePose API
 """
 
 import logging
@@ -15,34 +15,34 @@ from src.config.settings import Settings
 
 
 class ColoredFormatter(logging.Formatter):
-    """Colored log formatter for console output."""
-    
-    # ANSI color codes
+    """Trình định dạng log có màu cho đầu ra console."""
+
+    # Mã màu ANSI
     COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'        # Reset
+        'DEBUG': '\033[36m',      # Xanh lam nhạt
+        'INFO': '\033[32m',       # Xanh lá
+        'WARNING': '\033[33m',    # Vàng
+        'ERROR': '\033[31m',      # Đỏ
+        'CRITICAL': '\033[35m',   # Tím
+        'RESET': '\033[0m'        # Đặt lại
     }
-    
+
     def format(self, record):
-        """Format log record with colors."""
+        """Định dạng bản ghi log với màu sắc."""
         if hasattr(record, 'levelname'):
             color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
             record.levelname = f"{color}{record.levelname}{self.COLORS['RESET']}"
-        
+
         return super().format(record)
 
 
 class StructuredFormatter(logging.Formatter):
-    """Structured JSON formatter for log files."""
-    
+    """Trình định dạng JSON có cấu trúc cho file log."""
+
     def format(self, record):
-        """Format log record as structured JSON."""
+        """Định dạng bản ghi log dưới dạng JSON có cấu trúc."""
         import json
-        
+
         log_entry = {
             'timestamp': datetime.utcnow().isoformat(),
             'level': record.levelname,
@@ -52,12 +52,12 @@ class StructuredFormatter(logging.Formatter):
             'function': record.funcName,
             'line': record.lineno,
         }
-        
-        # Add exception info if present
+
+        # Thêm thông tin ngoại lệ nếu có
         if record.exc_info:
             log_entry['exception'] = self.formatException(record.exc_info)
-        
-        # Add extra fields
+
+        # Thêm các trường bổ sung
         for key, value in record.__dict__.items():
             if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
                           'filename', 'module', 'lineno', 'funcName', 'created',
@@ -65,63 +65,63 @@ class StructuredFormatter(logging.Formatter):
                           'processName', 'process', 'getMessage', 'exc_info',
                           'exc_text', 'stack_info']:
                 log_entry[key] = value
-        
+
         return json.dumps(log_entry)
 
 
 class RequestContextFilter(logging.Filter):
-    """Filter to add request context to log records."""
-    
+    """Bộ lọc thêm ngữ cảnh yêu cầu vào bản ghi log."""
+
     def filter(self, record):
-        """Add request context to log record."""
-        # Try to get request context from contextvars or thread local
+        """Thêm ngữ cảnh yêu cầu vào bản ghi log."""
+        # Thử lấy ngữ cảnh yêu cầu từ contextvars hoặc thread local
         try:
             import contextvars
             request_id = contextvars.ContextVar('request_id', default=None).get()
             user_id = contextvars.ContextVar('user_id', default=None).get()
-            
+
             if request_id:
                 record.request_id = request_id
             if user_id:
                 record.user_id = user_id
-                
+
         except (ImportError, LookupError):
             pass
-        
+
         return True
 
 
 def setup_logging(settings: Settings) -> None:
-    """Setup application logging configuration."""
-    
-    # Create log directory if file logging is enabled
+    """Thiết lập cấu hình ghi log ứng dụng."""
+
+    # Tạo thư mục log nếu ghi log vào file được bật
     if settings.log_file:
         log_path = Path(settings.log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Build logging configuration
+
+    # Xây dựng cấu hình ghi log
     config = build_logging_config(settings)
-    
-    # Apply configuration
+
+    # Áp dụng cấu hình
     logging.config.dictConfig(config)
-    
-    # Set up root logger
+
+    # Thiết lập logger gốc
     root_logger = logging.getLogger()
     root_logger.setLevel(settings.log_level)
-    
-    # Add request context filter to all handlers
+
+    # Thêm bộ lọc ngữ cảnh yêu cầu vào tất cả handler
     request_filter = RequestContextFilter()
     for handler in root_logger.handlers:
         handler.addFilter(request_filter)
-    
-    # Log startup message
+
+    # Ghi thông báo khởi động
     logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured - Level: {settings.log_level}, File: {settings.log_file}")
+    logger.info(f"Đã cấu hình ghi log - Mức: {settings.log_level}, File: {settings.log_file}")
 
 
 def build_logging_config(settings: Settings) -> Dict[str, Any]:
-    """Build logging configuration dictionary."""
-    
+    """Xây dựng dictionary cấu hình ghi log."""
+
     config = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -148,12 +148,12 @@ def build_logging_config(settings: Settings) -> Dict[str, Any]:
             }
         },
         'loggers': {
-            '': {  # Root logger
+            '': {  # Logger gốc
                 'level': settings.log_level,
                 'handlers': ['console'],
                 'propagate': False
             },
-            'src': {  # Application logger
+            'src': {  # Logger ứng dụng
                 'level': settings.log_level,
                 'handlers': ['console'],
                 'propagate': False
@@ -185,8 +185,8 @@ def build_logging_config(settings: Settings) -> Dict[str, Any]:
             }
         }
     }
-    
-    # Add file handler if log file is specified
+
+    # Thêm handler file nếu file log được chỉ định
     if settings.log_file:
         config['handlers']['file'] = {
             'class': 'logging.handlers.RotatingFileHandler',
@@ -197,8 +197,8 @@ def build_logging_config(settings: Settings) -> Dict[str, Any]:
             'backupCount': settings.log_backup_count,
             'encoding': 'utf-8'
         }
-        
-        # Add structured log handler for JSON logs
+
+        # Thêm handler log có cấu trúc cho log JSON
         structured_log_file = str(Path(settings.log_file).with_suffix('.json'))
         config['handlers']['structured'] = {
             'class': 'logging.handlers.RotatingFileHandler',
@@ -209,112 +209,112 @@ def build_logging_config(settings: Settings) -> Dict[str, Any]:
             'backupCount': settings.log_backup_count,
             'encoding': 'utf-8'
         }
-        
-        # Add file handlers to all loggers
+
+        # Thêm handler file vào tất cả logger
         for logger_config in config['loggers'].values():
             logger_config['handlers'].extend(['file', 'structured'])
-    
+
     return config
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get a logger with the specified name."""
+    """Lấy logger với tên được chỉ định."""
     return logging.getLogger(name)
 
 
 def configure_third_party_loggers(settings: Settings) -> None:
-    """Configure third-party library loggers."""
-    
-    # Suppress noisy loggers in production
+    """Cấu hình logger của thư viện bên thứ ba."""
+
+    # Tắt bớt logger ồn ào trong môi trường sản xuất
     if settings.is_production:
         logging.getLogger('urllib3').setLevel(logging.WARNING)
         logging.getLogger('requests').setLevel(logging.WARNING)
         logging.getLogger('asyncio').setLevel(logging.WARNING)
         logging.getLogger('multipart').setLevel(logging.WARNING)
-    
-    # Configure SQLAlchemy logging
+
+    # Cấu hình ghi log SQLAlchemy
     if settings.debug and settings.is_development:
         logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
         logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
     else:
         logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-    
-    # Configure Redis logging
+
+    # Cấu hình ghi log Redis
     logging.getLogger('redis').setLevel(logging.WARNING)
-    
-    # Configure WebSocket logging
+
+    # Cấu hình ghi log WebSocket
     logging.getLogger('websockets').setLevel(logging.INFO)
 
 
 class LoggerMixin:
-    """Mixin class to add logging capabilities to any class."""
-    
+    """Lớp mixin thêm khả năng ghi log vào bất kỳ lớp nào."""
+
     @property
     def logger(self) -> logging.Logger:
-        """Get logger for this class."""
+        """Lấy logger cho lớp này."""
         return logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
 
 
 def log_function_call(func):
-    """Decorator to log function calls."""
+    """Decorator ghi log các lời gọi hàm."""
     import functools
-    
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         logger = logging.getLogger(func.__module__)
-        logger.debug(f"Calling {func.__name__} with args={args}, kwargs={kwargs}")
-        
+        logger.debug(f"Đang gọi {func.__name__} với args={args}, kwargs={kwargs}")
+
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"{func.__name__} completed successfully")
+            logger.debug(f"{func.__name__} hoàn thành thành công")
             return result
         except Exception as e:
-            logger.error(f"{func.__name__} failed with error: {e}")
+            logger.error(f"{func.__name__} thất bại với lỗi: {e}")
             raise
-    
+
     return wrapper
 
 
 def log_async_function_call(func):
-    """Decorator to log async function calls."""
+    """Decorator ghi log các lời gọi hàm bất đồng bộ."""
     import functools
-    
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         logger = logging.getLogger(func.__module__)
-        logger.debug(f"Calling async {func.__name__} with args={args}, kwargs={kwargs}")
-        
+        logger.debug(f"Đang gọi bất đồng bộ {func.__name__} với args={args}, kwargs={kwargs}")
+
         try:
             result = await func(*args, **kwargs)
-            logger.debug(f"Async {func.__name__} completed successfully")
+            logger.debug(f"Bất đồng bộ {func.__name__} hoàn thành thành công")
             return result
         except Exception as e:
-            logger.error(f"Async {func.__name__} failed with error: {e}")
+            logger.error(f"Bất đồng bộ {func.__name__} thất bại với lỗi: {e}")
             raise
-    
+
     return wrapper
 
 
 def setup_request_logging():
-    """Setup request-specific logging context."""
+    """Thiết lập ngữ cảnh ghi log theo yêu cầu."""
     import contextvars
     import uuid
-    
-    # Create context variables for request tracking
+
+    # Tạo biến ngữ cảnh cho theo dõi yêu cầu
     request_id_var = contextvars.ContextVar('request_id')
     user_id_var = contextvars.ContextVar('user_id')
-    
+
     def set_request_context(request_id: Optional[str] = None, user_id: Optional[str] = None):
-        """Set request context for logging."""
+        """Đặt ngữ cảnh yêu cầu cho ghi log."""
         if request_id is None:
             request_id = str(uuid.uuid4())
-        
+
         request_id_var.set(request_id)
         if user_id:
             user_id_var.set(user_id)
-    
+
     def get_request_context():
-        """Get current request context."""
+        """Lấy ngữ cảnh yêu cầu hiện tại."""
         try:
             return {
                 'request_id': request_id_var.get(),
@@ -322,9 +322,9 @@ def setup_request_logging():
             }
         except LookupError:
             return {}
-    
+
     return set_request_context, get_request_context
 
 
-# Initialize request logging context
+# Khởi tạo ngữ cảnh ghi log yêu cầu
 set_request_context, get_request_context = setup_request_logging()

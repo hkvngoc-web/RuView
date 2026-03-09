@@ -1,5 +1,5 @@
-// TrainingPanel Component for WiFi-DensePose UI
-// Dark-mode panel for training management, CSI recordings, and progress charts.
+// Thành phần TrainingPanel cho WiFi-DensePose UI
+// Bảng điều khiển giao diện tối để quản lý huấn luyện, thu CSI, và biểu đồ tiến trình.
 
 import { trainingService } from '../services/training.service.js';
 
@@ -60,7 +60,7 @@ export default class TrainingPanel {
   constructor(container) {
     this.container = typeof container === 'string'
       ? document.getElementById(container) : container;
-    if (!this.container) throw new Error('TrainingPanel: container element not found');
+    if (!this.container) throw new Error('TrainingPanel: không tìm thấy phần tử container');
 
     this.state = {
       recordings: [], trainingStatus: null, isRecording: false,
@@ -95,7 +95,7 @@ export default class TrainingPanel {
     this._set({ trainingStatus: { ...this.state.trainingStatus, ...data } });
   }
 
-  // --- Data ---
+  // --- Dữ liệu ---
 
   async refresh() {
     this._set({ loading: true, error: null });
@@ -109,7 +109,7 @@ export default class TrainingPanel {
     } catch (e) { this._set({ loading: false, error: e.message }); }
   }
 
-  // --- Actions ---
+  // --- Hành động ---
 
   async _startRec() {
     this._set({ loading: true, error: null });
@@ -117,7 +117,7 @@ export default class TrainingPanel {
       await trainingService.startRecording({ session_name: `rec_${Date.now()}`, label: 'pose' });
       this._set({ isRecording: true, loading: false });
       await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Recording failed: ${e.message}` }); }
+    } catch (e) { this._set({ loading: false, error: `Thu thập thất bại: ${e.message}` }); }
   }
 
   async _stopRec() {
@@ -126,7 +126,7 @@ export default class TrainingPanel {
       await trainingService.stopRecording();
       this._set({ isRecording: false, loading: false });
       await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Stop recording failed: ${e.message}` }); }
+    } catch (e) { this._set({ loading: false, error: `Dừng thu thất bại: ${e.message}` }); }
   }
 
   async _delRec(id) {
@@ -135,7 +135,7 @@ export default class TrainingPanel {
       await trainingService.deleteRecording(id);
       this.config.selectedRecordings = this.config.selectedRecordings.filter(r => r !== id);
       await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Delete failed: ${e.message}` }); }
+    } catch (e) { this._set({ loading: false, error: `Xoá thất bại: ${e.message}` }); }
   }
 
   async _launchTraining(method, extraCfg = {}) {
@@ -154,18 +154,18 @@ export default class TrainingPanel {
       };
       await trainingService[method](payload);
       await this.refresh();
-    } catch (e) { this._set({ loading: false, error: `Training failed: ${e.message}` }); }
+    } catch (e) { this._set({ loading: false, error: `Huấn luyện thất bại: ${e.message}` }); }
   }
 
   async _stopTraining() {
     this._set({ loading: true, error: null });
     try { await trainingService.stopTraining(); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `Stop failed: ${e.message}` }); }
+    catch (e) { this._set({ loading: false, error: `Dừng thất bại: ${e.message}` }); }
   }
 
   _set(p) { Object.assign(this.state, p); this.render(); }
 
-  // --- Render ---
+  // --- Kết xuất ---
 
   render() {
     const el = this.container;
@@ -185,32 +185,32 @@ export default class TrainingPanel {
 
   _renderHeader() {
     const h = this._el('div', 'tp-header');
-    h.appendChild(this._el('span', 'tp-title', 'Training'));
+    h.appendChild(this._el('span', 'tp-title', 'Huấn luyện'));
     const ts = this.state.trainingStatus;
-    let cls = 'tp-badge tp-badge-idle', txt = 'Idle';
-    if (ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Training'; }
-    else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Completed'; }
+    let cls = 'tp-badge tp-badge-idle', txt = 'Chờ';
+    if (ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Đang huấn luyện'; }
+    else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Hoàn thành'; }
     h.appendChild(this._el('span', cls, txt));
     return h;
   }
 
   _renderRecordings() {
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'CSI Recordings'));
+    s.appendChild(this._el('div', 'tp-section-title', 'Bản ghi CSI'));
     if (this.state.recordings.length === 0 && !this.state.loading) {
-      s.appendChild(this._el('div', 'tp-empty', 'Start recording CSI data to train a model'));
+      s.appendChild(this._el('div', 'tp-empty', 'Bắt đầu thu thập dữ liệu CSI để huấn luyện mô hình'));
     } else {
       this.state.recordings.forEach(rec => {
         const row = this._el('div', 'tp-rec-row');
         const info = this._el('div', 'tp-rec-info');
         info.appendChild(this._el('span', 'tp-rec-name', rec.name || rec.id));
         const parts = [];
-        if (rec.frame_count != null) parts.push(rec.frame_count + ' frames');
+        if (rec.frame_count != null) parts.push(rec.frame_count + ' khung hình');
         if (rec.file_size_bytes != null) parts.push(this._fmtB(rec.file_size_bytes));
         if (rec.started_at && rec.ended_at) parts.push(Math.round((new Date(rec.ended_at) - new Date(rec.started_at)) / 1000) + 's');
         info.appendChild(this._el('span', 'tp-rec-meta', parts.join(' / ')));
         row.appendChild(info);
-        const del = this._btn('Delete', 'tp-btn tp-btn-muted', () => this._delRec(rec.id));
+        const del = this._btn('Xoá', 'tp-btn tp-btn-muted', () => this._delRec(rec.id));
         del.disabled = this.state.loading;
         row.appendChild(del);
         s.appendChild(row);
@@ -218,10 +218,10 @@ export default class TrainingPanel {
     }
     const acts = this._el('div', 'tp-rec-actions');
     if (this.state.isRecording) {
-      const b = this._btn('Stop Recording', 'tp-btn tp-btn-danger', () => this._stopRec());
+      const b = this._btn('Dừng Thu', 'tp-btn tp-btn-danger', () => this._stopRec());
       b.disabled = this.state.loading; acts.appendChild(b);
     } else {
-      const b = this._btn('Start Recording', 'tp-btn tp-btn-rec', () => this._startRec());
+      const b = this._btn('Bắt đầu Thu', 'tp-btn tp-btn-rec', () => this._startRec());
       b.disabled = this.state.loading; acts.appendChild(b);
     }
     s.appendChild(acts);
@@ -231,15 +231,15 @@ export default class TrainingPanel {
   _renderConfig() {
     const s = this._el('div', 'tp-section');
     const hdr = this._el('div', 'tp-config-header');
-    hdr.appendChild(this._el('span', 'tp-section-title', 'Training Configuration'));
-    hdr.appendChild(this._btn(this.state.configOpen ? 'Collapse' : 'Expand', 'tp-btn tp-btn-muted',
+    hdr.appendChild(this._el('span', 'tp-section-title', 'Cấu hình Huấn luyện'));
+    hdr.appendChild(this._btn(this.state.configOpen ? 'Thu gọn' : 'Mở rộng', 'tp-btn tp-btn-muted',
       () => { this.state.configOpen = !this.state.configOpen; this.render(); }));
     s.appendChild(hdr);
     if (!this.state.configOpen) return s;
 
     const form = this._el('div', 'tp-config-form');
     if (this.state.recordings.length > 0) {
-      form.appendChild(this._el('label', 'tp-label', 'Datasets'));
+      form.appendChild(this._el('label', 'tp-label', 'Bộ dữ liệu'));
       const dc = this._el('div', 'tp-ds-container');
       this.state.recordings.forEach(rec => {
         const lb = this._el('label', 'tp-ds-item');
@@ -264,18 +264,18 @@ export default class TrainingPanel {
       inp.addEventListener('change', () => fn(inp.value));
       r.appendChild(inp); return r;
     };
-    form.appendChild(ir('Epochs', 'number', this.config.epochs, v => { this.config.epochs = parseInt(v) || 100; }));
-    form.appendChild(ir('Batch Size', 'number', this.config.batch_size, v => { this.config.batch_size = parseInt(v) || 32; }));
-    form.appendChild(ir('Learning Rate', 'text', this.config.learning_rate, v => { this.config.learning_rate = parseFloat(v) || 3e-4; }));
-    form.appendChild(ir('Early Stop Patience', 'number', this.config.patience, v => { this.config.patience = parseInt(v) || 15; }));
-    form.appendChild(ir('Base Model (opt.)', 'text', this.config.base_model, v => { this.config.base_model = v; }));
-    form.appendChild(ir('LoRA Profile (opt.)', 'text', this.config.lora_profile_name, v => { this.config.lora_profile_name = v; }));
+    form.appendChild(ir('Số Epoch', 'number', this.config.epochs, v => { this.config.epochs = parseInt(v) || 100; }));
+    form.appendChild(ir('Kích thước Batch', 'number', this.config.batch_size, v => { this.config.batch_size = parseInt(v) || 32; }));
+    form.appendChild(ir('Tốc độ Học', 'text', this.config.learning_rate, v => { this.config.learning_rate = parseFloat(v) || 3e-4; }));
+    form.appendChild(ir('Kiên nhẫn Dừng sớm', 'number', this.config.patience, v => { this.config.patience = parseInt(v) || 15; }));
+    form.appendChild(ir('Mô hình Gốc (tuỳ chọn)', 'text', this.config.base_model, v => { this.config.base_model = v; }));
+    form.appendChild(ir('Hồ sơ LoRA (tuỳ chọn)', 'text', this.config.lora_profile_name, v => { this.config.lora_profile_name = v; }));
     s.appendChild(form);
 
     const acts = this._el('div', 'tp-train-actions');
     const btns = [
-      this._btn('Start Training', 'tp-btn tp-btn-success', () => this._launchTraining('startTraining', { patience: this.config.patience, base_model: this.config.base_model || undefined })),
-      this._btn('Pretrain', 'tp-btn tp-btn-secondary', () => this._launchTraining('startPretraining')),
+      this._btn('Bắt đầu Huấn luyện', 'tp-btn tp-btn-success', () => this._launchTraining('startTraining', { patience: this.config.patience, base_model: this.config.base_model || undefined })),
+      this._btn('Tiền huấn luyện', 'tp-btn tp-btn-secondary', () => this._launchTraining('startPretraining')),
       this._btn('LoRA', 'tp-btn tp-btn-secondary', () => this._launchTraining('startLoraTraining', { base_model: this.config.base_model || undefined, profile_name: this.config.lora_profile_name || 'default' }))
     ];
     btns.forEach(b => { b.disabled = this.state.loading; acts.appendChild(b); });
@@ -286,7 +286,7 @@ export default class TrainingPanel {
   _renderProgress() {
     const ts = this.state.trainingStatus || {};
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'Training Progress'));
+    s.appendChild(this._el('div', 'tp-section-title', 'Tiến trình Huấn luyện'));
 
     const pct = ts.total_epochs ? Math.round((ts.epoch / ts.total_epochs) * 100) : 0;
     const bar = this._el('div', 'tp-progress-bar');
@@ -302,17 +302,17 @@ export default class TrainingPanel {
 
     const g = this._el('div', 'tp-metrics-grid');
     const mc = (l, v) => { const c = this._el('div', 'tp-metric-cell'); c.appendChild(this._el('div', 'tp-metric-label', l)); c.appendChild(this._el('div', 'tp-metric-value', v)); return c; };
-    g.appendChild(mc('Loss', ts.train_loss != null ? ts.train_loss.toFixed(4) : '--'));
+    g.appendChild(mc('Mất mát', ts.train_loss != null ? ts.train_loss.toFixed(4) : '--'));
     g.appendChild(mc('PCK', ts.val_pck != null ? (ts.val_pck * 100).toFixed(1) + '%' : '--'));
     g.appendChild(mc('OKS', ts.val_oks != null ? ts.val_oks.toFixed(3) : '--'));
-    g.appendChild(mc('LR', ts.lr != null ? ts.lr.toExponential(1) : '--'));
-    g.appendChild(mc('Best PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '% (e' + (ts.best_epoch ?? '?') + ')' : '--'));
-    g.appendChild(mc('Patience', ts.patience_remaining != null ? String(ts.patience_remaining) : '--'));
-    g.appendChild(mc('ETA', ts.eta_secs != null ? this._fmtEta(ts.eta_secs) : '--'));
-    g.appendChild(mc('Phase', ts.phase || '--'));
+    g.appendChild(mc('TĐH', ts.lr != null ? ts.lr.toExponential(1) : '--'));
+    g.appendChild(mc('PCK Tốt nhất', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '% (e' + (ts.best_epoch ?? '?') + ')' : '--'));
+    g.appendChild(mc('Kiên nhẫn', ts.patience_remaining != null ? String(ts.patience_remaining) : '--'));
+    g.appendChild(mc('Thời gian còn', ts.eta_secs != null ? this._fmtEta(ts.eta_secs) : '--'));
+    g.appendChild(mc('Giai đoạn', ts.phase || '--'));
     s.appendChild(g);
 
-    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());
+    const stop = this._btn('Dừng Huấn luyện', 'tp-btn tp-btn-danger', () => this._stopTraining());
     stop.disabled = this.state.loading; stop.style.marginTop = '10px'; s.appendChild(stop);
     return s;
   }
@@ -320,27 +320,27 @@ export default class TrainingPanel {
   _renderComplete() {
     const ts = this.state.trainingStatus || {};
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'Training Complete'));
+    s.appendChild(this._el('div', 'tp-section-title', 'Huấn luyện Hoàn thành'));
     const g = this._el('div', 'tp-metrics-grid');
     const mc = (l, v) => { const c = this._el('div', 'tp-metric-cell'); c.appendChild(this._el('div', 'tp-metric-label', l)); c.appendChild(this._el('div', 'tp-metric-value', v)); return c; };
     const losses = this.progressData.losses;
-    g.appendChild(mc('Final Loss', losses.length > 0 ? losses[losses.length - 1].toFixed(4) : '--'));
-    g.appendChild(mc('Best PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '%' : '--'));
-    g.appendChild(mc('Best Epoch', ts.best_epoch != null ? String(ts.best_epoch) : '--'));
-    g.appendChild(mc('Total Epochs', String(losses.length)));
+    g.appendChild(mc('Mất mát Cuối', losses.length > 0 ? losses[losses.length - 1].toFixed(4) : '--'));
+    g.appendChild(mc('PCK Tốt nhất', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '%' : '--'));
+    g.appendChild(mc('Epoch Tốt nhất', ts.best_epoch != null ? String(ts.best_epoch) : '--'));
+    g.appendChild(mc('Tổng Epoch', String(losses.length)));
     s.appendChild(g);
     const acts = this._el('div', 'tp-train-actions');
-    acts.appendChild(this._btn('New Training', 'tp-btn tp-btn-secondary', () => {
+    acts.appendChild(this._btn('Huấn luyện Mới', 'tp-btn tp-btn-secondary', () => {
       this.progressData = { losses: [], pcks: [] }; this._set({ trainingStatus: null });
     }));
     s.appendChild(acts);
     return s;
   }
 
-  // --- Chart drawing ---
+  // --- Vẽ biểu đồ ---
 
   _drawCharts() {
-    this._drawChart('tp-loss-chart', this.progressData.losses, { color: '#ff6b6b', label: 'Loss', yMin: 0, yMax: null });
+    this._drawChart('tp-loss-chart', this.progressData.losses, { color: '#ff6b6b', label: 'Mất mát', yMin: 0, yMax: null });
     this._drawChart('tp-pck-chart', this.progressData.pcks, { color: '#51cf66', label: 'PCK', yMin: 0, yMax: 1 });
   }
 
@@ -351,7 +351,7 @@ export default class TrainingPanel {
     const p = { t: 20, r: 10, b: 24, l: 44 };
     ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#8899aa'; ctx.font = '11px -apple-system,sans-serif'; ctx.fillText(opts.label, p.l, 14);
-    if (!data.length) { ctx.fillStyle = '#6b7a8d'; ctx.fillText('No data', w / 2 - 20, h / 2); return; }
+    if (!data.length) { ctx.fillStyle = '#6b7a8d'; ctx.fillText('Không có dữ liệu', w / 2 - 20, h / 2); return; }
     const pw = w - p.l - p.r, ph = h - p.t - p.b;
     let yMin = opts.yMin ?? Math.min(...data), yMax = opts.yMax ?? Math.max(...data);
     if (yMax === yMin) yMax = yMin + 1;
@@ -380,7 +380,7 @@ export default class TrainingPanel {
     }
   }
 
-  // --- Helpers ---
+  // --- Trợ giúp ---
 
   _el(tag, cls, txt) {
     const e = document.createElement(tag);

@@ -1,6 +1,6 @@
 /**
- * Module C — "Presence Cartography"
- * InstancedMesh 20x4x20 voxel heatmap with person lights
+ * Mô-đun C — "Bản Đồ Hiện Diện"
+ * InstancedMesh bản đồ nhiệt voxel 20x4x20 với đèn người
  */
 import * as THREE from 'three';
 
@@ -16,7 +16,7 @@ export class PresenceCartography {
     if (panelGroup) panelGroup.add(this.group);
     else scene.add(this.group);
 
-    // Instanced cubes
+    // Khối lập phương thể hiện
     const cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
     const cubeMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -29,11 +29,11 @@ export class PresenceCartography {
     this._mesh = new THREE.InstancedMesh(cubeGeo, cubeMat, TOTAL_VOXELS);
     this._mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-    // Color attribute
+    // Thuộc tính màu
     this._colors = new Float32Array(TOTAL_VOXELS * 3);
     this._mesh.instanceColor = new THREE.InstancedBufferAttribute(this._colors, 3);
 
-    // Initialize positions
+    // Khởi tạo vị trí
     const dummy = new THREE.Object3D();
     const halfX = (GRID_X * VOXEL_SIZE * 1.1) / 2;
     const halfZ = (GRID_Z * VOXEL_SIZE * 1.1) / 2;
@@ -61,7 +61,7 @@ export class PresenceCartography {
     this._mesh.instanceColor.needsUpdate = true;
     this.group.add(this._mesh);
 
-    // Room wireframe
+    // Khung dây phòng
     const roomW = GRID_X * VOXEL_SIZE * 1.1;
     const roomH = GRID_Y * VOXEL_SIZE * 1.1;
     const roomD = GRID_Z * VOXEL_SIZE * 1.1;
@@ -76,7 +76,7 @@ export class PresenceCartography {
     wireframe.position.y = roomH / 2;
     this.group.add(wireframe);
 
-    // Person lights (up to 4)
+    // Đèn người (tối đa 4)
     this._personLights = [];
     for (let i = 0; i < 4; i++) {
       const light = new THREE.PointLight(0xff8800, 0, 3);
@@ -103,11 +103,11 @@ export class PresenceCartography {
             const fieldIdx = z * GRID_X + x;
             const val = field[fieldIdx] || 0;
 
-            // Extrude vertically: layer 0 = full val, higher layers diminish
+            // Đùn dọc: lớp 0 = giá trị đầy đủ, lớp cao hơn giảm dần
             const layerFactor = Math.max(0, 1 - y / GRID_Y);
             const v = val * layerFactor;
 
-            // Scale voxel by value
+            // Co giãn voxel theo giá trị
             const s = v > 0.05 ? 0.3 + v * 0.7 : 0.01;
             dummy.position.set(
               x * VOXEL_SIZE * 1.1 - this._halfX,
@@ -118,7 +118,7 @@ export class PresenceCartography {
             dummy.updateMatrix();
             this._mesh.setMatrixAt(idx, dummy.matrix);
 
-            // Color: blue(low) -> cyan(mid) -> amber(high)
+            // Màu: xanh(thấp) -> lục lam(trung) -> hổ phách(cao)
             let r, g, b;
             if (v < 0.3) {
               const t = v / 0.3;
@@ -146,7 +146,7 @@ export class PresenceCartography {
       this._mesh.instanceColor.needsUpdate = true;
     }
 
-    // Person lights
+    // Đèn người
     for (let i = 0; i < this._personLights.length; i++) {
       const light = this._personLights[i];
       if (i < persons.length) {
@@ -160,7 +160,7 @@ export class PresenceCartography {
     }
   }
 
-  /** Reduce voxel count for performance */
+  /** Giảm số lượng voxel cho hiệu suất */
   setQuality(level) {
     // For now just toggle visibility of upper layers
     // level 0 = show only ground, 2 = show all

@@ -1,16 +1,16 @@
 /**
- * SensingTab — Live WiFi Sensing Visualization
+ * SensingTab — Trực quan hoá Cảm biến WiFi Trực tiếp
  *
- * Connects to the sensing WebSocket service and renders:
- *   1. A 3D Gaussian-splat signal field (via gaussian-splats.js)
- *   2. An overlay HUD with real-time metrics (RSSI, variance, bands, classification)
+ * Kết nối tới dịch vụ WebSocket cảm biến và hiển thị:
+ *   1. Trường tín hiệu 3D Gaussian-splat (qua gaussian-splats.js)
+ *   2. HUD lớp phủ với chỉ số thời gian thực (RSSI, phương sai, dải tần, phân loại)
  */
 
 import { sensingService } from '../services/sensing.service.js';
 import { GaussianSplatRenderer } from './gaussian-splats.js';
 
 export class SensingTab {
-  /** @param {HTMLElement} container - the #sensing section element */
+  /** @param {HTMLElement} container - phần tử section #sensing */
   constructor(container) {
     this.container = container;
     this.splatRenderer = null;
@@ -28,32 +28,32 @@ export class SensingTab {
     this._setupResize();
   }
 
-  // ---- DOM construction --------------------------------------------------
+  // ---- Xây dựng DOM --------------------------------------------------
 
   _buildDOM() {
     this.container.innerHTML = `
-      <h2>Live WiFi Sensing</h2>
+      <h2>Cảm biến WiFi Trực tiếp</h2>
 
-      <!-- Data-source status banner — updated by _onStateChange -->
+      <!-- Banner trạng thái nguồn dữ liệu — cập nhật bởi _onStateChange -->
       <div id="sensingSourceBanner" class="sensing-source-banner sensing-source-reconnecting"
            role="status" aria-live="polite">
-        RECONNECTING...
+        ĐANG KẾT NỐI LẠI...
       </div>
 
       <div class="sensing-layout">
-        <!-- 3D viewport -->
+        <!-- Khung nhìn 3D -->
         <div class="sensing-viewport" id="sensingViewport">
-          <div class="sensing-loading">Loading 3D engine...</div>
+          <div class="sensing-loading">Đang tải công cụ 3D...</div>
         </div>
 
-        <!-- Side panel -->
+        <!-- Bảng bên -->
         <div class="sensing-panel">
-          <!-- Connection -->
+          <!-- Kết nối -->
           <div class="sensing-card">
-            <div class="sensing-card-title">Connection</div>
+            <div class="sensing-card-title">Kết nối</div>
             <div class="sensing-connection">
               <span class="sensing-dot" id="sensingDot"></span>
-              <span id="sensingState">Connecting...</span>
+              <span id="sensingState">Đang kết nối...</span>
               <span class="sensing-source" id="sensingSource"></span>
             </div>
           </div>
@@ -65,69 +65,69 @@ export class SensingTab {
             <canvas id="sensingSparkline" width="200" height="40"></canvas>
           </div>
 
-          <!-- Signal Features -->
+          <!-- Đặc trưng tín hiệu -->
           <div class="sensing-card">
-            <div class="sensing-card-title">Signal Features</div>
+            <div class="sensing-card-title">Đặc trưng Tín hiệu</div>
             <div class="sensing-meters">
               <div class="sensing-meter">
-                <label>Variance</label>
+                <label>Phương sai</label>
                 <div class="sensing-bar"><div class="sensing-bar-fill" id="barVariance"></div></div>
                 <span class="sensing-meter-val" id="valVariance">0</span>
               </div>
               <div class="sensing-meter">
-                <label>Motion Band</label>
+                <label>Dải Chuyển động</label>
                 <div class="sensing-bar"><div class="sensing-bar-fill motion" id="barMotion"></div></div>
                 <span class="sensing-meter-val" id="valMotion">0</span>
               </div>
               <div class="sensing-meter">
-                <label>Breathing Band</label>
+                <label>Dải Hô hấp</label>
                 <div class="sensing-bar"><div class="sensing-bar-fill breath" id="barBreath"></div></div>
                 <span class="sensing-meter-val" id="valBreath">0</span>
               </div>
               <div class="sensing-meter">
-                <label>Spectral Power</label>
+                <label>Công suất Phổ</label>
                 <div class="sensing-bar"><div class="sensing-bar-fill spectral" id="barSpectral"></div></div>
                 <span class="sensing-meter-val" id="valSpectral">0</span>
               </div>
             </div>
           </div>
 
-          <!-- Classification -->
+          <!-- Phân loại -->
           <div class="sensing-card">
-            <div class="sensing-card-title">Classification</div>
+            <div class="sensing-card-title">Phân loại</div>
             <div class="sensing-classification" id="sensingClassification">
-              <div class="sensing-class-label" id="classLabel">ABSENT</div>
+              <div class="sensing-class-label" id="classLabel">VẮNG MẶT</div>
               <div class="sensing-confidence">
-                <label>Confidence</label>
+                <label>Độ tin cậy</label>
                 <div class="sensing-bar"><div class="sensing-bar-fill confidence" id="barConfidence"></div></div>
                 <span class="sensing-meter-val" id="valConfidence">0%</span>
               </div>
             </div>
           </div>
 
-          <!-- Setup info -->
+          <!-- Thông tin giới thiệu -->
           <div class="sensing-card">
-            <div class="sensing-card-title">About This Data</div>
+            <div class="sensing-card-title">Về Dữ liệu Này</div>
             <p class="sensing-about-text">
-              Metrics are computed from WiFi Channel State Information (CSI).
-              With <strong>1 ESP32</strong> you get presence detection, breathing
-              estimation, and gross motion. Add <strong>3-4+ ESP32 nodes</strong>
-              around the room for spatial resolution and limb-level tracking.
+              Các chỉ số được tính toán từ Thông tin Trạng thái Kênh WiFi (CSI).
+              Với <strong>1 ESP32</strong> bạn có thể phát hiện sự hiện diện, ước tính
+              hô hấp và chuyển động thô. Thêm <strong>3-4+ node ESP32</strong>
+              xung quanh phòng để có độ phân giải không gian và theo dõi cấp chi.
             </p>
           </div>
 
-          <!-- Extra info -->
+          <!-- Thông tin chi tiết -->
           <div class="sensing-card">
-            <div class="sensing-card-title">Details</div>
+            <div class="sensing-card-title">Chi tiết</div>
             <div class="sensing-details">
               <div class="sensing-detail-row">
-                <span>Dominant Freq</span><span id="valDomFreq">0 Hz</span>
+                <span>Tần số Chủ đạo</span><span id="valDomFreq">0 Hz</span>
               </div>
               <div class="sensing-detail-row">
-                <span>Change Points</span><span id="valChangePoints">0</span>
+                <span>Điểm Thay đổi</span><span id="valChangePoints">0</span>
               </div>
               <div class="sensing-detail-row">
-                <span>Sample Rate</span><span id="valSampleRate">--</span>
+                <span>Tốc độ Lấy mẫu</span><span id="valSampleRate">--</span>
               </div>
             </div>
           </div>
@@ -136,7 +136,7 @@ export class SensingTab {
     `;
   }
 
-  // ---- Three.js loading --------------------------------------------------
+  // ---- Tải Three.js --------------------------------------------------
 
   async _loadThree() {
     if (window.THREE) {
@@ -151,18 +151,18 @@ export class SensingTab {
         this._threeLoaded = true;
         resolve();
       };
-      script.onerror = () => reject(new Error('Failed to load Three.js'));
+      script.onerror = () => reject(new Error('Tải Three.js thất bại'));
       document.head.appendChild(script);
     });
   }
 
-  // ---- Splat renderer ----------------------------------------------------
+  // ---- Bộ kết xuất splat ----------------------------------------------------
 
   _initSplatRenderer() {
     const viewport = this.container.querySelector('#sensingViewport');
     if (!viewport) return;
 
-    // Remove loading message
+    // Xóa thông báo đang tải
     viewport.innerHTML = '';
 
     try {
@@ -171,12 +171,12 @@ export class SensingTab {
         height: viewport.clientHeight || 500,
       });
     } catch (e) {
-      console.error('[SensingTab] Failed to init splat renderer:', e);
-      viewport.innerHTML = '<div class="sensing-loading">3D rendering unavailable</div>';
+      console.error('[SensingTab] Khởi tạo bộ kết xuất splat thất bại:', e);
+      viewport.innerHTML = '<div class="sensing-loading">Kết xuất 3D không khả dụng</div>';
     }
   }
 
-  // ---- Service connection ------------------------------------------------
+  // ---- Kết nối dịch vụ ------------------------------------------------
 
   _connectService() {
     sensingService.start();
@@ -186,12 +186,12 @@ export class SensingTab {
   }
 
   _onSensingData(data) {
-    // Update 3D view
+    // Cập nhật khung nhìn 3D
     if (this.splatRenderer) {
       this.splatRenderer.update(data);
     }
 
-    // Update HUD
+    // Cập nhật HUD
     this._updateHUD(data);
   }
 
@@ -202,24 +202,24 @@ export class SensingTab {
 
     if (dot && text) {
       const stateLabels = {
-        disconnected: 'Disconnected',
-        connecting:   'Connecting...',
-        connected:    'Connected',
-        reconnecting: 'Reconnecting...',
-        simulated:    'Simulated',
+        disconnected: 'Ngắt kết nối',
+        connecting:   'Đang kết nối...',
+        connected:    'Đã kết nối',
+        reconnecting: 'Đang kết nối lại...',
+        simulated:    'Mô phỏng',
       };
       dot.className = 'sensing-dot ' + state;
       text.textContent = stateLabels[state] || state;
     }
 
     if (banner) {
-      // Map the service's dataSource to banner text and CSS modifier class.
+      // Ánh xạ dataSource của dịch vụ sang văn bản banner và class CSS.
       const dataSource = sensingService.dataSource;
       const bannerConfig = {
-        'live':              { text: 'LIVE \u2014 ESP32 HARDWARE',           cls: 'sensing-source-live' },
-        'server-simulated':  { text: 'SIMULATED \u2014 NO HARDWARE',        cls: 'sensing-source-server-sim' },
-        'reconnecting':      { text: 'RECONNECTING...',                    cls: 'sensing-source-reconnecting' },
-        'simulated':         { text: 'OFFLINE \u2014 CLIENT SIMULATION',    cls: 'sensing-source-simulated' },
+        'live':              { text: 'TRỰC TIẾP \u2014 PHẦN CỨNG ESP32',       cls: 'sensing-source-live' },
+        'server-simulated':  { text: 'MÔ PHỎNG \u2014 KHÔNG CÓ PHẦN CỨNG',    cls: 'sensing-source-server-sim' },
+        'reconnecting':      { text: 'ĐANG KẾT NỐI LẠI...',                cls: 'sensing-source-reconnecting' },
+        'simulated':         { text: 'NGOẠI TUYẾN \u2014 MÔ PHỎNG CỤC BỘ',    cls: 'sensing-source-simulated' },
       };
       const cfg = bannerConfig[dataSource] || bannerConfig.reconnecting;
       banner.textContent = cfg.text;
@@ -227,7 +227,7 @@ export class SensingTab {
     }
   }
 
-  // ---- HUD update --------------------------------------------------------
+  // ---- Cập nhật HUD --------------------------------------------------------
 
   _updateHUD(data) {
     const f = data.features || {};
@@ -237,13 +237,13 @@ export class SensingTab {
     this._setText('sensingRssi', `${(f.mean_rssi || -80).toFixed(1)} dBm`);
     this._setText('sensingSource', data.source || '');
 
-    // Bars (scale to 0-100%)
+    // Thanh (tỷ lệ 0-100%)
     this._setBar('barVariance', f.variance, 10, 'valVariance', f.variance);
     this._setBar('barMotion', f.motion_band_power, 0.5, 'valMotion', f.motion_band_power);
     this._setBar('barBreath', f.breathing_band_power, 0.3, 'valBreath', f.breathing_band_power);
     this._setBar('barSpectral', f.spectral_power, 2.0, 'valSpectral', f.spectral_power);
 
-    // Classification
+    // Phân loại
     const label = this.container.querySelector('#classLabel');
     if (label) {
       const level = (c.motion_level || 'absent').toUpperCase();
@@ -254,13 +254,13 @@ export class SensingTab {
     const confPct = ((c.confidence || 0) * 100).toFixed(0);
     this._setBar('barConfidence', c.confidence, 1.0, 'valConfidence', confPct + '%');
 
-    // Details
+    // Chi tiết
     this._setText('valDomFreq', (f.dominant_freq_hz || 0).toFixed(3) + ' Hz');
     this._setText('valChangePoints', String(f.change_points || 0));
     const srcLabel = (data.source === 'simulated' || data.source === 'simulate') ? 'sim' : data.source || 'live';
     this._setText('valSampleRate', srcLabel);
 
-    // Sparkline
+    // Đồ thị spark
     this._drawSparkline();
   }
 
@@ -309,7 +309,7 @@ export class SensingTab {
     ctx.stroke();
   }
 
-  // ---- Resize ------------------------------------------------------------
+  // ---- Thay đổi kích thước ------------------------------------------------------------
 
   _setupResize() {
     const viewport = this.container.querySelector('#sensingViewport');
@@ -325,7 +325,7 @@ export class SensingTab {
     this._resizeObserver.observe(viewport);
   }
 
-  // ---- Cleanup -----------------------------------------------------------
+  // ---- Dọn dẹp -----------------------------------------------------------
 
   dispose() {
     if (this._unsubData) this._unsubData();

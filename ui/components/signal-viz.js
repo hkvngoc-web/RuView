@@ -1,5 +1,5 @@
-// Real-time CSI Signal Visualization - WiFi DensePose
-// Amplitude heatmap, Phase plot, Doppler spectrum, Motion energy
+// Trực quan hoá Tín hiệu CSI Thời gian thực - WiFi DensePose
+// Bản đồ nhiệt biên độ, Đồ thị pha, Phổ Doppler, Năng lượng chuyển động
 
 export class SignalVisualization {
   constructor(scene) {
@@ -8,7 +8,7 @@ export class SignalVisualization {
     this.group.name = 'signal-visualization';
     this.group.position.set(-5.5, 0, -3);
 
-    // Configuration
+    // Cấu hình
     this.config = {
       subcarriers: 30,
       timeSlots: 40,
@@ -21,19 +21,19 @@ export class SignalVisualization {
       dopplerHeight: 1.0
     };
 
-    // Data buffers
+    // Bộ đệm dữ liệu
     this.amplitudeHistory = [];
     this.phaseData = new Float32Array(this.config.subcarriers);
     this.dopplerData = new Float32Array(this.config.dopplerBars);
     this.motionEnergy = 0;
     this.targetMotionEnergy = 0;
 
-    // Initialize for timeSlots rows of subcarrier data
+    // Khởi tạo cho timeSlots hàng dữ liệu subcarrier
     for (let i = 0; i < this.config.timeSlots; i++) {
       this.amplitudeHistory.push(new Float32Array(this.config.subcarriers));
     }
 
-    // Build visualizations
+    // Xây dựng trực quan
     this._buildAmplitudeHeatmap();
     this._buildPhasePlot();
     this._buildDopplerSpectrum();
@@ -44,7 +44,7 @@ export class SignalVisualization {
   }
 
   _buildAmplitudeHeatmap() {
-    // Create a grid of colored cells for CSI amplitude across subcarriers over time
+    // Tạo lưới ô màu cho biên độ CSI qua các subcarrier theo thời gian
     const { subcarriers, timeSlots, heatmapWidth, heatmapHeight } = this.config;
     const cellW = heatmapWidth / subcarriers;
     const cellH = heatmapHeight / timeSlots;
@@ -76,7 +76,7 @@ export class SignalVisualization {
       this._heatmapCells.push(row);
     }
 
-    // Border frame
+    // Khung viền
     const frameGeom = new THREE.EdgesGeometry(
       new THREE.PlaneGeometry(heatmapWidth + 0.1, heatmapHeight + 0.1)
     );
@@ -89,13 +89,13 @@ export class SignalVisualization {
   }
 
   _buildPhasePlot() {
-    // Line chart showing phase across subcarriers in 3D space
+    // Đồ thị đường hiển thị pha qua các subcarrier trong không gian 3D
     const { subcarriers, phaseWidth, phaseHeight } = this.config;
 
     this._phaseGroup = new THREE.Group();
     this._phaseGroup.position.set(0, 2.0, 0);
 
-    // Create the phase line
+    // Tạo đường pha
     const positions = new Float32Array(subcarriers * 3);
     for (let i = 0; i < subcarriers; i++) {
       positions[i * 3] = (i / (subcarriers - 1)) * phaseWidth - phaseWidth / 2;
@@ -116,7 +116,7 @@ export class SignalVisualization {
     this._phaseLine = new THREE.Line(phaseGeom, phaseMat);
     this._phaseGroup.add(this._phaseLine);
 
-    // Phase reference line (zero line)
+    // Đường tham chiếu pha (đường zero)
     const refPositions = new Float32Array(6);
     refPositions[0] = -phaseWidth / 2; refPositions[1] = 0; refPositions[2] = 0;
     refPositions[3] = phaseWidth / 2;  refPositions[4] = 0; refPositions[5] = 0;
@@ -125,12 +125,12 @@ export class SignalVisualization {
     const refMat = new THREE.LineBasicMaterial({ color: 0x224433, opacity: 0.3, transparent: true });
     this._phaseGroup.add(new THREE.LineSegments(refGeom, refMat));
 
-    // Vertical axis lines
+    // Các đường trục dọc
     const axisPositions = new Float32Array(12);
-    // Left axis
+    // Trục trái
     axisPositions[0] = -phaseWidth / 2; axisPositions[1] = -phaseHeight / 2; axisPositions[2] = 0;
     axisPositions[3] = -phaseWidth / 2; axisPositions[4] = phaseHeight / 2;  axisPositions[5] = 0;
-    // Right axis
+    // Trục phải
     axisPositions[6] = phaseWidth / 2;  axisPositions[7] = -phaseHeight / 2; axisPositions[8] = 0;
     axisPositions[9] = phaseWidth / 2;  axisPositions[10] = phaseHeight / 2; axisPositions[11] = 0;
     const axisGeom = new THREE.BufferGeometry();
@@ -141,7 +141,7 @@ export class SignalVisualization {
   }
 
   _buildDopplerSpectrum() {
-    // Bar chart for Doppler frequency spectrum
+    // Biểu đồ cột cho phổ tần số Doppler
     const { dopplerBars, dopplerWidth, dopplerHeight } = this.config;
     const barWidth = (dopplerWidth / dopplerBars) * 0.8;
     const gap = (dopplerWidth / dopplerBars) * 0.2;
@@ -166,7 +166,7 @@ export class SignalVisualization {
       this._dopplerBars.push(bar);
     }
 
-    // Base line
+    // Đường cơ sở
     const basePositions = new Float32Array(6);
     basePositions[0] = -dopplerWidth / 2 - 0.1; basePositions[1] = 0; basePositions[2] = 0;
     basePositions[3] = dopplerWidth / 2 + 0.1;  basePositions[4] = 0; basePositions[5] = 0;
@@ -179,11 +179,11 @@ export class SignalVisualization {
   }
 
   _buildMotionIndicator() {
-    // Pulsating sphere that grows/brightens with motion energy
+    // Hình cầu nhịp đập phóng to/sáng lên khi có năng lượng chuyển động
     this._motionGroup = new THREE.Group();
     this._motionGroup.position.set(2.0, 1.5, 0);
 
-    // Outer glow ring
+    // Vòng phát sáng bên ngoài
     const ringGeom = new THREE.RingGeometry(0.25, 0.3, 32);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x00ff44,
@@ -194,7 +194,7 @@ export class SignalVisualization {
     this._motionRing = new THREE.Mesh(ringGeom, ringMat);
     this._motionGroup.add(this._motionRing);
 
-    // Inner core
+    // Lõi bên trong
     const coreGeom = new THREE.SphereGeometry(0.15, 16, 16);
     const coreMat = new THREE.MeshBasicMaterial({
       color: 0x004422,
@@ -204,7 +204,7 @@ export class SignalVisualization {
     this._motionCore = new THREE.Mesh(coreGeom, coreMat);
     this._motionGroup.add(this._motionCore);
 
-    // Surrounding pulse rings
+    // Các vòng xung xung quanh
     this._pulseRings = [];
     for (let i = 0; i < 3; i++) {
       const pulseGeom = new THREE.RingGeometry(0.3, 0.32, 32);
@@ -224,12 +224,12 @@ export class SignalVisualization {
   }
 
   _buildLabels() {
-    // Create text labels using canvas textures
+    // Tạo nhãn văn bản bằng texture canvas
     const labels = [
-      { text: 'CSI AMPLITUDE', pos: [0, 5.2, 0], parent: this._heatmapGroup },
-      { text: 'PHASE', pos: [0, 0.7, 0], parent: this._phaseGroup },
-      { text: 'DOPPLER SPECTRUM', pos: [0, 0.8, 0], parent: this._dopplerGroup },
-      { text: 'MOTION', pos: [0, 0.55, 0], parent: this._motionGroup }
+      { text: 'BIÊN ĐỘ CSI', pos: [0, 5.2, 0], parent: this._heatmapGroup },
+      { text: 'PHA', pos: [0, 0.7, 0], parent: this._phaseGroup },
+      { text: 'PHỔ DOPPLER', pos: [0, 0.8, 0], parent: this._dopplerGroup },
+      { text: 'CHUYỂN ĐỘNG', pos: [0, 0.55, 0], parent: this._motionGroup }
     ];
 
     for (const label of labels) {
@@ -276,19 +276,18 @@ export class SignalVisualization {
     return new THREE.Sprite(mat);
   }
 
-  // Feed new CSI data
+  // Nạp dữ liệu CSI mới
   // data: { amplitude: Float32Array(30), phase: Float32Array(30), doppler: Float32Array(16), motionEnergy: number }
   updateSignalData(data) {
     if (!data) return;
 
-    // Amplitude: shift history and add new row
+    // Biên độ: dịch chuyển lịch sử và thêm hàng mới
     if (data.amplitude) {
       this.amplitudeHistory.shift();
       this.amplitudeHistory.push(new Float32Array(data.amplitude));
     }
 
-    // Phase
-    if (data.phase) {
+    // Pha
       this.phaseData = new Float32Array(data.phase);
     }
 
@@ -299,13 +298,13 @@ export class SignalVisualization {
       }
     }
 
-    // Motion energy
+    // Năng lượng chuyển động
     if (data.motionEnergy !== undefined) {
       this.targetMotionEnergy = Math.max(0, Math.min(1, data.motionEnergy));
     }
   }
 
-  // Call each frame
+  // Gọi mỗi khung hình
   update(delta, elapsed) {
     this._updateHeatmap();
     this._updatePhasePlot();
@@ -320,7 +319,7 @@ export class SignalVisualization {
       for (let s = 0; s < subcarriers; s++) {
         const cell = this._heatmapCells[t][s];
         const val = row[s] || 0;
-        // Color: dark blue (0) -> cyan (0.5) -> yellow (0.8) -> red (1.0)
+        // Màu: xanh đậm (0) -> cyan (0.5) -> vàng (0.8) -> đỏ (1.0)
         cell.material.color.setHSL(
           0.6 - val * 0.6,  // hue: 0.6 (blue) -> 0 (red)
           0.9,               // saturation
@@ -337,7 +336,7 @@ export class SignalVisualization {
 
     for (let i = 0; i < subcarriers; i++) {
       const x = (i / (subcarriers - 1)) * phaseWidth - phaseWidth / 2;
-      // Phase is in radians, normalize to [-1, 1] range then scale to height
+      // Pha tính bằng radian, chuẩn hoá sang phạm vi [-1, 1] rồi nhân theo chiều cao
       const phase = this.phaseData[i] || 0;
       const y = (phase / Math.PI) * (phaseHeight / 2);
       arr[i * 3] = x;
@@ -346,7 +345,7 @@ export class SignalVisualization {
     }
     posAttr.needsUpdate = true;
 
-    // Color based on phase variance (more variance = more activity = greener/brighter)
+    // Màu dựa trên phương sai pha (phương sai cao = hoạt động nhiều = xanh/sáng hơn)
     let variance = 0;
     let mean = 0;
     for (let i = 0; i < subcarriers; i++) mean += this.phaseData[i] || 0;
@@ -364,15 +363,15 @@ export class SignalVisualization {
     for (let i = 0; i < this._dopplerBars.length; i++) {
       const bar = this._dopplerBars[i];
       const target = this.dopplerData[i] || 0;
-      // Smooth bar height
+      // Làm mịn chiều cao cột
       const currentH = bar.scale.y;
       bar.scale.y += (target * this.config.dopplerHeight - currentH) * Math.min(1, delta * 8);
       bar.scale.y = Math.max(0.01, bar.scale.y);
 
-      // Position bar bottom at y=0
+      // Đặt đáy cột tại y=0
       bar.position.y = bar.scale.y / 2;
 
-      // Color: blue (low) -> purple (mid) -> magenta (high)
+      // Màu: xanh (thấp) -> tím (trung bình) -> hồng (cao)
       const val = target;
       bar.material.color.setHSL(
         0.7 - val * 0.3, // blue to magenta
@@ -383,12 +382,12 @@ export class SignalVisualization {
   }
 
   _updateMotionIndicator(delta, elapsed) {
-    // Smooth motion energy
+    // Làm mịn năng lượng chuyển động
     this.motionEnergy += (this.targetMotionEnergy - this.motionEnergy) * Math.min(1, delta * 5);
 
     const energy = this.motionEnergy;
 
-    // Core: grows and brightens with motion
+    // Lõi: phóng to và sáng hơn khi có chuyển động
     const coreScale = 0.8 + energy * 0.7;
     this._motionCore.scale.setScalar(coreScale);
     this._motionCore.material.color.setHSL(
@@ -398,11 +397,11 @@ export class SignalVisualization {
     );
     this._motionCore.material.opacity = 0.4 + energy * 0.5;
 
-    // Ring
+    // Vòng
     this._motionRing.material.opacity = 0.15 + energy * 0.5;
     this._motionRing.material.color.setHSL(0.3 - energy * 0.15, 1.0, 0.4 + energy * 0.3);
 
-    // Pulse rings
+    // Vòng xung
     for (const ring of this._pulseRings) {
       const phase = ring.userData.phase + elapsed * (1 + energy * 3);
       const t = (Math.sin(phase) + 1) / 2;
@@ -412,12 +411,12 @@ export class SignalVisualization {
     }
   }
 
-  // Generate synthetic demo signal data
+  // Tạo dữ liệu tín hiệu demo tổng hợp
   static generateDemoData(elapsed) {
     const subcarriers = 30;
     const dopplerBars = 16;
 
-    // Amplitude: sinusoidal pattern with noise simulating human movement
+    // Biên độ: mẫu hình sin với nhiễu mô phỏng chuyển động con người
     const amplitude = new Float32Array(subcarriers);
     for (let i = 0; i < subcarriers; i++) {
       const baseFreq = Math.sin(elapsed * 2 + i * 0.3) * 0.3;
@@ -426,7 +425,7 @@ export class SignalVisualization {
       amplitude[i] = Math.max(0, Math.min(1, 0.4 + baseFreq + bodyEffect + noise));
     }
 
-    // Phase: linear with perturbations from movement
+    // Pha: tuyến tính với nhiễu loạn từ chuyển động
     const phase = new Float32Array(subcarriers);
     for (let i = 0; i < subcarriers; i++) {
       const linearPhase = (i / subcarriers) * Math.PI * 2;
@@ -434,7 +433,7 @@ export class SignalVisualization {
       phase[i] = linearPhase + bodyPhase;
     }
 
-    // Doppler: spectral peaks from movement velocity
+    // Doppler: đỉnh phổ từ vận tốc chuyển động
     const doppler = new Float32Array(dopplerBars);
     const centerBin = dopplerBars / 2 + Math.sin(elapsed * 0.7) * 3;
     for (let i = 0; i < dopplerBars; i++) {
@@ -444,7 +443,7 @@ export class SignalVisualization {
       doppler[i] = Math.max(0, Math.min(1, doppler[i]));
     }
 
-    // Motion energy: pulsating
+    // Năng lượng chuyển động: pulsating
     const motionEnergy = (Math.sin(elapsed * 0.5) + 1) / 2 * 0.7 + 0.15;
 
     return { amplitude, phase, doppler, motionEnergy };

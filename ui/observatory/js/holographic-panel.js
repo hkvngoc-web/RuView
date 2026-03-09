@@ -1,5 +1,5 @@
 /**
- * Holographic Panel — Reusable frame with border shader, scan line, title
+ * Bảng Holographic — Khung tái sử dụng với shader viền, đường quét, tiêu đề
  */
 import * as THREE from 'three';
 
@@ -17,22 +17,22 @@ uniform vec3 uColor;
 varying vec2 vUv;
 
 void main() {
-  // Thin border
+  // Viền mỏng
   float bx = step(vUv.x, 0.015) + step(1.0 - 0.015, vUv.x);
   float by = step(vUv.y, 0.02) + step(1.0 - 0.02, vUv.y);
   float border = clamp(bx + by, 0.0, 1.0);
 
-  // Scan line moving upward
+  // Đường quét di chuyển lên
   float scan = smoothstep(0.0, 0.02, abs(vUv.y - fract(uTime * 0.15))) ;
   scan = 1.0 - (1.0 - scan) * 0.4;
 
-  // Corner accents
+  // Điểm nhấn góc
   float corner = 0.0;
   float cx = min(vUv.x, 1.0 - vUv.x);
   float cy = min(vUv.y, 1.0 - vUv.y);
   if (cx < 0.06 && cy < 0.08) corner = 0.6;
 
-  // Subtle fill
+  // Tô nền nhẹ
   float fill = 0.03 + corner * 0.05;
 
   float alpha = max(border * 0.7, fill) * scan;
@@ -55,7 +55,7 @@ export class HolographicPanel {
 
     const color = new THREE.Color(opts.color || 0x00d4ff);
 
-    // Border plane
+    // Mặt phẳng viền
     this._uniforms = {
       uTime: { value: 0 },
       uColor: { value: color },
@@ -74,7 +74,7 @@ export class HolographicPanel {
     this._border = new THREE.Mesh(borderGeo, borderMat);
     this.group.add(this._border);
 
-    // Title sprite
+    // Sprite tiêu đề
     if (opts.title) {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -107,7 +107,7 @@ export class HolographicPanel {
     this._uniforms.uTime.value = elapsed;
   }
 
-  /** Make panel face camera */
+  /** Quay bảng hướng về camera */
   lookAt(cameraPos) {
     this.group.lookAt(cameraPos);
   }

@@ -50,7 +50,7 @@ const VELOCITY_THRESHOLD = 0.15;
 const DT = 1;
 
 const HEALTH_COLORS: Record<HealthStatus, string> = {
-  online: "#3fb950",
+  trực tuyến: "#3fb950",
   offline: "#f85149",
   degraded: "#d29922",
   unknown: "#8b949e",
@@ -446,7 +446,7 @@ export function MeshView() {
   // -----------------------------------------------------------------------
   // Derived stats
   // -----------------------------------------------------------------------
-  const onlineCount = nodes.filter((n) => n.health === "online").length;
+  const trực tuyếnCount = nodes.filter((n) => n.health === "trực tuyến").length;
 
   // -----------------------------------------------------------------------
   // Render
@@ -473,7 +473,7 @@ export function MeshView() {
               marginTop: "var(--space-1)",
             }}
           >
-            Force-directed view of the ESP32 mesh network
+            Hiển thị lực hướng của mạng lưới ESP32
           </p>
         </div>
         <button
@@ -490,7 +490,7 @@ export function MeshView() {
             cursor: scanning ? "default" : "pointer",
           }}
         >
-          {scanning ? "Scanning..." : "Refresh"}
+          {scanning ? "Đang quét..." : "Làm Mới"}
         </button>
       </div>
 
@@ -534,8 +534,8 @@ export function MeshView() {
             }}
           >
             {scanning
-              ? "Scanning for nodes..."
-              : "No nodes found. Click Refresh to discover ESP32 devices."}
+              ? "Đang quét tìm nút..."
+              : "Không tìm thấy nút nào. Nhấn Làm Mới để phát hiện thiết bị ESP32."}
           </div>
         ) : (
           <canvas
@@ -569,16 +569,16 @@ export function MeshView() {
         }}
       >
         <span>
-          <span style={{ color: "var(--text-muted)" }}>Nodes </span>
-          <span style={{ color: "var(--status-online)" }}>{onlineCount}</span>
-          <span style={{ color: "var(--text-muted)" }}>/{nodes.length} online</span>
+          <span style={{ color: "var(--text-muted)" }}>Nút </span>
+          <span style={{ color: "var(--status-trực tuyến)" }}>{trực tuyếnCount}</span>
+          <span style={{ color: "var(--text-muted)" }}>/{nodes.length} trực tuyến</span>
         </span>
         <span>
-          <span style={{ color: "var(--text-muted)" }}>Drift </span>
+          <span style={{ color: "var(--text-muted)" }}>Trôi </span>
           &plusmn;0.3ms
         </span>
         <span>
-          <span style={{ color: "var(--text-muted)" }}>Cycle </span>
+          <span style={{ color: "var(--text-muted)" }}>Chu kỳ </span>
           50ms
         </span>
       </div>
@@ -635,7 +635,7 @@ export function MeshView() {
               fontSize: 12,
             }}
           >
-            <DetailField label="IP Address" value={selectedNode.ip} mono />
+            <DetailField label="Địa Chỉ IP" value={selectedNode.ip} mono />
             <DetailField label="MAC" value={selectedNode.mac ?? "--"} mono />
             <DetailField
               label="Firmware"
@@ -643,16 +643,16 @@ export function MeshView() {
               mono
             />
             <DetailField
-              label="Role"
-              value={selectedNode.isCoordinator ? "Coordinator" : "Node"}
+              label="Vai trò"
+              value={selectedNode.isCoordinator ? "Điều phối" : "Nút"}
             />
             <DetailField
-              label="TDM Slot"
+              label="Khe TDM"
               value={`${selectedNode.tdmSlot} / ${nodes.length}`}
               mono
             />
             <DetailField
-              label="Node ID"
+              label="ID Nút"
               value={String(selectedNode.id)}
               mono
             />

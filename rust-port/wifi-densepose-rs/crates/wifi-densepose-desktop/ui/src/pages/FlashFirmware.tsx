@@ -48,8 +48,8 @@ export function FlashFirmware() {
       const selected = await open({
         multiple: false,
         filters: [
-          { name: "Firmware Binary", extensions: ["bin"] },
-          { name: "All Files", extensions: ["*"] },
+          { name: "Tệp Firmware Nhị Phân", extensions: ["bin"] },
+          { name: "Tất Cả Tệp", extensions: ["*"] },
         ],
       });
       if (selected && typeof selected === "string") setFirmwarePath(selected);
@@ -66,7 +66,7 @@ export function FlashFirmware() {
     setError(null);
     try {
       await invoke("flash_firmware", { port: selectedPort, firmwarePath, chip, baud });
-      setFlashResult({ success: true, message: "Firmware flashed successfully." });
+      setFlashResult({ success: true, message: "Đã nạp firmware thành công." });
     } catch (err) {
       setFlashResult({ success: false, message: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -82,9 +82,9 @@ export function FlashFirmware() {
 
   return (
     <div style={{ padding: "var(--space-5)", maxWidth: 700 }}>
-      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>Flash Firmware</h1>
+      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>Nạp Firmware</h1>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: "var(--space-5)" }}>
-        Flash firmware to an ESP32 via serial connection
+        Nạp firmware tới ESP32 qua kết nối nối tiếp
       </p>
 
       <StepIndicator current={step} />
@@ -95,14 +95,14 @@ export function FlashFirmware() {
         </div>
       )}
 
-      {/* Step 1: Select Serial Port */}
+      {/* Bước 1: Chọn Cổng Nối Tiếp */}
       {step === 1 && (
         <div style={cardStyle}>
-          <h2 style={stepTitleStyle}>Step 1: Select Serial Port</h2>
+          <h2 style={stepTitleStyle}>Bước 1: Chọn Cổng Nối Tiếp</h2>
           <p style={stepDescStyle}>Connect your ESP32 via USB and select the serial port.</p>
 
           <div style={{ marginBottom: "var(--space-4)" }}>
-            <label style={labelStyle}>Serial Port</label>
+            <label style={labelStyle}>Cổng Nối Tiếp</label>
             <div style={{ display: "flex", gap: "var(--space-2)" }}>
               <select
                 value={selectedPort}
@@ -111,7 +111,7 @@ export function FlashFirmware() {
                 disabled={isLoadingPorts}
               >
                 <option value="">
-                  {isLoadingPorts ? "Loading..." : ports.length === 0 ? "No ports detected" : "Select a port..."}
+                  {isLoadingPorts ? "Loading..." : ports.length === 0 ? "Không phát hiện cổng nào" : "Select a port..."}
                 </option>
                 {ports.map((p) => (
                   <option key={p.name} value={p.name}>
@@ -119,7 +119,7 @@ export function FlashFirmware() {
                   </option>
                 ))}
               </select>
-              <button onClick={loadPorts} style={secondaryBtn} disabled={isLoadingPorts}>Refresh</button>
+              <button onClick={loadPorts} style={secondaryBtn} disabled={isLoadingPorts}>Làm Mới</button>
             </div>
           </div>
 
@@ -131,17 +131,17 @@ export function FlashFirmware() {
         </div>
       )}
 
-      {/* Step 2: Select Firmware */}
+      {/* Bước 2: Chọn Firmware */}
       {step === 2 && (
         <div style={cardStyle}>
-          <h2 style={stepTitleStyle}>Step 2: Select Firmware</h2>
+          <h2 style={stepTitleStyle}>Bước 2: Chọn Firmware</h2>
           <p style={stepDescStyle}>Choose the firmware binary file and chip configuration.</p>
 
           <div style={{ marginBottom: "var(--space-4)" }}>
-            <label style={labelStyle}>Firmware Binary (.bin)</label>
+            <label style={labelStyle}>Tệp Firmware Nhị Phân (.bin)</label>
             <div style={{ display: "flex", gap: "var(--space-2)" }}>
-              <input type="text" value={firmwarePath} readOnly placeholder="No file selected" style={{ flex: 1 }} />
-              <button onClick={pickFirmware} style={secondaryBtn}>Browse</button>
+              <input type="text" value={firmwarePath} readOnly placeholder="Chưa chọn tệp" style={{ flex: 1 }} />
+              <button onClick={pickFirmware} style={secondaryBtn}>Duyệt</button>
             </div>
           </div>
 
@@ -155,7 +155,7 @@ export function FlashFirmware() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Baud Rate</label>
+              <label style={labelStyle}>Tốc Độ Baud</label>
               <select value={baud} onChange={(e) => setBaud(Number(e.target.value))}>
                 <option value={115200}>115200</option>
                 <option value={230400}>230400</option>
@@ -166,7 +166,7 @@ export function FlashFirmware() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={() => setStep(1)} style={secondaryBtn}>Back</button>
+            <button onClick={() => setStep(1)} style={secondaryBtn}>Quay lại</button>
             <button onClick={() => setStep(3)} disabled={!canProceed(2)} style={canProceed(2) ? primaryBtn : disabledBtn}>
               Next
             </button>
@@ -174,10 +174,10 @@ export function FlashFirmware() {
         </div>
       )}
 
-      {/* Step 3: Flash */}
+      {/* Bước 3: Nạp */}
       {step === 3 && (
         <div style={cardStyle}>
-          <h2 style={stepTitleStyle}>Step 3: Flash</h2>
+          <h2 style={stepTitleStyle}>Bước 3: Nạp</h2>
 
           {/* Summary */}
           <div
@@ -229,7 +229,7 @@ export function FlashFirmware() {
               </button>
             ) : (
               <button onClick={startFlash} disabled={isFlashing} style={isFlashing ? disabledBtn : primaryBtn}>
-                {isFlashing ? "Flashing..." : "Start Flash"}
+                {isFlashing ? "Đang nạp..." : "Bắt Đầu Nạp"}
               </button>
             )}
           </div>
@@ -243,9 +243,9 @@ export function FlashFirmware() {
 
 function StepIndicator({ current }: { current: WizardStep }) {
   const steps = [
-    { n: 1, label: "Select Port" },
-    { n: 2, label: "Select Firmware" },
-    { n: 3, label: "Flash" },
+    { n: 1, label: "Chọn Cổng" },
+    { n: 2, label: "Chọn Firmware" },
+    { n: 3, label: "Nạp" },
   ];
 
   return (
@@ -294,12 +294,12 @@ function StepIndicator({ current }: { current: WizardStep }) {
 }
 
 const PHASE_LABELS: Record<FlashPhase, string> = {
-  connecting: "Connecting...",
-  erasing: "Erasing flash...",
-  writing: "Writing firmware...",
-  verifying: "Verifying...",
-  done: "Complete",
-  error: "Error",
+  connecting: "Đang kết nối...",
+  erasing: "Đang xóa bộ nhớ flash...",
+  writing: "Đang ghi firmware...",
+  verifying: "Đang xác minh...",
+  done: "Hoàn tất",
+  error: "Lỗi",
 };
 
 function ProgressBar({ progress }: { progress: FlashProgress | null }) {

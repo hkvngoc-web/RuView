@@ -1,6 +1,6 @@
 /**
- * Module B — "Vital Signs Oracle"
- * Breathing/HR as orbital torus rings with beat markers + trail particles
+ * Mô-đun B — "Tiên Tri Dấu Hiệu Sinh Tồn"
+ * Hơi thở/Nhịp tim dạng vòng xuyến quỹ đạo với điểm nhịp + hạt vệt
  */
 import * as THREE from 'three';
 
@@ -10,7 +10,7 @@ export class VitalsOracle {
     if (panelGroup) panelGroup.add(this.group);
     else scene.add(this.group);
 
-    // Outer torus — breathing (violet)
+    // Xuyến ngoài — hơi thở (tím)
     const breathGeo = new THREE.TorusGeometry(1.8, 0.06, 16, 64);
     this._breathMat = new THREE.MeshBasicMaterial({
       color: 0x8844ff,
@@ -23,7 +23,7 @@ export class VitalsOracle {
     this._breathRing.rotation.x = Math.PI * 0.4;
     this.group.add(this._breathRing);
 
-    // Inner torus — heart rate (crimson)
+    // Xuyến trong — nhịp tim (đỏ thẫm)
     const hrGeo = new THREE.TorusGeometry(1.2, 0.04, 16, 64);
     this._hrMat = new THREE.MeshBasicMaterial({
       color: 0xff2244,
@@ -37,7 +37,7 @@ export class VitalsOracle {
     this._hrRing.rotation.z = Math.PI * 0.15;
     this.group.add(this._hrRing);
 
-    // Center orb
+    // Quả cầu trung tâm
     const orbGeo = new THREE.SphereGeometry(0.35, 24, 24);
     this._orbMat = new THREE.MeshBasicMaterial({
       color: 0x00d4ff,
@@ -48,11 +48,11 @@ export class VitalsOracle {
     this._orb = new THREE.Mesh(orbGeo, this._orbMat);
     this.group.add(this._orb);
 
-    // Bloom point light
+    // Đèn điểm bloom
     this._light = new THREE.PointLight(0x00d4ff, 1.5, 8);
     this.group.add(this._light);
 
-    // Trail particles along breathing ring
+    // Hạt vệt dọc vòng hơi thở
     const trailCount = 120;
     const trailGeo = new THREE.BufferGeometry();
     const trailPos = new Float32Array(trailCount * 3);
@@ -80,13 +80,13 @@ export class VitalsOracle {
     this._trails.rotation.x = Math.PI * 0.4;
     this.group.add(this._trails);
 
-    // Beat flash sprites
+    // Sprite chớp nhịp
     this._beatFlash = this._createBeatSprite(0xff2244);
     this.group.add(this._beatFlash);
     this._beatTimer = 0;
     this._lastBeatTime = 0;
 
-    // State
+    // Trạng thái
     this._breathBpm = 0;
     this._hrBpm = 0;
     this._breathConf = 0;
@@ -124,31 +124,31 @@ export class VitalsOracle {
     this._breathConf = vs.breathing_confidence || 0;
     this._hrConf = vs.heart_rate_confidence || 0;
 
-    // Breathing ring pulsation
+    // Nhịp đập vòng hơi thở
     const breathFreq = this._breathBpm / 60;
     const breathPulse = breathFreq > 0 ? Math.sin(elapsed * Math.PI * 2 * breathFreq) : 0;
     const breathScale = 1.0 + breathPulse * 0.08 * this._breathConf;
     this._breathRing.scale.set(breathScale, breathScale, 1);
     this._breathMat.opacity = 0.3 + this._breathConf * 0.5;
 
-    // HR ring pulsation (faster)
+    // Nhịp đập vòng nhịp tim (nhanh hơn)
     const hrFreq = this._hrBpm / 60;
     const hrPulse = hrFreq > 0 ? Math.sin(elapsed * Math.PI * 2 * hrFreq) : 0;
     const hrScale = 1.0 + hrPulse * 0.06 * this._hrConf;
     this._hrRing.scale.set(hrScale, hrScale, 1);
     this._hrMat.opacity = 0.2 + this._hrConf * 0.5;
 
-    // Slow rotation
+    // Xoay chậm
     this._breathRing.rotation.z = elapsed * 0.1;
     this._hrRing.rotation.z = -elapsed * 0.15;
     this._trails.rotation.z = elapsed * 0.1;
 
-    // Center orb pulse
+    // Nhịp đập quả cầu trung tâm
     const orbPulse = 1.0 + breathPulse * 0.1;
     this._orb.scale.set(orbPulse, orbPulse, orbPulse);
     this._light.intensity = 0.8 + Math.abs(breathPulse) * 1.0;
 
-    // Beat flash on HR cycle
+    // Chớp nhịp theo chu kỳ nhịp tim
     if (hrFreq > 0) {
       this._beatTimer += dt;
       const beatInterval = 1 / hrFreq;
@@ -163,7 +163,7 @@ export class VitalsOracle {
       this._beatFlash.scale.set(0, 0, 0);
     }
 
-    // Update trail particle sizes based on breathing
+    // Cập nhật kích thước hạt vệt theo hơi thở
     const sizes = this._trails.geometry.attributes.size;
     if (sizes) {
       for (let i = 0; i < sizes.count; i++) {

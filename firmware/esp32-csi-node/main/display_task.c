@@ -1,9 +1,9 @@
 /**
  * @file display_task.c
- * @brief ADR-045: FreeRTOS display task — LVGL pump on Core 0, priority 1.
+ * @brief ADR-045: Tác vụ hiển thị FreeRTOS — bơm LVGL trên Nhân 0, ưu tiên 1.
  *
- * Gracefully skips if RM67162 panel or SPIRAM is absent.
- * Reads from edge_get_vitals() / edge_get_multi_person() (thread-safe).
+ * Bỏ qua nhẹ nhàng nếu panel RM67162 hoặc SPIRAM vắng mặt.
+ * Đọc từ edge_get_vitals() / edge_get_multi_person() (an toàn luồng).
  */
 
 #include "display_task.h"
@@ -26,7 +26,7 @@
 
 static const char *TAG = "disp_task";
 
-/* ---- Config ---- */
+/* ---- Cấu hình ---- */
 #ifdef CONFIG_DISPLAY_FPS_LIMIT
 #define DISP_FPS_LIMIT      CONFIG_DISPLAY_FPS_LIMIT
 #else
@@ -39,14 +39,14 @@ static const char *TAG = "disp_task";
 
 #define DISP_BUF_LINES       40
 
-/* ---- LVGL flush callback — calls display_hal_draw directly ---- */
+/* ---- Callback flush LVGL — gọi display_hal_draw trực tiếp ---- */
 static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p)
 {
     display_hal_draw(area->x1, area->y1, area->x2 + 1, area->y2 + 1, color_p);
     lv_disp_flush_ready(drv);
 }
 
-/* ---- LVGL touch input callback ---- */
+/* ---- Callback đầu vào cảm ứng LVGL ---- */
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
     uint16_t x, y;
@@ -59,12 +59,12 @@ static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)
     }
 }
 
-/* ---- Display task ---- */
+/* ---- Tác vụ hiển thị ---- */
 static void display_task(void *arg)
 {
     const TickType_t frame_period = pdMS_TO_TICKS(1000 / DISP_FPS_LIMIT);
 
-    ESP_LOGI(TAG, "Display task running on Core %d, %d fps limit",
+    ESP_LOGI(TAG, "Tác vụ hiển thị running on Core %d, %d fps limit",
              xPortGetCoreID(), DISP_FPS_LIMIT);
 
     display_ui_create(lv_scr_act());
@@ -81,42 +81,42 @@ static void display_task(void *arg)
 
 esp_err_t display_task_start(void)
 {
-    ESP_LOGI(TAG, "Initializing display subsystem...");
+    ESP_LOGI(TAG, "Đang khởi tạo hệ thống hiển thị...");
 
     bool use_psram = false;
 #if CONFIG_SPIRAM
     size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     if (psram_free >= 64 * 1024) {
         use_psram = true;
-        ESP_LOGI(TAG, "PSRAM available: %u KB — using PSRAM buffers", (unsigned)(psram_free / 1024));
+        ESP_LOGI(TAG, "PSRAM khả dụng: %u KB — sử dụng bộ đệm PSRAM", (unsigned)(psram_free / 1024));
     } else {
-        ESP_LOGW(TAG, "PSRAM too small (%u bytes) — falling back to internal DMA memory", (unsigned)psram_free);
+        ESP_LOGW(TAG, "PSRAM quá nhỏ (%u byte) — chuyển sang bộ nhớ DMA nội", (unsigned)psram_free);
     }
 #else
-    ESP_LOGW(TAG, "SPIRAM not enabled — using internal DMA memory (smaller buffers)");
+    ESP_LOGW(TAG, "SPIRAM chưa bật — sử dụng bộ nhớ DMA nội (bộ đệm nhỏ hơn)");
 #endif
 
-    /* Probe display hardware */
+    /* Dò phần cứng hiển thị */
     esp_err_t ret = display_hal_init_panel();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Display not available — running headless");
+        ESP_LOGW(TAG, "Màn hình không khả dụng — chạy không giao diện");
         return ESP_OK;
     }
 
-    /* Init touch (optional) */
+    /* Khởi tạo cảm ứng (tùy chọn) */
     esp_err_t touch_ret = display_hal_init_touch();
 
-    /* Initialize LVGL */
+    /* Khởi tạo LVGL */
     lv_init();
 
-    /* Double-buffered draw buffers — prefer PSRAM, fall back to internal DMA */
-    size_t buf_lines = use_psram ? DISP_BUF_LINES : 10;  /* Smaller buffers without PSRAM */
+    /* Bộ đệm vẽ đệm đôi — ưu tiên PSRAM, dự phòng DMA nội */
+    size_t buf_lines = use_psram ? DISP_BUF_LINES : 10;  /* Bộ đệm nhỏ hơn khi không có PSRAM */
     size_t buf_size = DISP_H_RES * buf_lines * sizeof(lv_color_t);
     uint32_t alloc_caps = use_psram ? MALLOC_CAP_SPIRAM : (MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     lv_color_t *buf1 = heap_caps_malloc(buf_size, alloc_caps);
     lv_color_t *buf2 = heap_caps_malloc(buf_size, alloc_caps);
     if (!buf1 || !buf2) {
-        ESP_LOGE(TAG, "Failed to allocate LVGL buffers (%u bytes, caps=0x%lx)",
+        ESP_LOGE(TAG, "Không thể cấp phát bộ đệm LVGL (%u byte, caps=0x%lx)",
                  (unsigned)buf_size, (unsigned long)alloc_caps);
         if (buf1) free(buf1);
         if (buf2) free(buf2);
@@ -142,7 +142,7 @@ esp_err_t display_task_start(void)
         indev_drv.type    = LV_INDEV_TYPE_POINTER;
         indev_drv.read_cb = lvgl_touch_cb;
         lv_indev_drv_register(&indev_drv);
-        ESP_LOGI(TAG, "Touch input registered");
+        ESP_LOGI(TAG, "Đầu vào cảm ứng đã đăng ký");
     }
 
     BaseType_t xret = xTaskCreatePinnedToCore(
@@ -150,11 +150,11 @@ esp_err_t display_task_start(void)
         NULL, DISP_TASK_PRIORITY, NULL, DISP_TASK_CORE);
 
     if (xret != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create display task");
+        ESP_LOGE(TAG, "Không thể tạo tác vụ hiển thị");
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "Display task started (Core %d, priority %d, %d fps)",
+    ESP_LOGI(TAG, "Tác vụ hiển thị started (Core %d, priority %d, %d fps)",
              DISP_TASK_CORE, DISP_TASK_PRIORITY, DISP_FPS_LIMIT);
     return ESP_OK;
 }

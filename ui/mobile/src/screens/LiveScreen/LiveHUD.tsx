@@ -20,10 +20,10 @@ type LiveHUDProps = {
 };
 
 const statusTextMap: Record<ConnectionStatus, string> = {
-  connected: 'Connected',
-  simulated: 'Simulated',
-  connecting: 'Connecting',
-  disconnected: 'Disconnected',
+  connected: 'Đã kết nối',
+  simulated: 'Mô phỏng',
+  connecting: 'Đang kết nối',
+  disconnected: 'Ngắt kết nối',
 };
 
 const statusDotStatusMap: Record<ConnectionStatus, 'connected' | 'simulated' | 'disconnected' | 'connecting'> = {
@@ -53,14 +53,14 @@ export const LiveHUD = memo(
     return (
       <Pressable style={StyleSheet.absoluteFill} onPress={togglePanel}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, animatedPanelStyle]}>
-          {/* App title */}
+          {/* Tiêu đề ứng dụng */}
           <View style={styles.topLeft}>
             <ThemedText preset="labelLg" style={styles.appTitle}>
               WiFi-DensePose
             </ThemedText>
           </View>
 
-          {/* Status + FPS */}
+          {/* Trạng thái + FPS */}
           <View style={styles.topRight}>
             <View style={styles.row}>
               <StatusDot status={statusDotStatusMap[connectionStatus]} size={10} />
@@ -75,7 +75,7 @@ export const LiveHUD = memo(
             )}
           </View>
 
-          {/* Bottom panel */}
+          {/* Bảng dưới */}
           <View style={styles.bottomPanel}>
             <View style={styles.bottomCell}>
               <ThemedText preset="bodySm">RSSI</ThemedText>
@@ -89,11 +89,11 @@ export const LiveHUD = memo(
             </View>
 
             <View style={styles.bottomCellRight}>
-              <ThemedText preset="bodySm">Confidence</ThemedText>
+              <ThemedText preset="bodySm">Độ tin cậy</ThemedText>
               <ThemedText preset="bodyMd" style={styles.metaText}>
                 {formatConfidence(confidence)}
               </ThemedText>
-              <ThemedText preset="bodySm">People: {personCount}</ThemedText>
+              <ThemedText preset="bodySm">Số người: {personCount}</ThemedText>
             </View>
           </View>
         </Animated.View>

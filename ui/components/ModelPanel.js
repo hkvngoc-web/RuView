@@ -1,5 +1,5 @@
-// ModelPanel Component for WiFi-DensePose UI
-// Dark-mode panel for model management: listing, loading, LoRA profiles.
+// Thành phần ModelPanel cho WiFi-DensePose UI
+// Bảng điều khiển giao diện tối để quản lý mô hình: liệt kê, tải, hồ sơ LoRA.
 
 import { modelService } from '../services/model.service.js';
 
@@ -43,7 +43,7 @@ export default class ModelPanel {
   constructor(container) {
     this.container = typeof container === 'string'
       ? document.getElementById(container) : container;
-    if (!this.container) throw new Error('ModelPanel: container element not found');
+    if (!this.container) throw new Error('ModelPanel: không tìm thấy phần tử container');
 
     this.state = { models: [], activeModel: null, loraProfiles: [], loading: false, error: null };
     this.unsubs = [];
@@ -57,7 +57,7 @@ export default class ModelPanel {
     );
   }
 
-  // --- Data ---
+  // --- Dữ liệu ---
 
   async refresh() {
     this._set({ loading: true, error: null });
@@ -72,69 +72,69 @@ export default class ModelPanel {
     } catch (e) { this._set({ loading: false, error: e.message }); }
   }
 
-  // --- Actions ---
+  // --- Hành động ---
 
   async _load(id) {
     this._set({ loading: true, error: null });
     try { await modelService.loadModel(id); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `Load failed: ${e.message}` }); }
+    catch (e) { this._set({ loading: false, error: `Tải thất bại: ${e.message}` }); }
   }
 
   async _unload() {
     this._set({ loading: true, error: null });
     try { await modelService.unloadModel(); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `Unload failed: ${e.message}` }); }
+    catch (e) { this._set({ loading: false, error: `Gỡ tải thất bại: ${e.message}` }); }
   }
 
   async _delete(id) {
     this._set({ loading: true, error: null });
     try { await modelService.deleteModel(id); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `Delete failed: ${e.message}` }); }
+    catch (e) { this._set({ loading: false, error: `Xoá thất bại: ${e.message}` }); }
   }
 
   async _loraChange(modelId, profile) {
     if (!profile) return;
     this._set({ loading: true, error: null });
     try { await modelService.activateLoraProfile(modelId, profile); await this.refresh(); }
-    catch (e) { this._set({ loading: false, error: `LoRA failed: ${e.message}` }); }
+    catch (e) { this._set({ loading: false, error: `LoRA thất bại: ${e.message}` }); }
   }
 
   _set(p) { Object.assign(this.state, p); this.render(); }
 
-  // --- Render ---
+  // --- Kết xuất ---
 
   render() {
     const el = this.container;
     el.innerHTML = '';
     const panel = this._el('div', 'mp-panel');
 
-    // Header
+    // Tiêu đề
     const hdr = this._el('div', 'mp-header');
-    hdr.appendChild(this._el('span', 'mp-title', 'Model Library'));
+    hdr.appendChild(this._el('span', 'mp-title', 'Thư viện Mô hình'));
     hdr.appendChild(this._el('span', 'mp-badge', String(this.state.models.length)));
     panel.appendChild(hdr);
 
     if (this.state.error) panel.appendChild(this._el('div', 'mp-error', this.state.error));
 
-    // Active model
+    // Mô hình đang hoạt động
     if (this.state.activeModel) panel.appendChild(this._renderActive());
 
-    // List
+    // Danh sách
     const ls = this._el('div', 'mp-list-section');
-    ls.appendChild(this._el('div', 'mp-section-title', 'Available Models'));
+    ls.appendChild(this._el('div', 'mp-section-title', 'Mô hình Khả dụng'));
     const models = this.state.models.filter(
       m => !(this.state.activeModel && this.state.activeModel.model_id === m.id)
     );
     if (models.length === 0 && !this.state.loading) {
-      ls.appendChild(this._el('div', 'mp-empty', 'No .rvf models found. Train a model or place .rvf files in data/models/'));
+      ls.appendChild(this._el('div', 'mp-empty', 'Không tìm thấy mô hình .rvf. Huấn luyện mô hình hoặc đặt tệp .rvf vào data/models/'));
     } else {
       models.forEach(m => ls.appendChild(this._renderCard(m)));
     }
     panel.appendChild(ls);
 
-    // Footer
+    // Chân trang
     const ft = this._el('div', 'mp-footer');
-    const rb = this._btn('Refresh', 'mp-btn mp-btn-secondary', () => this.refresh());
+    const rb = this._btn('Làm mới', 'mp-btn mp-btn-secondary', () => this.refresh());
     rb.disabled = this.state.loading;
     ft.appendChild(rb);
     panel.appendChild(ft);
@@ -145,7 +145,7 @@ export default class ModelPanel {
   _renderActive() {
     const am = this.state.activeModel;
     const card = this._el('div', 'mp-active-card');
-    card.appendChild(this._el('div', 'mp-active-name', am.model_id || 'Active Model'));
+    card.appendChild(this._el('div', 'mp-active-name', am.model_id || 'Mô hình Hoạt động'));
 
     const full = this.state.models.find(m => m.id === am.model_id);
     if (full) {
@@ -157,17 +157,17 @@ export default class ModelPanel {
 
     if (am.avg_inference_ms != null) {
       const st = this._el('div', 'mp-active-stats');
-      st.innerHTML = `<span class="mp-stat-label">Inference:</span> <span class="mp-stat-value">${am.avg_inference_ms.toFixed(1)} ms</span><span class="mp-stat-sep">|</span><span class="mp-stat-label">Frames:</span> <span class="mp-stat-value">${am.frames_processed ?? 0}</span>`;
+      st.innerHTML = `<span class="mp-stat-label">Suy luận:</span> <span class="mp-stat-value">${am.avg_inference_ms.toFixed(1)} ms</span><span class="mp-stat-sep">|</span><span class="mp-stat-label">Khung hình:</span> <span class="mp-stat-value">${am.frames_processed ?? 0}</span>`;
       card.appendChild(st);
     }
 
     if (this.state.loraProfiles.length > 0) {
       const row = this._el('div', 'mp-lora-row');
-      row.appendChild(this._el('span', 'mp-lora-label', 'LoRA Profile:'));
+      row.appendChild(this._el('span', 'mp-lora-label', 'Hồ sơ LoRA:'));
       const sel = document.createElement('select');
       sel.className = 'mp-lora-select';
       const def = document.createElement('option');
-      def.value = ''; def.textContent = '-- none --'; sel.appendChild(def);
+      def.value = ''; def.textContent = '-- không --'; sel.appendChild(def);
       this.state.loraProfiles.forEach(p => {
         const o = document.createElement('option');
         o.value = p; o.textContent = p; sel.appendChild(o);
@@ -177,7 +177,7 @@ export default class ModelPanel {
       card.appendChild(row);
     }
 
-    const ub = this._btn('Unload', 'mp-btn mp-btn-danger', () => this._unload());
+    const ub = this._btn('Gỡ tải', 'mp-btn mp-btn-danger', () => this._unload());
     ub.disabled = this.state.loading;
     card.appendChild(ub);
     return card;
@@ -194,16 +194,16 @@ export default class ModelPanel {
     card.appendChild(meta);
 
     const acts = this._el('div', 'mp-card-actions');
-    const lb = this._btn('Load', 'mp-btn mp-btn-success', () => this._load(model.id));
+    const lb = this._btn('Tải', 'mp-btn mp-btn-success', () => this._load(model.id));
     lb.disabled = this.state.loading;
-    const db = this._btn('Delete', 'mp-btn mp-btn-muted', () => this._delete(model.id));
+    const db = this._btn('Xoá', 'mp-btn mp-btn-muted', () => this._delete(model.id));
     db.disabled = this.state.loading;
     acts.appendChild(lb); acts.appendChild(db);
     card.appendChild(acts);
     return card;
   }
 
-  // --- Helpers ---
+  // --- Trợ giúp ---
 
   _el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   _btn(txt, cls, fn) { const b = document.createElement('button'); b.className = cls; b.textContent = txt; b.addEventListener('click', fn); return b; }

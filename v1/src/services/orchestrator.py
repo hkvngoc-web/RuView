@@ -1,5 +1,5 @@
 """
-Main service orchestrator for WiFi-DensePose API
+Bộ điều phối dịch vụ chính cho WiFi-DensePose API
 """
 
 import asyncio
@@ -22,42 +22,42 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceOrchestrator:
-    """Main service orchestrator that manages all application services."""
-    
+    """Bộ điều phối dịch vụ chính quản lý tất cả các dịch vụ ứng dụng."""
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self._services: Dict[str, Any] = {}
         self._background_tasks: List[asyncio.Task] = []
         self._initialized = False
         self._started = False
-        
-        # Core services
+
+        # Dịch vụ cốt lõi
         self.health_service = HealthCheckService(settings)
         self.metrics_service = MetricsService(settings)
-        
-        # Application services (will be initialized later)
+
+        # Dịch vụ ứng dụng (sẽ được khởi tạo sau)
         self.hardware_service = None
         self.pose_service = None
         self.stream_service = None
         self.pose_stream_handler = None
-    
+
     async def initialize(self):
-        """Initialize all services."""
+        """Khởi tạo tất cả các dịch vụ."""
         if self._initialized:
-            logger.warning("Services already initialized")
+            logger.warning("Các dịch vụ đã được khởi tạo rồi")
             return
-        
-        logger.info("Initializing services...")
-        
+
+        logger.info("Đang khởi tạo các dịch vụ...")
+
         try:
-            # Initialize core services
+            # Khởi tạo dịch vụ cốt lõi
             await self.health_service.initialize()
             await self.metrics_service.initialize()
-            
-            # Initialize application services
+
+            # Khởi tạo dịch vụ ứng dụng
             await self._initialize_application_services()
-            
-            # Store services in registry
+
+            # Lưu trữ dịch vụ trong registry
             self._services = {
                 'health': self.health_service,
                 'metrics': self.metrics_service,
@@ -67,275 +67,275 @@ class ServiceOrchestrator:
                 'pose_stream_handler': self.pose_stream_handler,
                 'connection_manager': connection_manager
             }
-            
+
             self._initialized = True
-            logger.info("All services initialized successfully")
-            
+            logger.info("Tất cả dịch vụ đã được khởi tạo thành công")
+
         except Exception as e:
-            logger.error(f"Failed to initialize services: {e}")
+            logger.error(f"Không thể khởi tạo dịch vụ: {e}")
             await self.shutdown()
             raise
-    
+
     async def _initialize_application_services(self):
-        """Initialize application-specific services."""
+        """Khởi tạo các dịch vụ ứng dụng cụ thể."""
         try:
-            # Initialize hardware service
+            # Khởi tạo dịch vụ phần cứng
             self.hardware_service = get_hardware_service()
             await self.hardware_service.initialize()
-            logger.info("Hardware service initialized")
-            
-            # Initialize pose service
+            logger.info("Dịch vụ phần cứng đã khởi tạo")
+
+            # Khởi tạo dịch vụ tư thế
             self.pose_service = get_pose_service()
             await self.pose_service.initialize()
-            logger.info("Pose service initialized")
-            
-            # Initialize stream service
+            logger.info("Dịch vụ tư thế đã khởi tạo")
+
+            # Khởi tạo dịch vụ truyền phát
             self.stream_service = get_stream_service()
             await self.stream_service.initialize()
-            logger.info("Stream service initialized")
-            
-            # Initialize pose stream handler
+            logger.info("Dịch vụ truyền phát đã khởi tạo")
+
+            # Khởi tạo trình xử lý luồng tư thế
             self.pose_stream_handler = PoseStreamHandler(
                 connection_manager=connection_manager,
                 pose_service=self.pose_service,
                 stream_service=self.stream_service
             )
-            logger.info("Pose stream handler initialized")
-            
+            logger.info("Trình xử lý luồng tư thế đã khởi tạo")
+
         except Exception as e:
-            logger.error(f"Failed to initialize application services: {e}")
+            logger.error(f"Không thể khởi tạo dịch vụ ứng dụng: {e}")
             raise
-    
+
     async def start(self):
-        """Start all services and background tasks."""
+        """Khởi động tất cả dịch vụ và tác vụ nền."""
         if not self._initialized:
             await self.initialize()
-        
+
         if self._started:
-            logger.warning("Services already started")
+            logger.warning("Các dịch vụ đã được khởi động rồi")
             return
-        
-        logger.info("Starting services...")
-        
+
+        logger.info("Đang khởi động các dịch vụ...")
+
         try:
-            # Start core services
+            # Khởi động dịch vụ cốt lõi
             await self.health_service.start()
             await self.metrics_service.start()
-            
-            # Start application services
+
+            # Khởi động dịch vụ ứng dụng
             await self._start_application_services()
-            
-            # Start background tasks
+
+            # Khởi động tác vụ nền
             await self._start_background_tasks()
-            
+
             self._started = True
-            logger.info("All services started successfully")
-            
+            logger.info("Tất cả dịch vụ đã khởi động thành công")
+
         except Exception as e:
-            logger.error(f"Failed to start services: {e}")
+            logger.error(f"Không thể khởi động dịch vụ: {e}")
             await self.shutdown()
             raise
-    
+
     async def _start_application_services(self):
-        """Start application-specific services."""
+        """Khởi động các dịch vụ ứng dụng cụ thể."""
         try:
-            # Start hardware service
+            # Khởi động dịch vụ phần cứng
             if hasattr(self.hardware_service, 'start'):
                 await self.hardware_service.start()
-            
-            # Start pose service
+
+            # Khởi động dịch vụ tư thế
             if hasattr(self.pose_service, 'start'):
                 await self.pose_service.start()
-            
-            # Start stream service
+
+            # Khởi động dịch vụ truyền phát
             if hasattr(self.stream_service, 'start'):
                 await self.stream_service.start()
-            
-            logger.info("Application services started")
-            
+
+            logger.info("Dịch vụ ứng dụng đã khởi động")
+
         except Exception as e:
-            logger.error(f"Failed to start application services: {e}")
+            logger.error(f"Không thể khởi động dịch vụ ứng dụng: {e}")
             raise
-    
+
     async def _start_background_tasks(self):
-        """Start background tasks."""
+        """Khởi động các tác vụ nền."""
         try:
-            # Start health check monitoring
+            # Khởi động giám sát kiểm tra sức khỏe
             if self.settings.health_check_interval > 0:
                 task = asyncio.create_task(self._health_check_loop())
                 self._background_tasks.append(task)
-            
-            # Start metrics collection
+
+            # Khởi động thu thập số liệu
             if self.settings.metrics_enabled:
                 task = asyncio.create_task(self._metrics_collection_loop())
                 self._background_tasks.append(task)
-            
-            # Start pose streaming if enabled
+
+            # Khởi động truyền phát tư thế nếu được bật
             if self.settings.enable_real_time_processing:
                 await self.pose_stream_handler.start_streaming()
-            
-            logger.info(f"Started {len(self._background_tasks)} background tasks")
-            
+
+            logger.info(f"Đã khởi động {len(self._background_tasks)} tác vụ nền")
+
         except Exception as e:
-            logger.error(f"Failed to start background tasks: {e}")
+            logger.error(f"Không thể khởi động tác vụ nền: {e}")
             raise
-    
+
     async def _health_check_loop(self):
-        """Background health check loop."""
-        logger.info("Starting health check loop")
-        
+        """Vòng lặp kiểm tra sức khỏe nền."""
+        logger.info("Đang bắt đầu vòng lặp kiểm tra sức khỏe")
+
         while True:
             try:
                 await self.health_service.perform_health_checks()
                 await asyncio.sleep(self.settings.health_check_interval)
             except asyncio.CancelledError:
-                logger.info("Health check loop cancelled")
+                logger.info("Vòng lặp kiểm tra sức khỏe đã bị hủy")
                 break
             except Exception as e:
-                logger.error(f"Error in health check loop: {e}")
+                logger.error(f"Lỗi trong vòng lặp kiểm tra sức khỏe: {e}")
                 await asyncio.sleep(self.settings.health_check_interval)
-    
+
     async def _metrics_collection_loop(self):
-        """Background metrics collection loop."""
-        logger.info("Starting metrics collection loop")
-        
+        """Vòng lặp thu thập số liệu nền."""
+        logger.info("Đang bắt đầu vòng lặp thu thập số liệu")
+
         while True:
             try:
                 await self.metrics_service.collect_metrics()
-                await asyncio.sleep(60)  # Collect metrics every minute
+                await asyncio.sleep(60)  # Thu thập số liệu mỗi phút
             except asyncio.CancelledError:
-                logger.info("Metrics collection loop cancelled")
+                logger.info("Vòng lặp thu thập số liệu đã bị hủy")
                 break
             except Exception as e:
-                logger.error(f"Error in metrics collection loop: {e}")
+                logger.error(f"Lỗi trong vòng lặp thu thập số liệu: {e}")
                 await asyncio.sleep(60)
-    
+
     async def shutdown(self):
-        """Shutdown all services and cleanup resources."""
-        logger.info("Shutting down services...")
-        
+        """Tắt tất cả dịch vụ và dọn dẹp tài nguyên."""
+        logger.info("Đang tắt các dịch vụ...")
+
         try:
-            # Cancel background tasks
+            # Hủy tác vụ nền
             for task in self._background_tasks:
                 if not task.done():
                     task.cancel()
-            
+
             if self._background_tasks:
                 await asyncio.gather(*self._background_tasks, return_exceptions=True)
                 self._background_tasks.clear()
-            
-            # Stop pose streaming
+
+            # Dừng truyền phát tư thế
             if self.pose_stream_handler:
                 await self.pose_stream_handler.shutdown()
-            
-            # Shutdown connection manager
+
+            # Tắt trình quản lý kết nối
             await connection_manager.shutdown()
-            
-            # Shutdown application services
+
+            # Tắt dịch vụ ứng dụng
             await self._shutdown_application_services()
-            
-            # Shutdown core services
+
+            # Tắt dịch vụ cốt lõi
             await self.health_service.shutdown()
             await self.metrics_service.shutdown()
-            
+
             self._started = False
             self._initialized = False
-            
-            logger.info("All services shut down successfully")
-            
+
+            logger.info("Tất cả dịch vụ đã tắt thành công")
+
         except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
-    
+            logger.error(f"Lỗi trong quá trình tắt: {e}")
+
     async def _shutdown_application_services(self):
-        """Shutdown application-specific services."""
+        """Tắt các dịch vụ ứng dụng cụ thể."""
         try:
-            # Shutdown services in reverse order
+            # Tắt dịch vụ theo thứ tự ngược
             if self.stream_service and hasattr(self.stream_service, 'shutdown'):
                 await self.stream_service.shutdown()
-            
+
             if self.pose_service and hasattr(self.pose_service, 'shutdown'):
                 await self.pose_service.shutdown()
-            
+
             if self.hardware_service and hasattr(self.hardware_service, 'shutdown'):
                 await self.hardware_service.shutdown()
-            
-            logger.info("Application services shut down")
-            
+
+            logger.info("Dịch vụ ứng dụng đã tắt")
+
         except Exception as e:
-            logger.error(f"Error shutting down application services: {e}")
-    
+            logger.error(f"Lỗi khi tắt dịch vụ ứng dụng: {e}")
+
     async def restart_service(self, service_name: str):
-        """Restart a specific service."""
-        logger.info(f"Restarting service: {service_name}")
-        
+        """Khởi động lại một dịch vụ cụ thể."""
+        logger.info(f"Đang khởi động lại dịch vụ: {service_name}")
+
         service = self._services.get(service_name)
         if not service:
-            raise ValueError(f"Service not found: {service_name}")
-        
+            raise ValueError(f"Không tìm thấy dịch vụ: {service_name}")
+
         try:
-            # Stop service
+            # Dừng dịch vụ
             if hasattr(service, 'stop'):
                 await service.stop()
             elif hasattr(service, 'shutdown'):
                 await service.shutdown()
-            
-            # Reinitialize service
+
+            # Khởi tạo lại dịch vụ
             if hasattr(service, 'initialize'):
                 await service.initialize()
-            
-            # Start service
+
+            # Khởi động dịch vụ
             if hasattr(service, 'start'):
                 await service.start()
-            
-            logger.info(f"Service restarted successfully: {service_name}")
-            
+
+            logger.info(f"Dịch vụ đã khởi động lại thành công: {service_name}")
+
         except Exception as e:
-            logger.error(f"Failed to restart service {service_name}: {e}")
+            logger.error(f"Không thể khởi động lại dịch vụ {service_name}: {e}")
             raise
-    
+
     async def reset_services(self):
-        """Reset all services to initial state."""
-        logger.info("Resetting all services")
-        
+        """Đặt lại tất cả dịch vụ về trạng thái ban đầu."""
+        logger.info("Đang đặt lại tất cả dịch vụ")
+
         try:
-            # Reset application services
+            # Đặt lại dịch vụ ứng dụng
             if self.hardware_service and hasattr(self.hardware_service, 'reset'):
                 await self.hardware_service.reset()
-            
+
             if self.pose_service and hasattr(self.pose_service, 'reset'):
                 await self.pose_service.reset()
-            
+
             if self.stream_service and hasattr(self.stream_service, 'reset'):
                 await self.stream_service.reset()
-            
-            # Reset connection manager
+
+            # Đặt lại trình quản lý kết nối
             await connection_manager.reset()
-            
-            logger.info("All services reset successfully")
-            
+
+            logger.info("Tất cả dịch vụ đã đặt lại thành công")
+
         except Exception as e:
-            logger.error(f"Failed to reset services: {e}")
+            logger.error(f"Không thể đặt lại dịch vụ: {e}")
             raise
-    
+
     async def get_service_status(self) -> Dict[str, Any]:
-        """Get status of all services."""
+        """Lấy trạng thái của tất cả dịch vụ."""
         status = {}
-        
+
         for name, service in self._services.items():
             try:
                 if hasattr(service, 'get_status'):
                     status[name] = await service.get_status()
                 else:
-                    status[name] = {"status": "unknown"}
+                    status[name] = {"status": "không xác định"}
             except Exception as e:
-                status[name] = {"status": "error", "error": str(e)}
-        
+                status[name] = {"status": "lỗi", "error": str(e)}
+
         return status
-    
+
     async def get_service_metrics(self) -> Dict[str, Any]:
-        """Get metrics from all services."""
+        """Lấy số liệu từ tất cả dịch vụ."""
         metrics = {}
-        
+
         for name, service in self._services.items():
             try:
                 if hasattr(service, 'get_metrics'):
@@ -343,13 +343,13 @@ class ServiceOrchestrator:
                 elif hasattr(service, 'get_performance_metrics'):
                     metrics[name] = await service.get_performance_metrics()
             except Exception as e:
-                logger.error(f"Failed to get metrics from {name}: {e}")
+                logger.error(f"Không thể lấy số liệu từ {name}: {e}")
                 metrics[name] = {"error": str(e)}
-        
+
         return metrics
-    
+
     async def get_service_info(self) -> Dict[str, Any]:
-        """Get information about all services."""
+        """Lấy thông tin về tất cả dịch vụ."""
         info = {
             "total_services": len(self._services),
             "initialized": self._initialized,
@@ -357,36 +357,36 @@ class ServiceOrchestrator:
             "background_tasks": len(self._background_tasks),
             "services": {}
         }
-        
+
         for name, service in self._services.items():
             service_info = {
                 "type": type(service).__name__,
                 "module": type(service).__module__
             }
-            
-            # Add service-specific info if available
+
+            # Thêm thông tin dịch vụ cụ thể nếu có
             if hasattr(service, 'get_info'):
                 try:
                     service_info.update(await service.get_info())
                 except Exception as e:
                     service_info["error"] = str(e)
-            
+
             info["services"][name] = service_info
-        
+
         return info
-    
+
     def get_service(self, name: str) -> Optional[Any]:
-        """Get a specific service by name."""
+        """Lấy một dịch vụ cụ thể theo tên."""
         return self._services.get(name)
-    
+
     @property
     def is_healthy(self) -> bool:
-        """Check if all services are healthy."""
+        """Kiểm tra xem tất cả dịch vụ có khỏe mạnh không."""
         return self._initialized and self._started
-    
+
     @asynccontextmanager
     async def service_context(self):
-        """Context manager for service lifecycle."""
+        """Trình quản lý ngữ cảnh cho vòng đời dịch vụ."""
         try:
             await self.initialize()
             await self.start()

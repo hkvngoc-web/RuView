@@ -1,6 +1,6 @@
 /**
- * Post-Processing — Subtle bloom for green glow wireframe,
- * warm vignette, minimal grain. Foundation-style.
+ * Hậu Xử Lý — Bloom nhẹ cho phát sáng khung dây xanh,
+ * họa tiết ấm, hạt nhiễu tối thiểu. Phong cách Foundation.
  */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -42,23 +42,23 @@ const VignetteShader = {
       vec2 center = uv - 0.5;
       float dist = length(center);
 
-      // Subtle chromatic aberration at edges only
+      // Quang sai sắc nhẹ chỉ ở rìa
       vec2 offset = center * dist * uChromaticStrength;
       float r = texture2D(tDiffuse, uv + offset).r;
       float g = texture2D(tDiffuse, uv).g;
       float b = texture2D(tDiffuse, uv - offset * 0.5).b;
       vec3 color = vec3(r, g, b);
 
-      // Warm vignette
+      // Họa tiết ấm
       float vignette = 1.0 - dist * dist * uVignetteStrength * 1.8;
       color *= vignette;
 
-      // Very subtle warm shift in shadows
+      // Dịch ấm rất nhẹ trong vùng tối
       float luma = dot(color, vec3(0.299, 0.587, 0.114));
       color.r += (1.0 - luma) * uWarmth * 0.5;
       color.g += (1.0 - luma) * uWarmth * 0.2;
 
-      // Minimal grain
+      // Hạt nhiễu tối thiểu
       float grain = (rand(uv * uTime * 0.01) - 0.5) * uGrainStrength;
       color += grain;
 
@@ -74,7 +74,7 @@ export class PostProcessing {
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
 
-    // Bloom — tuned for green wireframe glow
+    // Bloom — tinh chỉnh cho phát sáng khung dây xanh
     this._bloomPass = new UnrealBloomPass(
       new THREE.Vector2(size.x, size.y),
       0.08,  // strength — subtle glow, overridden by settings
@@ -83,7 +83,7 @@ export class PostProcessing {
     );
     this.composer.addPass(this._bloomPass);
 
-    // Vignette + warmth
+    // Họa tiết + sắc ấm
     this._vignettePass = new ShaderPass(VignetteShader);
     this.composer.addPass(this._vignettePass);
 

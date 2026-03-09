@@ -6,10 +6,10 @@ interface StatusBadgeProps {
 }
 
 const STATUS_STYLES: Record<HealthStatus, { color: string; label: string }> = {
-  online:   { color: "var(--status-online)",  label: "Online" },
-  offline:  { color: "var(--status-error)",   label: "Offline" },
-  degraded: { color: "var(--status-warning)", label: "Degraded" },
-  unknown:  { color: "var(--text-muted)",     label: "Unknown" },
+  online:   { color: "var(--status-online)",  label: "Trực tuyến" },
+  offline:  { color: "var(--status-error)",   label: "Ngoại tuyến" },
+  degraded: { color: "var(--status-warning)", label: "Suy giảm" },
+  unknown:  { color: "var(--text-muted)",     label: "Không rõ" },
 };
 
 const SIZE_STYLES: Record<string, { fontSize: number; padding: string; dot: number }> = {

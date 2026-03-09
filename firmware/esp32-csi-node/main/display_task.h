@@ -1,6 +1,6 @@
 /**
  * @file display_task.h
- * @brief ADR-045: FreeRTOS display task — LVGL pump on Core 0.
+ * @brief ADR-045: Tác vụ hiển thị FreeRTOS — bơm LVGL trên Nhân 0.
  */
 
 #ifndef DISPLAY_TASK_H
@@ -13,12 +13,12 @@ extern "C" {
 #endif
 
 /**
- * Start the display task on Core 0, priority 1.
+ * Khởi động tác vụ hiển thị trên Nhân 0, ưu tiên 1.
  *
- * Probes for RM67162 panel and SPIRAM. If either is absent,
- * logs a warning and returns ESP_OK (graceful skip).
+ * Dò panel RM67162 và SPIRAM. Nếu một trong hai vắng mặt,
+ * ghi cảnh báo và trả về ESP_OK (bỏ qua nhẹ nhàng).
  *
- * @return ESP_OK always (display is optional).
+ * @return ESP_OK luôn (hiển thị là tùy chọn).
  */
 esp_err_t display_task_start(void);
 

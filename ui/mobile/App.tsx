@@ -33,7 +33,7 @@ export default function App() {
     }
 
     const unsubscribe = rssiService.subscribe(() => {
-      // Consumers can subscribe elsewhere for RSSI events.
+      // Người dùng có thể đăng ký ở nơi khác để nhận sự kiện RSSI.
     });
     rssiService.startScanning(2000);
 

@@ -97,7 +97,7 @@ export function NodeCard({ node, onClick }: NodeCardProps) {
         <DetailRow label="MAC" value={node.mac ?? "--"} mono />
         <DetailRow label="Firmware" value={node.firmware_version ?? "--"} mono />
         <DetailRow label="Chip" value={node.chip?.toUpperCase() ?? "--"} />
-        <DetailRow label="Role" value={node.mesh_role} />
+        <DetailRow label="Vai trò" value={node.mesh_role} />
         <DetailRow
           label="TDM"
           value={
@@ -108,11 +108,11 @@ export function NodeCard({ node, onClick }: NodeCardProps) {
           mono
         />
         <DetailRow
-          label="Edge Tier"
+          label="Tầng Biên"
           value={node.edge_tier != null ? String(node.edge_tier) : "--"}
         />
-        <DetailRow label="Uptime" value={formatUptime(node.uptime_secs)} mono />
-        <DetailRow label="Seen" value={formatLastSeen(node.last_seen)} />
+        <DetailRow label="Thời gian hoạt động" value={formatUptime(node.uptime_secs)} mono />
+        <DetailRow label="Lần thấy" value={formatLastSeen(node.last_seen)} />
       </div>
     </div>
   );

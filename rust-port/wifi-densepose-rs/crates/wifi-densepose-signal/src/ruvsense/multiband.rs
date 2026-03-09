@@ -1,82 +1,82 @@
-//! Multi-Band CSI Frame Fusion (ADR-029 Section 2.3)
+//! Kết Hợp Khung CSI Đa Băng (ADR-029 Mục 2.3)
 //!
-//! Aggregates per-channel CSI frames from channel-hopping into a wideband
-//! virtual snapshot. An ESP32-S3 cycling through channels 1/6/11 at 50 ms
-//! dwell per channel yields 3 canonical-56 CSI rows per sensing cycle.
-//! This module fuses them into a single `MultiBandCsiFrame` annotated with
-//! center frequencies and cross-channel coherence.
+//! Tổng hợp các khung CSI theo kênh từ nhảy kênh thành ảnh chụp
+//! ảo băng rộng. Một ESP32-S3 luân chuyển qua kênh 1/6/11 với thời gian
+//! dừng 50 ms mỗi kênh cho ra 3 hàng CSI chuẩn-56 mỗi chu kỳ cảm biến.
+//! Module này kết hợp chúng thành một `MultiBandCsiFrame` duy nhất được ghi chú
+//! với tần số trung tâm và tương hợp chéo kênh.
 //!
-//! # RuVector Integration
+//! # Tích Hợp RuVector
 //!
-//! - `ruvector-attention` for cross-channel feature weighting (future)
+//! - `ruvector-attention` cho trọng số đặc trưng chéo kênh (tương lai)
 
 use crate::hardware_norm::CanonicalCsiFrame;
 
-/// Errors from multi-band frame fusion.
+/// Các lỗi từ kết hợp khung đa băng.
 #[derive(Debug, thiserror::Error)]
 pub enum MultiBandError {
-    /// No channel frames provided.
-    #[error("No channel frames provided for multi-band fusion")]
+    /// Không có khung kênh nào được cung cấp.
+    #[error("Không có khung kênh nào được cung cấp cho kết hợp đa băng")]
     NoFrames,
 
-    /// Mismatched subcarrier counts across channels.
-    #[error("Subcarrier count mismatch: channel {channel_idx} has {got}, expected {expected}")]
+    /// Số sóng mang con không khớp giữa các kênh.
+    #[error("Số sóng mang con không khớp: kênh {channel_idx} có {got}, kỳ vọng {expected}")]
     SubcarrierMismatch {
         channel_idx: usize,
         expected: usize,
         got: usize,
     },
 
-    /// Frequency list length does not match frame count.
-    #[error("Frequency count ({freq_count}) does not match frame count ({frame_count})")]
+    /// Độ dài danh sách tần số không khớp với số khung.
+    #[error("Số tần số ({freq_count}) không khớp với số khung ({frame_count})")]
     FrequencyCountMismatch { freq_count: usize, frame_count: usize },
 
-    /// Duplicate frequency in channel list.
-    #[error("Duplicate frequency {freq_mhz} MHz at index {idx}")]
+    /// Trùng tần số trong danh sách kênh.
+    #[error("Trùng tần số {freq_mhz} MHz tại chỉ số {idx}")]
     DuplicateFrequency { freq_mhz: u32, idx: usize },
 }
 
-/// Fused multi-band CSI from one node at one time slot.
+/// CSI đa băng đã kết hợp từ một node tại một khe thời gian.
 ///
-/// Holds one canonical-56 row per channel, ordered by center frequency.
-/// The `coherence` field quantifies agreement across channels (0.0-1.0).
+/// Chứa một hàng CSI chuẩn-56 mỗi kênh, sắp xếp theo tần số trung tâm.
+/// Trường `coherence` đo mức độ đồng thuận giữa các kênh (0.0-1.0).
 #[derive(Debug, Clone)]
 pub struct MultiBandCsiFrame {
-    /// Originating node identifier (0-255).
+    /// Định danh node gốc (0-255).
     pub node_id: u8,
-    /// Timestamp of the sensing cycle in microseconds.
+    /// Dấu thời gian chu kỳ cảm biến tính bằng micro giây.
     pub timestamp_us: u64,
-    /// One canonical-56 CSI frame per channel, ordered by center frequency.
+    /// Một khung CSI chuẩn-56 mỗi kênh, sắp xếp theo tần số trung tâm.
     pub channel_frames: Vec<CanonicalCsiFrame>,
-    /// Center frequencies (MHz) for each channel row.
+    /// Tần số trung tâm (MHz) cho mỗi hàng kênh.
     pub frequencies_mhz: Vec<u32>,
-    /// Cross-channel coherence score (0.0-1.0).
+    /// Điểm tương hợp chéo kênh (0.0-1.0).
     pub coherence: f32,
 }
 
-/// Configuration for the multi-band fusion process.
+/// Cấu hình cho quá trình kết hợp đa băng.
 #[derive(Debug, Clone)]
 pub struct MultiBandConfig {
-    /// Time window in microseconds within which frames are considered
-    /// part of the same sensing cycle.
+    /// Cửa sổ thời gian tính bằng micro giây trong đó các khung được coi là
+    /// thuộc cùng chu kỳ cảm biến.
     pub window_us: u64,
-    /// Expected number of channels per cycle.
+    /// Số kênh kỳ vọng mỗi chu kỳ.
     pub expected_channels: usize,
-    /// Minimum coherence to accept the fused frame.
+    /// Tương hợp tối thiểu để chấp nhận khung đã kết hợp.
     pub min_coherence: f32,
 }
 
 impl Default for MultiBandConfig {
     fn default() -> Self {
         Self {
-            window_us: 200_000, // 200 ms default window
+            window_us: 200_000, // cửa sổ mặc định 200 ms
             expected_channels: 3,
             min_coherence: 0.3,
         }
     }
 }
 
-/// Builder for constructing a `MultiBandCsiFrame` from per-channel observations.
+/// Bộ xây dựng để tạo `MultiBandCsiFrame` từ các quan sát theo kênh.
 #[derive(Debug)]
 pub struct MultiBandBuilder {
     node_id: u8,
@@ -86,7 +86,7 @@ pub struct MultiBandBuilder {
 }
 
 impl MultiBandBuilder {
-    /// Create a new builder for the given node and timestamp.
+    /// Tạo bộ xây dựng mới cho node và dấu thời gian cho trước.
     pub fn new(node_id: u8, timestamp_us: u64) -> Self {
         Self {
             node_id,
@@ -96,7 +96,7 @@ impl MultiBandBuilder {
         }
     }
 
-    /// Add a channel observation at the given center frequency.
+    /// Thêm quan sát kênh tại tần số trung tâm cho trước.
     pub fn add_channel(
         mut self,
         frame: CanonicalCsiFrame,
@@ -107,9 +107,9 @@ impl MultiBandBuilder {
         self
     }
 
-    /// Build the fused multi-band frame.
+    /// Xây dựng khung đa băng đã kết hợp.
     ///
-    /// Validates inputs, sorts by frequency, and computes cross-channel coherence.
+    /// Xác thực đầu vào, sắp xếp theo tần số, và tính tương hợp chéo kênh.
     pub fn build(mut self) -> std::result::Result<MultiBandCsiFrame, MultiBandError> {
         if self.frames.is_empty() {
             return Err(MultiBandError::NoFrames);
@@ -122,7 +122,7 @@ impl MultiBandBuilder {
             });
         }
 
-        // Check for duplicate frequencies
+        // Kiểm tra tần số trùng lặp
         for i in 0..self.frequencies.len() {
             for j in (i + 1)..self.frequencies.len() {
                 if self.frequencies[i] == self.frequencies[j] {
@@ -134,7 +134,7 @@ impl MultiBandBuilder {
             }
         }
 
-        // Validate consistent subcarrier counts
+        // Xác thực số sóng mang con nhất quán
         let expected_len = self.frames[0].amplitude.len();
         for (i, frame) in self.frames.iter().enumerate().skip(1) {
             if frame.amplitude.len() != expected_len {
@@ -146,7 +146,7 @@ impl MultiBandBuilder {
             }
         }
 
-        // Sort frames by frequency
+        // Sắp xếp các khung theo tần số
         let mut indices: Vec<usize> = (0..self.frames.len()).collect();
         indices.sort_by_key(|&i| self.frequencies[i]);
 
@@ -158,7 +158,7 @@ impl MultiBandBuilder {
         self.frames = sorted_frames;
         self.frequencies = sorted_freqs;
 
-        // Compute cross-channel coherence
+        // Tính tương hợp chéo kênh
         let coherence = compute_cross_channel_coherence(&self.frames);
 
         Ok(MultiBandCsiFrame {
@@ -171,13 +171,13 @@ impl MultiBandBuilder {
     }
 }
 
-/// Compute cross-channel coherence as the mean pairwise Pearson correlation
-/// of amplitude vectors across all channel pairs.
+/// Tính tương hợp chéo kênh bằng tương quan Pearson trung bình theo cặp
+/// của các vector biên độ giữa tất cả các cặp kênh.
 ///
-/// Returns a value in [0.0, 1.0] where 1.0 means perfect correlation.
+/// Trả về giá trị trong [0.0, 1.0] trong đó 1.0 nghĩa là tương quan hoàn hảo.
 fn compute_cross_channel_coherence(frames: &[CanonicalCsiFrame]) -> f32 {
     if frames.len() < 2 {
-        return 1.0; // single channel is trivially coherent
+        return 1.0; // một kênh tương hợp tầm thường
     }
 
     let mut total_corr = 0.0_f64;
@@ -198,12 +198,12 @@ fn compute_cross_channel_coherence(frames: &[CanonicalCsiFrame]) -> f32 {
         return 1.0;
     }
 
-    // Map correlation [-1, 1] to coherence [0, 1]
+    // Ánh xạ tương quan [-1, 1] sang tương hợp [0, 1]
     let mean_corr = total_corr / pair_count as f64;
     ((mean_corr + 1.0) / 2.0).clamp(0.0, 1.0) as f32
 }
 
-/// Pearson correlation coefficient between two f32 slices.
+/// Hệ số tương quan Pearson giữa hai slice f32.
 fn pearson_correlation_f32(a: &[f32], b: &[f32]) -> f32 {
     let n = a.len().min(b.len());
     if n == 0 {
@@ -234,9 +234,9 @@ fn pearson_correlation_f32(a: &[f32], b: &[f32]) -> f32 {
     (cov / denom).clamp(-1.0, 1.0)
 }
 
-/// Concatenate the amplitude vectors from all channels into a single
-/// wideband amplitude vector. Useful for downstream models that expect
-/// a flat feature vector.
+/// Nối các vector biên độ từ tất cả kênh thành một vector biên độ
+/// băng rộng duy nhất. Hữu ích cho các mô hình phía sau kỳ vọng
+/// vector đặc trưng phẳng.
 pub fn concatenate_amplitudes(frame: &MultiBandCsiFrame) -> Vec<f32> {
     let total_len: usize = frame.channel_frames.iter().map(|f| f.amplitude.len()).sum();
     let mut out = Vec::with_capacity(total_len);
@@ -246,8 +246,8 @@ pub fn concatenate_amplitudes(frame: &MultiBandCsiFrame) -> Vec<f32> {
     out
 }
 
-/// Compute the mean amplitude across all channels, producing a single
-/// canonical-length vector that averages multi-band observations.
+/// Tính biên độ trung bình giữa tất cả kênh, tạo ra một vector
+/// có độ dài chuẩn lấy trung bình các quan sát đa băng.
 pub fn mean_amplitude(frame: &MultiBandCsiFrame) -> Vec<f32> {
     if frame.channel_frames.is_empty() {
         return Vec::new();
@@ -307,9 +307,9 @@ mod tests {
     #[test]
     fn build_three_channels_sorted_by_freq() {
         let frame = MultiBandBuilder::new(1, 2000)
-            .add_channel(make_frame(56, 1.0), 2462) // ch 11
-            .add_channel(make_frame(56, 1.0), 2412) // ch 1
-            .add_channel(make_frame(56, 1.0), 2437) // ch 6
+            .add_channel(make_frame(56, 1.0), 2462) // kênh 11
+            .add_channel(make_frame(56, 1.0), 2412) // kênh 1
+            .add_channel(make_frame(56, 1.0), 2437) // kênh 6
             .build()
             .unwrap();
         assert_eq!(frame.frequencies_mhz, vec![2412, 2437, 2462]);
@@ -348,7 +348,7 @@ mod tests {
             .add_channel(f.clone(), 2437)
             .build()
             .unwrap();
-        // Identical channels should have coherence == 1.0
+        // Các kênh giống hệt phải có tương hợp == 1.0
         assert!((frame.coherence - 1.0).abs() < 0.01);
     }
 
@@ -364,7 +364,7 @@ mod tests {
             .add_channel(make_canonical(amp_b, ph), 2437)
             .build()
             .unwrap();
-        // Orthogonal signals should produce lower coherence
+        // Tín hiệu trực giao phải có tương hợp thấp hơn
         assert!(frame.coherence < 0.9);
     }
 

@@ -19,7 +19,7 @@ export const ServerUrlInput = ({ value, onChange, onSave }: ServerUrlInputProps)
 
   const handleTest = async () => {
     if (!validation.valid) {
-      setTestResult('✗ Invalid URL');
+      setTestResult('✗ URL không hợp lệ');
       return;
     }
 
@@ -28,7 +28,7 @@ export const ServerUrlInput = ({ value, onChange, onSave }: ServerUrlInputProps)
       await apiService.getStatus();
       setTestResult(`✓ ${Date.now() - start}ms`);
     } catch {
-      setTestResult('✗ Failed');
+      setTestResult('✗ Thất bại');
     }
   };
 
@@ -62,7 +62,7 @@ export const ServerUrlInput = ({ value, onChange, onSave }: ServerUrlInputProps)
       )}
 
       <ThemedText preset="bodySm" style={{ color: colors.textSecondary, marginBottom: spacing.sm }}>
-        {testResult || 'Ready to test connection'}
+        {testResult || 'Sẵn sàng kiểm tra kết nối'}
       </ThemedText>
 
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>

@@ -1,12 +1,12 @@
 """
-Mock pose data generator for testing and development.
+Trình tạo dữ liệu tư thế giả lập cho kiểm thử và phát triển.
 
-This module provides synthetic pose estimation data for use in development
-and testing environments ONLY. The generated data mimics realistic human
-pose detection outputs including keypoints, bounding boxes, and activities.
+Module này cung cấp dữ liệu ước lượng tư thế tổng hợp để sử dụng trong môi trường
+phát triển và kiểm thử CHỈ. Dữ liệu được tạo mô phỏng kết quả phát hiện tư thế
+con người thực tế bao gồm điểm mấu chốt, hộp bao, và hoạt động.
 
-WARNING: This module uses random number generation intentionally for test data.
-Do NOT use this module in production data paths.
+CẢNH BÁO: Module này sử dụng tạo số ngẫu nhiên có chủ đích cho dữ liệu kiểm thử.
+KHÔNG sử dụng module này trong đường dẫn dữ liệu sản xuất.
 """
 
 import random
@@ -16,14 +16,14 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# Banner displayed when mock pose mode is active
+# Biểu ngữ hiển thị khi chế độ tư thế giả lập đang hoạt động
 MOCK_POSE_BANNER = """
 ================================================================================
-  WARNING: MOCK POSE MODE ACTIVE - Using synthetic pose data
+  CẢNH BÁO: CHẾ ĐỘ TƯ THẾ GIẢ LẬP ĐANG HOẠT ĐỘNG - Sử dụng dữ liệu tư thế tổng hợp
 
-  All pose detections are randomly generated and do NOT represent real humans.
-  For real pose estimation, provide trained model weights and real CSI data.
-  See docs/hardware-setup.md for configuration instructions.
+  Tất cả phát hiện tư thế được tạo ngẫu nhiên và KHÔNG đại diện cho con người thực.
+  Để ước lượng tư thế thực, cung cấp trọng số mô hình đã huấn luyện và dữ liệu CSI thực.
+  Xem docs/hardware-setup.md để biết hướng dẫn cấu hình.
 ================================================================================
 """
 
@@ -31,7 +31,7 @@ _banner_shown = False
 
 
 def _show_banner() -> None:
-    """Display the mock pose mode warning banner (once per session)."""
+    """Hiển thị biểu ngữ cảnh báo chế độ tư thế giả lập (một lần mỗi phiên)."""
     global _banner_shown
     if not _banner_shown:
         logger.warning(MOCK_POSE_BANNER)
@@ -39,10 +39,10 @@ def _show_banner() -> None:
 
 
 def generate_mock_keypoints() -> List[Dict[str, Any]]:
-    """Generate mock keypoints for a single person.
+    """Tạo điểm mấu chốt giả lập cho một người.
 
-    Returns:
-        List of 17 COCO-format keypoint dictionaries with name, x, y, confidence.
+    Trả về:
+        Danh sách 17 dictionary điểm mấu chốt định dạng COCO với tên, x, y, độ tin cậy.
     """
     keypoint_names = [
         "nose", "left_eye", "right_eye", "left_ear", "right_ear",
@@ -64,10 +64,10 @@ def generate_mock_keypoints() -> List[Dict[str, Any]]:
 
 
 def generate_mock_bounding_box() -> Dict[str, float]:
-    """Generate a mock bounding box for a single person.
+    """Tạo hộp bao giả lập cho một người.
 
-    Returns:
-        Dictionary with x, y, width, height as normalized coordinates.
+    Trả về:
+        Dictionary với x, y, width, height dưới dạng tọa độ chuẩn hóa.
     """
     x = random.uniform(0.1, 0.6)
     y = random.uniform(0.1, 0.6)
@@ -78,13 +78,13 @@ def generate_mock_bounding_box() -> Dict[str, float]:
 
 
 def generate_mock_poses(max_persons: int = 3) -> List[Dict[str, Any]]:
-    """Generate mock pose detections for testing.
+    """Tạo phát hiện tư thế giả lập cho kiểm thử.
 
-    Args:
-        max_persons: Maximum number of persons to generate (1 to max_persons).
+    Tham số:
+        max_persons: Số người tối đa để tạo (1 đến max_persons).
 
-    Returns:
-        List of pose detection dictionaries.
+    Trả về:
+        Danh sách dictionary phát hiện tư thế.
     """
     _show_banner()
 
@@ -109,13 +109,13 @@ def generate_mock_poses(max_persons: int = 3) -> List[Dict[str, Any]]:
 
 
 def generate_mock_zone_occupancy(zone_id: str) -> Dict[str, Any]:
-    """Generate mock zone occupancy data.
+    """Tạo dữ liệu chiếm dụng khu vực giả lập.
 
-    Args:
-        zone_id: Zone identifier.
+    Tham số:
+        zone_id: Mã định danh khu vực.
 
-    Returns:
-        Dictionary with occupancy count and person details.
+    Trả về:
+        Dictionary với số lượng chiếm dụng và chi tiết từng người.
     """
     _show_banner()
 
@@ -140,13 +140,13 @@ def generate_mock_zone_occupancy(zone_id: str) -> Dict[str, Any]:
 def generate_mock_zones_summary(
     zone_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """Generate mock zones summary data.
+    """Tạo tóm tắt dữ liệu các khu vực giả lập.
 
-    Args:
-        zone_ids: List of zone identifiers. Defaults to zone_1 through zone_4.
+    Tham số:
+        zone_ids: Danh sách mã định danh khu vực. Mặc định là zone_1 đến zone_4.
 
-    Returns:
-        Dictionary with per-zone occupancy and aggregate counts.
+    Trả về:
+        Dictionary với chiếm dụng theo khu vực và tổng hợp số lượng.
     """
     _show_banner()
 
@@ -180,17 +180,17 @@ def generate_mock_historical_data(
     aggregation_interval: int = 300,
     include_raw_data: bool = False,
 ) -> Dict[str, Any]:
-    """Generate mock historical pose data.
+    """Tạo dữ liệu tư thế lịch sử giả lập.
 
-    Args:
-        start_time: Start of the time range.
-        end_time: End of the time range.
-        zone_ids: Zones to include. Defaults to zone_1, zone_2, zone_3.
-        aggregation_interval: Seconds between data points.
-        include_raw_data: Whether to include simulated raw detections.
+    Tham số:
+        start_time: Thời điểm bắt đầu khoảng thời gian.
+        end_time: Thời điểm kết thúc khoảng thời gian.
+        zone_ids: Các khu vực cần bao gồm. Mặc định là zone_1, zone_2, zone_3.
+        aggregation_interval: Số giây giữa các điểm dữ liệu.
+        include_raw_data: Có bao gồm phát hiện thô mô phỏng hay không.
 
-    Returns:
-        Dictionary with aggregated_data, optional raw_data, and total_records.
+    Trả về:
+        Dictionary với aggregated_data, raw_data tùy chọn, và total_records.
     """
     _show_banner()
 
@@ -237,14 +237,14 @@ def generate_mock_recent_activities(
     zone_id: Optional[str] = None,
     limit: int = 10,
 ) -> List[Dict[str, Any]]:
-    """Generate mock recent activity data.
+    """Tạo dữ liệu hoạt động gần đây giả lập.
 
-    Args:
-        zone_id: Optional zone filter. If None, random zones are used.
-        limit: Number of activities to generate.
+    Tham số:
+        zone_id: Bộ lọc khu vực tùy chọn. Nếu None, các khu vực ngẫu nhiên được sử dụng.
+        limit: Số hoạt động cần tạo.
 
-    Returns:
-        List of activity dictionaries.
+    Trả về:
+        Danh sách dictionary hoạt động.
     """
     _show_banner()
 
@@ -269,14 +269,14 @@ def generate_mock_statistics(
     start_time: datetime,
     end_time: datetime,
 ) -> Dict[str, Any]:
-    """Generate mock pose estimation statistics.
+    """Tạo thống kê ước lượng tư thế giả lập.
 
-    Args:
-        start_time: Start of the statistics period.
-        end_time: End of the statistics period.
+    Tham số:
+        start_time: Thời điểm bắt đầu khoảng thống kê.
+        end_time: Thời điểm kết thúc khoảng thống kê.
 
-    Returns:
-        Dictionary with detection counts, rates, and distributions.
+    Trả về:
+        Dictionary với số lượng phát hiện, tỷ lệ, và phân bố.
     """
     _show_banner()
 

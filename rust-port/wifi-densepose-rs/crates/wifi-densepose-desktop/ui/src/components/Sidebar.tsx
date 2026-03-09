@@ -12,7 +12,7 @@ interface SidebarProps {
   onNavigate: (id: string) => void;
 }
 
-// Minimal SVG icons to avoid external dependency
+// Biểu tượng SVG tối giản để tránh phụ thuộc bên ngoài
 const ICONS: Record<string, ReactNode> = {
   dashboard: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,11 +53,11 @@ const ICONS: Record<string, ReactNode> = {
 };
 
 export const DEFAULT_NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: ICONS.dashboard },
-  { id: "nodes", label: "Nodes", icon: ICONS.nodes },
-  { id: "flash", label: "Flash", icon: ICONS.flash },
-  { id: "server", label: "Server", icon: ICONS.server },
-  { id: "settings", label: "Settings", icon: ICONS.settings },
+  { id: "dashboard", label: "Bảng Điều Khiển", icon: ICONS.dashboard },
+  { id: "nodes", label: "Nút Mạng", icon: ICONS.nodes },
+  { id: "flash", label: "Nạp Firmware", icon: ICONS.flash },
+  { id: "server", label: "Máy Chủ", icon: ICONS.server },
+  { id: "settings", label: "Cài Đặt", icon: ICONS.settings },
 ];
 
 export function Sidebar({ items, activeId, onNavigate }: SidebarProps) {
@@ -74,7 +74,7 @@ export function Sidebar({ items, activeId, onNavigate }: SidebarProps) {
         padding: "16px 0",
       }}
     >
-      {/* App title */}
+      {/* Tên ứng dụng */}
       <div
         style={{
           padding: "0 20px 20px",
@@ -87,7 +87,7 @@ export function Sidebar({ items, activeId, onNavigate }: SidebarProps) {
         RuView
       </div>
 
-      {/* Nav items */}
+      {/* Mục điều hướng */}
       <div style={{ display: "flex", flexDirection: "column", gap: "2px", flex: 1 }}>
         {items.map((item) => {
           const isActive = item.id === activeId;
@@ -137,7 +137,7 @@ export function Sidebar({ items, activeId, onNavigate }: SidebarProps) {
         })}
       </div>
 
-      {/* Version footer */}
+      {/* Chân trang phiên bản */}
       <div
         style={{
           padding: "12px 20px",

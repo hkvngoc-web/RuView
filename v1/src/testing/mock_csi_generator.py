@@ -1,13 +1,13 @@
 """
-Mock CSI data generator for testing and development.
+Trình tạo dữ liệu CSI giả lập cho kiểm thử và phát triển.
 
-This module provides synthetic CSI (Channel State Information) data generation
-for use in development and testing environments ONLY. The generated data mimics
-realistic WiFi CSI patterns including multipath effects, human motion signatures,
-and noise characteristics.
+Module này cung cấp khả năng tạo dữ liệu CSI (Thông tin Trạng thái Kênh) tổng hợp
+để sử dụng trong môi trường phát triển và kiểm thử CHỈ. Dữ liệu được tạo mô phỏng
+các mẫu CSI WiFi thực tế bao gồm hiệu ứng đa đường, chữ ký chuyển động của con người,
+và đặc tính nhiễu.
 
-WARNING: This module uses np.random intentionally for test data generation.
-Do NOT use this module in production data paths.
+CẢNH BÁO: Module này sử dụng np.random có chủ đích cho việc tạo dữ liệu kiểm thử.
+KHÔNG sử dụng module này trong đường dẫn dữ liệu sản xuất.
 """
 
 import logging
@@ -16,28 +16,28 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Banner displayed when mock mode is active
+# Biểu ngữ hiển thị khi chế độ giả lập đang hoạt động
 MOCK_MODE_BANNER = """
 ================================================================================
-  WARNING: MOCK MODE ACTIVE - Using synthetic CSI data
+  CẢNH BÁO: CHẾ ĐỘ GIẢ LẬP ĐANG HOẠT ĐỘNG - Sử dụng dữ liệu CSI tổng hợp
 
-  All CSI data is randomly generated and does NOT represent real WiFi signals.
-  For real pose estimation, configure hardware per docs/hardware-setup.md.
+  Tất cả dữ liệu CSI được tạo ngẫu nhiên và KHÔNG đại diện cho tín hiệu WiFi thực.
+  Để ước lượng tư thế thực, cấu hình phần cứng theo docs/hardware-setup.md.
 ================================================================================
 """
 
 
 class MockCSIGenerator:
-    """Generator for synthetic CSI data used in testing and development.
+    """Trình tạo dữ liệu CSI tổng hợp dùng trong kiểm thử và phát triển.
 
-    This class produces complex-valued CSI matrices that simulate realistic
-    WiFi channel characteristics including:
-    - Per-antenna and per-subcarrier amplitude/phase variation
-    - Simulated human movement signatures
-    - Configurable noise levels
-    - Temporal coherence across consecutive frames
+    Lớp này tạo ra ma trận CSI giá trị phức mô phỏng các đặc tính
+    kênh WiFi thực tế bao gồm:
+    - Biến đổi biên độ/pha theo từng anten và sóng mang con
+    - Chữ ký chuyển động con người mô phỏng
+    - Mức nhiễu có thể cấu hình
+    - Tính nhất quán thời gian giữa các khung hình liên tiếp
 
-    This is ONLY for testing. Production code must use real hardware data.
+    Đây CHỈ dành cho kiểm thử. Mã sản xuất phải sử dụng dữ liệu phần cứng thực.
     """
 
     def __init__(
@@ -49,15 +49,15 @@ class MockCSIGenerator:
         movement_freq: float = 0.5,
         movement_amplitude: float = 0.3,
     ):
-        """Initialize mock CSI generator.
+        """Khởi tạo trình tạo CSI giả lập.
 
-        Args:
-            num_subcarriers: Number of OFDM subcarriers to simulate
-            num_antennas: Number of antenna elements
-            num_samples: Number of temporal samples per frame
-            noise_level: Standard deviation of additive Gaussian noise
-            movement_freq: Frequency of simulated human movement (Hz)
-            movement_amplitude: Amplitude of movement-induced CSI variation
+        Tham số:
+            num_subcarriers: Số sóng mang con OFDM để mô phỏng
+            num_antennas: Số phần tử anten
+            num_samples: Số mẫu thời gian mỗi khung hình
+            noise_level: Độ lệch chuẩn của nhiễu Gauss cộng thêm
+            movement_freq: Tần số chuyển động con người mô phỏng (Hz)
+            movement_amplitude: Biên độ biến đổi CSI do chuyển động gây ra
         """
         self.num_subcarriers = num_subcarriers
         self.num_antennas = num_antennas
@@ -66,7 +66,7 @@ class MockCSIGenerator:
         self.movement_freq = movement_freq
         self.movement_amplitude = movement_amplitude
 
-        # Internal state for temporal coherence
+        # Trạng thái nội bộ cho tính nhất quán thời gian
         self._phase = 0.0
         self._frequency = 0.1
         self._amplitude_base = 1.0
@@ -74,21 +74,21 @@ class MockCSIGenerator:
         self._banner_shown = False
 
     def show_banner(self) -> None:
-        """Display the mock mode warning banner (once per session)."""
+        """Hiển thị biểu ngữ cảnh báo chế độ giả lập (một lần mỗi phiên)."""
         if not self._banner_shown:
             logger.warning(MOCK_MODE_BANNER)
             self._banner_shown = True
 
     def generate(self) -> np.ndarray:
-        """Generate a single frame of mock CSI data.
+        """Tạo một khung hình dữ liệu CSI giả lập.
 
-        Returns:
-            Complex-valued numpy array of shape
+        Trả về:
+            Mảng numpy giá trị phức có hình dạng
             (num_antennas, num_subcarriers, num_samples).
         """
         self.show_banner()
 
-        # Advance internal phase for temporal coherence
+        # Tiến pha nội bộ cho tính nhất quán thời gian
         self._phase += self._frequency
 
         time_axis = np.linspace(0, 1, self.num_samples)
@@ -100,21 +100,21 @@ class MockCSIGenerator:
 
         for antenna in range(self.num_antennas):
             for subcarrier in range(self.num_subcarriers):
-                # Base amplitude varies with antenna and subcarrier
+                # Biên độ cơ bản biến đổi theo anten và sóng mang con
                 amplitude = (
                     self._amplitude_base
                     * (1 + 0.2 * np.sin(2 * np.pi * subcarrier / self.num_subcarriers))
                     * (1 + 0.1 * antenna)
                 )
 
-                # Phase with spatial and frequency variation
+                # Pha với biến đổi không gian và tần số
                 phase_offset = (
                     self._phase
                     + 2 * np.pi * subcarrier / self.num_subcarriers
                     + np.pi * antenna / self.num_antennas
                 )
 
-                # Simulated human movement
+                # Chuyển động con người mô phỏng
                 movement = self.movement_amplitude * np.sin(
                     2 * np.pi * self.movement_freq * time_axis
                 )
@@ -122,7 +122,7 @@ class MockCSIGenerator:
                 signal_amplitude = amplitude * (1 + movement)
                 signal_phase = phase_offset + movement * 0.5
 
-                # Additive complex Gaussian noise
+                # Nhiễu Gauss phức cộng thêm
                 noise = np.random.normal(0, self.noise_level, self.num_samples) + 1j * np.random.normal(
                     0, self.noise_level, self.num_samples
                 )
@@ -134,16 +134,16 @@ class MockCSIGenerator:
         return csi_data
 
     def configure(self, config: Dict[str, Any]) -> None:
-        """Update generator parameters.
+        """Cập nhật tham số trình tạo.
 
-        Args:
-            config: Dictionary with optional keys:
-                - sampling_rate: Adjusts internal frequency
-                - noise_level: Sets noise standard deviation
-                - num_subcarriers: Updates subcarrier count
-                - num_antennas: Updates antenna count
-                - movement_freq: Updates simulated movement frequency
-                - movement_amplitude: Updates movement amplitude
+        Tham số:
+            config: Dictionary với các khóa tùy chọn:
+                - sampling_rate: Điều chỉnh tần số nội bộ
+                - noise_level: Đặt độ lệch chuẩn nhiễu
+                - num_subcarriers: Cập nhật số sóng mang con
+                - num_antennas: Cập nhật số anten
+                - movement_freq: Cập nhật tần số chuyển động mô phỏng
+                - movement_amplitude: Cập nhật biên độ chuyển động
         """
         if "sampling_rate" in config:
             self._frequency = config["sampling_rate"] / 1000.0
@@ -159,13 +159,13 @@ class MockCSIGenerator:
             self.movement_amplitude = config["movement_amplitude"]
 
     def get_router_info(self) -> Dict[str, Any]:
-        """Return mock router hardware information.
+        """Trả về thông tin phần cứng router giả lập.
 
-        Returns:
-            Dictionary mimicking router hardware info for testing.
+        Trả về:
+            Dictionary mô phỏng thông tin phần cứng router cho kiểm thử.
         """
         return {
-            "model": "Mock Router",
+            "model": "Router Giả lập",
             "firmware": "1.0.0-mock",
             "wifi_standard": "802.11ac",
             "antennas": self.num_antennas,

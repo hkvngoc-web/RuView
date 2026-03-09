@@ -1,4 +1,4 @@
-// Hardware Tab Component
+// Thành phần Tab Phần Cứng
 
 export class HardwareTab {
   constructor(containerElement) {
@@ -8,13 +8,13 @@ export class HardwareTab {
     this.isActive = false;
   }
 
-  // Initialize component
+  // Khởi tạo thành phần
   init() {
     this.setupAntennas();
     this.startCSISimulation();
   }
 
-  // Set up antenna interactions
+  // Thiết lập tương tác ăng-ten
   setupAntennas() {
     this.antennas = Array.from(this.container.querySelectorAll('.antenna'));
     
@@ -26,12 +26,12 @@ export class HardwareTab {
     });
   }
 
-  // Start CSI simulation
+  // Bắt đầu mô phỏng CSI
   startCSISimulation() {
-    // Initial update
+    // Cập nhật ban đầu
     this.updateCSIDisplay();
-    
-    // Set up periodic updates
+
+    // Thiết lập cập nhật định kỳ
     this.csiUpdateInterval = setInterval(() => {
       if (this.hasActiveAntennas()) {
         this.updateCSIDisplay();
@@ -39,24 +39,24 @@ export class HardwareTab {
     }, 1000);
   }
 
-  // Check if any antennas are active
+  // Kiểm tra xem có ăng-ten nào đang hoạt động không
   hasActiveAntennas() {
     return this.antennas.some(antenna => antenna.classList.contains('active'));
   }
 
-  // Update CSI display
+  // Cập nhật hiển thị CSI
   updateCSIDisplay() {
     const activeAntennas = this.antennas.filter(a => a.classList.contains('active'));
     const isActive = activeAntennas.length > 0;
     
-    // Get display elements
+    // Lấy các phần tử hiển thị
     const amplitudeFill = this.container.querySelector('.csi-fill.amplitude');
     const phaseFill = this.container.querySelector('.csi-fill.phase');
     const amplitudeValue = this.container.querySelector('.csi-row:first-child .csi-value');
     const phaseValue = this.container.querySelector('.csi-row:last-child .csi-value');
     
     if (!isActive) {
-      // Set to zero when no antennas active
+      // Đặt về không khi không có ăng-ten hoạt động
       if (amplitudeFill) amplitudeFill.style.width = '0%';
       if (phaseFill) phaseFill.style.width = '0%';
       if (amplitudeValue) amplitudeValue.textContent = '0.00';
@@ -64,19 +64,19 @@ export class HardwareTab {
       return;
     }
     
-    // Generate realistic CSI values based on active antennas
+    // Tạo giá trị CSI thực tế dựa trên ăng-ten đang hoạt động
     const txCount = activeAntennas.filter(a => a.classList.contains('tx')).length;
     const rxCount = activeAntennas.filter(a => a.classList.contains('rx')).length;
     
-    // Amplitude increases with more active antennas
+    // Biên độ tăng khi có nhiều ăng-ten hoạt động hơn
     const baseAmplitude = 0.3 + (txCount * 0.1) + (rxCount * 0.05);
     const amplitude = Math.min(0.95, baseAmplitude + (Math.random() * 0.1 - 0.05));
     
-    // Phase varies more with multiple antennas
+    // Pha biến thiên nhiều hơn khi có nhiều ăng-ten
     const phaseVariation = 0.5 + (activeAntennas.length * 0.1);
     const phase = 0.5 + Math.random() * phaseVariation;
     
-    // Update display
+    // Cập nhật hiển thị
     if (amplitudeFill) {
       amplitudeFill.style.width = `${amplitude * 100}%`;
       amplitudeFill.style.transition = 'width 0.5s ease';
@@ -95,7 +95,7 @@ export class HardwareTab {
       phaseValue.textContent = `${phase.toFixed(1)}π`;
     }
     
-    // Update antenna array visualization
+    // Cập nhật trực quan mảng ăng-ten
     this.updateAntennaArray(activeAntennas);
   }
 
@@ -107,7 +107,7 @@ export class HardwareTab {
     const txActive = activeAntennas.filter(a => a.classList.contains('tx')).length;
     const rxActive = activeAntennas.filter(a => a.classList.contains('rx')).length;
     
-    // Clear and rebuild using safe DOM methods to prevent XSS
+    // Xóa và xây dựng lại bằng phương pháp DOM an toàn để ngăn XSS
     arrayStatus.innerHTML = '';
     
     const createInfoDiv = (label, value) => {
@@ -127,12 +127,12 @@ export class HardwareTab {
       return div;
     };
     
-    arrayStatus.appendChild(createInfoDiv('Active TX:', `${txActive}/3`));
-    arrayStatus.appendChild(createInfoDiv('Active RX:', `${rxActive}/6`));
-    arrayStatus.appendChild(createInfoDiv('Signal Quality:', `${this.calculateSignalQuality(txActive, rxActive)}%`));
+    arrayStatus.appendChild(createInfoDiv('TX Hoạt động:', `${txActive}/3`));
+    arrayStatus.appendChild(createInfoDiv('RX Hoạt động:', `${rxActive}/6`));
+    arrayStatus.appendChild(createInfoDiv('Chất lượng tín hiệu:', `${this.calculateSignalQuality(txActive, rxActive)}%`));
   }
 
-  // Calculate signal quality based on active antennas
+  // Tính chất lượng tín hiệu dựa trên ăng-ten đang hoạt động
   calculateSignalQuality(txCount, rxCount) {
     if (txCount === 0 || rxCount === 0) return 0;
     
@@ -143,7 +143,7 @@ export class HardwareTab {
     return Math.round(quality);
   }
 
-  // Toggle all antennas
+  // Bật/tắt tất cả ăng-ten
   toggleAllAntennas(active) {
     this.antennas.forEach(antenna => {
       antenna.classList.toggle('active', active);
@@ -151,16 +151,16 @@ export class HardwareTab {
     this.updateCSIDisplay();
   }
 
-  // Reset antenna configuration
+  // Đặt lại cấu hình ăng-ten
   resetAntennas() {
-    // Set default configuration (all active)
+    // Đặt cấu hình mặc định (tất cả hoạt động)
     this.antennas.forEach(antenna => {
       antenna.classList.add('active');
     });
     this.updateCSIDisplay();
   }
 
-  // Clean up
+  // Dọn dẹp
   dispose() {
     if (this.csiUpdateInterval) {
       clearInterval(this.csiUpdateInterval);

@@ -13,7 +13,7 @@ import { ZoneLegend } from './ZoneLegend';
 
 const getLastUpdateSeconds = (timestamp?: number): string => {
   if (!timestamp) {
-    return 'N/A';
+    return 'Không có';
   }
 
   const ageMs = Date.now() - timestamp;
@@ -50,7 +50,7 @@ export const ZonesScreen = () => {
           }}
         >
           <ThemedText preset="labelLg" style={{ color: colors.textSecondary, marginBottom: 8 }}>
-            Floor Plan — Occupancy Heatmap
+            Sơ Đồ Tầng — Bản Đồ Nhiệt Phân Bố
           </ThemedText>
         </View>
 
@@ -71,8 +71,8 @@ export const ZonesScreen = () => {
             gap: spacing.md,
           }}
         >
-          <ThemedText preset="bodyMd">Occupancy: {personPositions.length} persons detected</ThemedText>
-          <ThemedText preset="bodyMd">Last update: {getLastUpdateSeconds(lastFrame?.timestamp)}</ThemedText>
+          <ThemedText preset="bodyMd">Phân bố: {personPositions.length} người phát hiện</ThemedText>
+          <ThemedText preset="bodyMd">Cập nhật cuối: {getLastUpdateSeconds(lastFrame?.timestamp)}</ThemedText>
         </View>
       </ScrollView>
     </ThemedView>

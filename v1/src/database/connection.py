@@ -1,5 +1,5 @@
 """
-Database connection management for WiFi-DensePose API
+Quản lý kết nối cơ sở dữ liệu cho WiFi-DensePose API
 """
 
 import asyncio
@@ -23,13 +23,13 @@ logger = get_logger(__name__)
 
 
 class DatabaseConnectionError(Exception):
-    """Database connection error."""
+    """Lỗi kết nối cơ sở dữ liệu."""
     pass
 
 
 class DatabaseManager:
-    """Database connection manager."""
-    
+    """Trình quản lý kết nối cơ sở dữ liệu."""
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self._async_engine = None
@@ -42,54 +42,54 @@ class DatabaseManager:
         self._max_overflow = settings.db_max_overflow
         self._pool_timeout = settings.db_pool_timeout
         self._pool_recycle = settings.db_pool_recycle
-    
+
     async def initialize(self):
-        """Initialize database connections."""
+        """Khởi tạo các kết nối cơ sở dữ liệu."""
         if self._initialized:
             return
-        
-        logger.info("Initializing database connections")
-        
+
+        logger.info("Đang khởi tạo kết nối cơ sở dữ liệu")
+
         try:
-            # Initialize PostgreSQL connections
+            # Khởi tạo kết nối PostgreSQL
             await self._initialize_postgresql()
-            
-            # Initialize Redis connection
+
+            # Khởi tạo kết nối Redis
             await self._initialize_redis()
-            
+
             self._initialized = True
-            logger.info("Database connections initialized successfully")
-            
+            logger.info("Kết nối cơ sở dữ liệu đã khởi tạo thành công")
+
         except Exception as e:
-            logger.error(f"Failed to initialize database connections: {e}")
-            raise DatabaseConnectionError(f"Database initialization failed: {e}")
-    
+            logger.error(f"Không thể khởi tạo kết nối cơ sở dữ liệu: {e}")
+            raise DatabaseConnectionError(f"Khởi tạo cơ sở dữ liệu thất bại: {e}")
+
     async def _initialize_postgresql(self):
-        """Initialize PostgreSQL connections with SQLite failsafe."""
+        """Khởi tạo kết nối PostgreSQL với cơ chế dự phòng SQLite."""
         postgresql_failed = False
-        
+
         try:
-            # Try PostgreSQL first
+            # Thử PostgreSQL trước
             await self._initialize_postgresql_primary()
-            logger.info("PostgreSQL connections initialized")
+            logger.info("Kết nối PostgreSQL đã khởi tạo")
             return
         except Exception as e:
             postgresql_failed = True
-            logger.error(f"PostgreSQL initialization failed: {e}")
-            
+            logger.error(f"Khởi tạo PostgreSQL thất bại: {e}")
+
             if not self.settings.enable_database_failsafe:
-                raise DatabaseConnectionError(f"PostgreSQL connection failed and failsafe disabled: {e}")
-            
-            logger.warning("Falling back to SQLite database")
-        
-        # Fallback to SQLite if PostgreSQL failed and failsafe is enabled
+                raise DatabaseConnectionError(f"Kết nối PostgreSQL thất bại và cơ chế dự phòng bị tắt: {e}")
+
+            logger.warning("Đang chuyển sang cơ sở dữ liệu SQLite dự phòng")
+
+        # Chuyển sang SQLite nếu PostgreSQL thất bại và cơ chế dự phòng được bật
         if postgresql_failed and self.settings.enable_database_failsafe:
             await self._initialize_sqlite_fallback()
-            logger.info("SQLite fallback database initialized")
-    
+            logger.info("Cơ sở dữ liệu SQLite dự phòng đã khởi tạo")
+
     async def _initialize_postgresql_primary(self):
-        """Initialize primary PostgreSQL connections."""
-        # Build database URL
+        """Khởi tạo kết nối PostgreSQL chính."""
+        # Xây dựng URL cơ sở dữ liệu
         if self.settings.database_url and "postgresql" in self.settings.database_url:
             db_url = self.settings.database_url
             async_db_url = self.settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
@@ -103,9 +103,9 @@ class DatabaseManager:
                 f"@{self.settings.db_host}:{self.settings.db_port}/{self.settings.db_name}"
             )
         else:
-            raise ValueError("PostgreSQL connection parameters not configured")
-        
-        # Create async engine (don't specify poolclass for async engines)
+            raise ValueError("Tham số kết nối PostgreSQL chưa được cấu hình")
+
+        # Tạo engine bất đồng bộ (không chỉ định poolclass cho engine bất đồng bộ)
         self._async_engine = create_async_engine(
             async_db_url,
             pool_size=self._connection_pool_size,
@@ -116,8 +116,8 @@ class DatabaseManager:
             echo=self.settings.db_echo,
             future=True,
         )
-        
-        # Create sync engine for migrations and admin tasks
+
+        # Tạo engine đồng bộ cho di cư và tác vụ quản trị
         self._sync_engine = create_engine(
             db_url,
             poolclass=QueuePool,
@@ -129,89 +129,89 @@ class DatabaseManager:
             echo=self.settings.db_echo,
             future=True,
         )
-        
-        # Create session factories
+
+        # Tạo các factory phiên làm việc
         self._async_session_factory = async_sessionmaker(
             self._async_engine,
             class_=AsyncSession,
             expire_on_commit=False,
         )
-        
+
         self._sync_session_factory = sessionmaker(
             self._sync_engine,
             expire_on_commit=False,
         )
-        
-        # Add connection event listeners
+
+        # Thêm trình lắng nghe sự kiện kết nối
         self._setup_connection_events()
-        
-        # Test connections
+
+        # Kiểm tra kết nối
         await self._test_postgresql_connection()
-    
+
     async def _initialize_sqlite_fallback(self):
-        """Initialize SQLite fallback database."""
+        """Khởi tạo cơ sở dữ liệu SQLite dự phòng."""
         import os
-        
-        # Ensure directory exists
+
+        # Đảm bảo thư mục tồn tại
         sqlite_path = self.settings.sqlite_fallback_path
         os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
-        
-        # Build SQLite URLs
+
+        # Xây dựng URL SQLite
         db_url = f"sqlite:///{sqlite_path}"
         async_db_url = f"sqlite+aiosqlite:///{sqlite_path}"
-        
-        # Create async engine for SQLite
+
+        # Tạo engine bất đồng bộ cho SQLite
         self._async_engine = create_async_engine(
             async_db_url,
             echo=self.settings.db_echo,
             future=True,
         )
-        
-        # Create sync engine for SQLite
+
+        # Tạo engine đồng bộ cho SQLite
         self._sync_engine = create_engine(
             db_url,
-            poolclass=NullPool,  # SQLite doesn't need connection pooling
+            poolclass=NullPool,  # SQLite không cần gộp kết nối
             echo=self.settings.db_echo,
             future=True,
         )
-        
-        # Create session factories
+
+        # Tạo các factory phiên làm việc
         self._async_session_factory = async_sessionmaker(
             self._async_engine,
             class_=AsyncSession,
             expire_on_commit=False,
         )
-        
+
         self._sync_session_factory = sessionmaker(
             self._sync_engine,
             expire_on_commit=False,
         )
-        
-        # Add connection event listeners
+
+        # Thêm trình lắng nghe sự kiện kết nối
         self._setup_connection_events()
-        
-        # Test SQLite connection
+
+        # Kiểm tra kết nối SQLite
         await self._test_sqlite_connection()
-    
+
     async def _test_sqlite_connection(self):
-        """Test SQLite connection."""
+        """Kiểm tra kết nối SQLite."""
         try:
             async with self._async_engine.begin() as conn:
                 result = await conn.execute(text("SELECT 1"))
-                result.fetchone()  # Don't await this - fetchone() is not async
-            logger.debug("SQLite connection test successful")
+                result.fetchone()  # Không dùng await - fetchone() không phải bất đồng bộ
+            logger.debug("Kiểm tra kết nối SQLite thành công")
         except Exception as e:
-            logger.error(f"SQLite connection test failed: {e}")
-            raise DatabaseConnectionError(f"SQLite connection test failed: {e}")
-    
+            logger.error(f"Kiểm tra kết nối SQLite thất bại: {e}")
+            raise DatabaseConnectionError(f"Kiểm tra kết nối SQLite thất bại: {e}")
+
     async def _initialize_redis(self):
-        """Initialize Redis connection with failsafe."""
+        """Khởi tạo kết nối Redis với cơ chế dự phòng."""
         if not self.settings.redis_enabled:
-            logger.info("Redis disabled, skipping initialization")
+            logger.info("Redis đã bị tắt, bỏ qua khởi tạo")
             return
-        
+
         try:
-            # Build Redis URL
+            # Xây dựng URL Redis
             if self.settings.redis_url:
                 redis_url = self.settings.redis_url
             else:
@@ -219,8 +219,8 @@ class DatabaseManager:
                     f"redis://{self.settings.redis_host}:{self.settings.redis_port}"
                     f"/{self.settings.redis_db}"
                 )
-            
-            # Create Redis client
+
+            # Tạo máy khách Redis
             self._redis_client = redis.from_url(
                 redis_url,
                 password=self.settings.redis_password,
@@ -231,230 +231,230 @@ class DatabaseManager:
                 socket_timeout=self.settings.redis_socket_timeout,
                 socket_connect_timeout=self.settings.redis_connect_timeout,
             )
-            
-            # Test Redis connection
+
+            # Kiểm tra kết nối Redis
             await self._test_redis_connection()
-            
-            logger.info("Redis connection initialized")
-            
+
+            logger.info("Kết nối Redis đã khởi tạo")
+
         except Exception as e:
-            logger.error(f"Failed to initialize Redis: {e}")
-            
+            logger.error(f"Không thể khởi tạo Redis: {e}")
+
             if self.settings.redis_required:
-                raise DatabaseConnectionError(f"Redis connection failed and is required: {e}")
+                raise DatabaseConnectionError(f"Kết nối Redis thất bại và là bắt buộc: {e}")
             elif self.settings.enable_redis_failsafe:
-                logger.warning("Redis initialization failed, continuing without Redis (failsafe enabled)")
+                logger.warning("Khởi tạo Redis thất bại, tiếp tục không có Redis (cơ chế dự phòng đã bật)")
                 self._redis_client = None
             else:
-                logger.warning("Redis initialization failed but not required, continuing without Redis")
+                logger.warning("Khởi tạo Redis thất bại nhưng không bắt buộc, tiếp tục không có Redis")
                 self._redis_client = None
-    
+
     def _setup_connection_events(self):
-        """Setup database connection event listeners."""
-        
+        """Thiết lập trình lắng nghe sự kiện kết nối cơ sở dữ liệu."""
+
         @event.listens_for(self._sync_engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
-            """Set database-specific settings on connection."""
+            """Thiết lập cài đặt đặc thù cơ sở dữ liệu khi kết nối."""
             if "sqlite" in str(self._sync_engine.url):
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
-        
+
         @event.listens_for(self._sync_engine, "checkout")
         def receive_checkout(dbapi_connection, connection_record, connection_proxy):
-            """Log connection checkout."""
-            logger.debug("Database connection checked out")
-        
+            """Ghi log khi lấy kết nối ra."""
+            logger.debug("Đã lấy kết nối cơ sở dữ liệu ra")
+
         @event.listens_for(self._sync_engine, "checkin")
         def receive_checkin(dbapi_connection, connection_record):
-            """Log connection checkin."""
-            logger.debug("Database connection checked in")
-        
+            """Ghi log khi trả kết nối vào."""
+            logger.debug("Đã trả kết nối cơ sở dữ liệu vào")
+
         @event.listens_for(self._sync_engine, "invalidate")
         def receive_invalidate(dbapi_connection, connection_record, exception):
-            """Handle connection invalidation."""
-            logger.warning(f"Database connection invalidated: {exception}")
-    
+            """Xử lý khi kết nối bị vô hiệu hóa."""
+            logger.warning(f"Kết nối cơ sở dữ liệu bị vô hiệu hóa: {exception}")
+
     async def _test_postgresql_connection(self):
-        """Test PostgreSQL connection."""
+        """Kiểm tra kết nối PostgreSQL."""
         try:
             async with self._async_engine.begin() as conn:
                 result = await conn.execute(text("SELECT 1"))
-                result.fetchone()  # Don't await this - fetchone() is not async
-            logger.debug("PostgreSQL connection test successful")
+                result.fetchone()  # Không dùng await - fetchone() không phải bất đồng bộ
+            logger.debug("Kiểm tra kết nối PostgreSQL thành công")
         except Exception as e:
-            logger.error(f"PostgreSQL connection test failed: {e}")
-            raise DatabaseConnectionError(f"PostgreSQL connection test failed: {e}")
-    
+            logger.error(f"Kiểm tra kết nối PostgreSQL thất bại: {e}")
+            raise DatabaseConnectionError(f"Kiểm tra kết nối PostgreSQL thất bại: {e}")
+
     async def _test_redis_connection(self):
-        """Test Redis connection."""
+        """Kiểm tra kết nối Redis."""
         if not self._redis_client:
             return
-        
+
         try:
             await self._redis_client.ping()
-            logger.debug("Redis connection test successful")
+            logger.debug("Kiểm tra kết nối Redis thành công")
         except Exception as e:
-            logger.error(f"Redis connection test failed: {e}")
+            logger.error(f"Kiểm tra kết nối Redis thất bại: {e}")
             if self.settings.redis_required:
-                raise DatabaseConnectionError(f"Redis connection test failed: {e}")
-    
+                raise DatabaseConnectionError(f"Kiểm tra kết nối Redis thất bại: {e}")
+
     @asynccontextmanager
     async def get_async_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """Get async database session."""
+        """Lấy phiên cơ sở dữ liệu bất đồng bộ."""
         if not self._initialized:
             await self.initialize()
-        
+
         if not self._async_session_factory:
-            raise DatabaseConnectionError("Async session factory not initialized")
-        
+            raise DatabaseConnectionError("Factory phiên bất đồng bộ chưa được khởi tạo")
+
         session = self._async_session_factory()
         try:
             yield session
             await session.commit()
         except Exception as e:
             await session.rollback()
-            logger.error(f"Database session error: {e}")
+            logger.error(f"Lỗi phiên cơ sở dữ liệu: {e}")
             raise
         finally:
             await session.close()
-    
+
     @asynccontextmanager
     async def get_sync_session(self) -> Session:
-        """Get sync database session."""
+        """Lấy phiên cơ sở dữ liệu đồng bộ."""
         if not self._initialized:
             await self.initialize()
-        
+
         if not self._sync_session_factory:
-            raise DatabaseConnectionError("Sync session factory not initialized")
-        
+            raise DatabaseConnectionError("Factory phiên đồng bộ chưa được khởi tạo")
+
         session = self._sync_session_factory()
         try:
             yield session
             session.commit()
         except Exception as e:
             session.rollback()
-            logger.error(f"Database session error: {e}")
+            logger.error(f"Lỗi phiên cơ sở dữ liệu: {e}")
             raise
         finally:
             session.close()
-    
+
     async def get_redis_client(self) -> Optional[redis.Redis]:
-        """Get Redis client."""
+        """Lấy máy khách Redis."""
         if not self._initialized:
             await self.initialize()
-        
+
         return self._redis_client
-    
+
     async def health_check(self) -> Dict[str, Any]:
-        """Perform database health check."""
+        """Thực hiện kiểm tra sức khỏe cơ sở dữ liệu."""
         health_status = {
-            "database": {"status": "unknown", "details": {}},
-            "redis": {"status": "unknown", "details": {}},
-            "overall": "unknown"
+            "database": {"status": "không xác định", "details": {}},
+            "redis": {"status": "không xác định", "details": {}},
+            "overall": "không xác định"
         }
-        
-        # Check Database (PostgreSQL or SQLite)
+
+        # Kiểm tra cơ sở dữ liệu (PostgreSQL hoặc SQLite)
         try:
             start_time = datetime.utcnow()
             async with self.get_async_session() as session:
                 result = await session.execute(text("SELECT 1"))
-                result.fetchone()  # Don't await this - fetchone() is not async
-            
+                result.fetchone()  # Không dùng await - fetchone() không phải bất đồng bộ
+
             response_time = (datetime.utcnow() - start_time).total_seconds()
-            
-            # Determine database type and status
+
+            # Xác định loại cơ sở dữ liệu và trạng thái
             is_sqlite = self.is_using_sqlite_fallback()
-            db_type = "sqlite_fallback" if is_sqlite else "postgresql"
-            
+            db_type = "sqlite_dự_phòng" if is_sqlite else "postgresql"
+
             details = {
                 "type": db_type,
                 "response_time_ms": round(response_time * 1000, 2),
             }
-            
-            # Add pool info for PostgreSQL
+
+            # Thêm thông tin pool cho PostgreSQL
             if not is_sqlite and hasattr(self._async_engine, 'pool'):
                 details.update({
                     "pool_size": self._async_engine.pool.size(),
                     "checked_out": self._async_engine.pool.checkedout(),
                     "overflow": self._async_engine.pool.overflow(),
                 })
-            
-            # Add failsafe info
+
+            # Thêm thông tin cơ chế dự phòng
             if is_sqlite:
                 details["failsafe_active"] = True
                 details["fallback_path"] = self.settings.sqlite_fallback_path
-            
+
             health_status["database"] = {
-                "status": "healthy",
+                "status": "khỏe mạnh",
                 "details": details
             }
         except Exception as e:
             health_status["database"] = {
-                "status": "unhealthy",
+                "status": "không khỏe",
                 "details": {"error": str(e)}
             }
-        
-        # Check Redis
+
+        # Kiểm tra Redis
         if self._redis_client:
             try:
                 start_time = datetime.utcnow()
                 await self._redis_client.ping()
                 response_time = (datetime.utcnow() - start_time).total_seconds()
-                
+
                 info = await self._redis_client.info()
-                
+
                 health_status["redis"] = {
-                    "status": "healthy",
+                    "status": "khỏe mạnh",
                     "details": {
                         "response_time_ms": round(response_time * 1000, 2),
                         "connected_clients": info.get("connected_clients", 0),
-                        "used_memory": info.get("used_memory_human", "unknown"),
+                        "used_memory": info.get("used_memory_human", "không xác định"),
                         "uptime": info.get("uptime_in_seconds", 0),
                     }
                 }
             except Exception as e:
                 health_status["redis"] = {
-                    "status": "unhealthy",
+                    "status": "không khỏe",
                     "details": {"error": str(e)}
                 }
         else:
             health_status["redis"] = {
-                "status": "disabled",
-                "details": {"message": "Redis not enabled"}
+                "status": "đã tắt",
+                "details": {"message": "Redis chưa được bật"}
             }
-        
-        # Determine overall status
-        database_healthy = health_status["database"]["status"] == "healthy"
+
+        # Xác định trạng thái tổng thể
+        database_healthy = health_status["database"]["status"] == "khỏe mạnh"
         redis_healthy = (
-            health_status["redis"]["status"] in ["healthy", "disabled"] or
+            health_status["redis"]["status"] in ["khỏe mạnh", "đã tắt"] or
             not self.settings.redis_required
         )
-        
-        # Check if using failsafe modes
+
+        # Kiểm tra xem có đang sử dụng chế độ dự phòng không
         using_sqlite_fallback = self.is_using_sqlite_fallback()
         redis_unavailable = not self.is_redis_available() and self.settings.redis_enabled
-        
+
         if database_healthy and redis_healthy:
             if using_sqlite_fallback or redis_unavailable:
-                health_status["overall"] = "degraded"  # Working but using failsafe
+                health_status["overall"] = "suy giảm"  # Hoạt động nhưng đang dùng cơ chế dự phòng
             else:
-                health_status["overall"] = "healthy"
+                health_status["overall"] = "khỏe mạnh"
         elif database_healthy:
-            health_status["overall"] = "degraded"
+            health_status["overall"] = "suy giảm"
         else:
-            health_status["overall"] = "unhealthy"
-        
+            health_status["overall"] = "không khỏe"
+
         return health_status
-    
+
     async def get_connection_stats(self) -> Dict[str, Any]:
-        """Get database connection statistics."""
+        """Lấy thống kê kết nối cơ sở dữ liệu."""
         stats = {
             "postgresql": {},
             "redis": {}
         }
-        
-        # PostgreSQL stats
+
+        # Thống kê PostgreSQL
         if self._async_engine:
             pool = self._async_engine.pool
             stats["postgresql"] = {
@@ -465,8 +465,8 @@ class DatabaseManager:
                 "total_connections": pool.size() + pool.overflow(),
                 "available_connections": pool.size() - pool.checkedout(),
             }
-        
-        # Redis stats
+
+        # Thống kê Redis
         if self._redis_client:
             try:
                 info = await self._redis_client.info()
@@ -478,74 +478,74 @@ class DatabaseManager:
                 }
             except Exception as e:
                 stats["redis"] = {"error": str(e)}
-        
+
         return stats
-    
+
     async def close_connections(self):
-        """Close all database connections."""
-        logger.info("Closing database connections")
-        
-        # Close PostgreSQL connections
+        """Đóng tất cả kết nối cơ sở dữ liệu."""
+        logger.info("Đang đóng kết nối cơ sở dữ liệu")
+
+        # Đóng kết nối PostgreSQL
         if self._async_engine:
             await self._async_engine.dispose()
-            logger.debug("Async PostgreSQL engine disposed")
-        
+            logger.debug("Đã giải phóng engine PostgreSQL bất đồng bộ")
+
         if self._sync_engine:
             self._sync_engine.dispose()
-            logger.debug("Sync PostgreSQL engine disposed")
-        
-        # Close Redis connection
+            logger.debug("Đã giải phóng engine PostgreSQL đồng bộ")
+
+        # Đóng kết nối Redis
         if self._redis_client:
             await self._redis_client.close()
-            logger.debug("Redis connection closed")
-        
+            logger.debug("Đã đóng kết nối Redis")
+
         self._initialized = False
-        logger.info("Database connections closed")
-    
+        logger.info("Đã đóng kết nối cơ sở dữ liệu")
+
     def is_using_sqlite_fallback(self) -> bool:
-        """Check if currently using SQLite fallback database."""
+        """Kiểm tra xem có đang sử dụng cơ sở dữ liệu SQLite dự phòng không."""
         if not self._async_engine:
             return False
         return "sqlite" in str(self._async_engine.url)
-    
+
     def is_redis_available(self) -> bool:
-        """Check if Redis is available."""
+        """Kiểm tra xem Redis có sẵn sàng không."""
         return self._redis_client is not None
-    
+
     async def test_connection(self) -> bool:
-        """Test database connection for CLI validation."""
+        """Kiểm tra kết nối cơ sở dữ liệu cho xác thực CLI."""
         try:
             if not self._initialized:
                 await self.initialize()
-            
-            # Test database connection (PostgreSQL or SQLite)
+
+            # Kiểm tra kết nối cơ sở dữ liệu (PostgreSQL hoặc SQLite)
             async with self.get_async_session() as session:
                 result = await session.execute(text("SELECT 1"))
-                result.fetchone()  # Don't await this - fetchone() is not async
-            
-            # Test Redis connection if enabled
+                result.fetchone()  # Không dùng await - fetchone() không phải bất đồng bộ
+
+            # Kiểm tra kết nối Redis nếu được bật
             if self._redis_client:
                 await self._redis_client.ping()
-            
+
             return True
         except Exception as e:
-            logger.error(f"Database connection test failed: {e}")
+            logger.error(f"Kiểm tra kết nối cơ sở dữ liệu thất bại: {e}")
             return False
-    
+
     async def reset_connections(self):
-        """Reset all database connections."""
-        logger.info("Resetting database connections")
+        """Đặt lại tất cả kết nối cơ sở dữ liệu."""
+        logger.info("Đang đặt lại kết nối cơ sở dữ liệu")
         await self.close_connections()
         await self.initialize()
-        logger.info("Database connections reset")
+        logger.info("Đã đặt lại kết nối cơ sở dữ liệu")
 
 
-# Global database manager instance
+# Thể hiện toàn cục của trình quản lý cơ sở dữ liệu
 _db_manager: Optional[DatabaseManager] = None
 
 
 def get_database_manager(settings: Settings) -> DatabaseManager:
-    """Get database manager instance."""
+    """Lấy thể hiện trình quản lý cơ sở dữ liệu."""
     global _db_manager
     if _db_manager is None:
         _db_manager = DatabaseManager(settings)
@@ -553,85 +553,85 @@ def get_database_manager(settings: Settings) -> DatabaseManager:
 
 
 async def get_async_session(settings: Settings) -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get async database session."""
+    """Phụ thuộc để lấy phiên cơ sở dữ liệu bất đồng bộ."""
     db_manager = get_database_manager(settings)
     async with db_manager.get_async_session() as session:
         yield session
 
 
 async def get_redis_client(settings: Settings) -> Optional[redis.Redis]:
-    """Dependency to get Redis client."""
+    """Phụ thuộc để lấy máy khách Redis."""
     db_manager = get_database_manager(settings)
     return await db_manager.get_redis_client()
 
 
 class DatabaseHealthCheck:
-    """Database health check utility."""
-    
+    """Tiện ích kiểm tra sức khỏe cơ sở dữ liệu."""
+
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
-    
+
     async def check_postgresql(self) -> Dict[str, Any]:
-        """Check PostgreSQL health."""
+        """Kiểm tra sức khỏe PostgreSQL."""
         try:
             start_time = datetime.utcnow()
             async with self.db_manager.get_async_session() as session:
                 result = await session.execute(text("SELECT version()"))
-                version = result.fetchone()[0]  # Don't await this - fetchone() is not async
-            
+                version = result.fetchone()[0]  # Không dùng await - fetchone() không phải bất đồng bộ
+
             response_time = (datetime.utcnow() - start_time).total_seconds()
-            
+
             return {
-                "status": "healthy",
+                "status": "khỏe mạnh",
                 "version": version,
                 "response_time_ms": round(response_time * 1000, 2),
             }
         except Exception as e:
             return {
-                "status": "unhealthy",
+                "status": "không khỏe",
                 "error": str(e),
             }
-    
+
     async def check_redis(self) -> Dict[str, Any]:
-        """Check Redis health."""
+        """Kiểm tra sức khỏe Redis."""
         redis_client = await self.db_manager.get_redis_client()
-        
+
         if not redis_client:
             return {
-                "status": "disabled",
-                "message": "Redis not configured"
+                "status": "đã tắt",
+                "message": "Redis chưa được cấu hình"
             }
-        
+
         try:
             start_time = datetime.utcnow()
             pong = await redis_client.ping()
             response_time = (datetime.utcnow() - start_time).total_seconds()
-            
+
             info = await redis_client.info("server")
-            
+
             return {
-                "status": "healthy",
+                "status": "khỏe mạnh",
                 "ping": pong,
-                "version": info.get("redis_version", "unknown"),
+                "version": info.get("redis_version", "không xác định"),
                 "response_time_ms": round(response_time * 1000, 2),
             }
         except Exception as e:
             return {
-                "status": "unhealthy",
+                "status": "không khỏe",
                 "error": str(e),
             }
-    
+
     async def full_health_check(self) -> Dict[str, Any]:
-        """Perform full database health check."""
+        """Thực hiện kiểm tra sức khỏe cơ sở dữ liệu đầy đủ."""
         postgresql_health = await self.check_postgresql()
         redis_health = await self.check_redis()
-        
-        overall_status = "healthy"
-        if postgresql_health["status"] != "healthy":
-            overall_status = "unhealthy"
-        elif redis_health["status"] == "unhealthy":
-            overall_status = "degraded"
-        
+
+        overall_status = "khỏe mạnh"
+        if postgresql_health["status"] != "khỏe mạnh":
+            overall_status = "không khỏe"
+        elif redis_health["status"] == "không khỏe":
+            overall_status = "suy giảm"
+
         return {
             "overall_status": overall_status,
             "postgresql": postgresql_health,

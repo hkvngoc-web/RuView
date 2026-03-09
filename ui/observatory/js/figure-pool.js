@@ -131,7 +131,7 @@ export class FigurePool {
   /** @returns {Array} Mảng các đối tượng hình */
   get figures() { return this._figures; }
 
-  // ---- Construction ----
+  // ---- Xây dựng ----
 
   _build() {
     for (let f = 0; f < this._maxFigures; f++) {
@@ -145,7 +145,7 @@ export class FigurePool {
     const wireColor = new THREE.Color(this._settings.wireColor);
     const jointColor = new THREE.Color(this._settings.jointColor);
 
-    // Joints (17 COCO keypoints)
+    // Khớp (17 điểm COCO)
     const joints = [];
     for (let i = 0; i < 17; i++) {
       const isNose = i === 0;
@@ -163,7 +163,7 @@ export class FigurePool {
       group.add(sphere);
       joints.push(sphere);
 
-      // Halo glow on key joints
+      // Phát sáng hào quang trên khớp chính
       if ([5, 6, 9, 10, 11, 12, 15, 16].includes(i)) {
         const haloGeo = new THREE.SphereGeometry(size * 1.3, 8, 8);
         const haloMat = new THREE.MeshBasicMaterial({
@@ -183,13 +183,13 @@ export class FigurePool {
       }
     }
 
-    // Bones — tapered thickness
+    // Xương — độ dày thuôn dần
     const bones = [];
     for (const [a, b] of SKELETON_PAIRS) {
       const taperKey = `${Math.min(a, b)}-${Math.max(a, b)}`;
       const taper = BONE_TAPER.get(taperKey) || 1.0;
       const thick = this._settings.boneThick * taper;
-      // Top radius thicker than bottom for natural taper along bone length
+      // Bán kính trên dày hơn dưới cho độ thuôn tự nhiên dọc xương
       const topRadius = thick;
       const botRadius = thick * 0.65;
       const geo = new THREE.CylinderGeometry(topRadius, botRadius, 1, 8, 1);
@@ -205,7 +205,7 @@ export class FigurePool {
       bones.push({ mesh, a, b, taper });
     }
 
-    // Body segments (volume cylinders and head sphere)
+    // Phân đoạn cơ thể (hình trụ thể tích và hình cầu đầu)
     const bodySegments = [];
     for (const seg of BODY_SEGMENT_DEFS) {
       const geo = seg.isHead
@@ -225,7 +225,7 @@ export class FigurePool {
       bodySegments.push({ mesh, mat, a: seg.joints[0], b: seg.joints[1], isHead: seg.isHead });
     }
 
-    // Aura cylinder
+    // Hình trụ hào quang
     const auraGeo = new THREE.CylinderGeometry(0.4, 0.3, 1.7, 16, 1, true);
     const auraMat = new THREE.MeshBasicMaterial({
       color: wireColor, transparent: true, opacity: 0,
@@ -235,12 +235,12 @@ export class FigurePool {
     aura.position.y = 1;
     group.add(aura);
 
-    // Per-figure point light
+    // Đèn điểm theo hình
     const personLight = new THREE.PointLight(wireColor, 0, 6);
     personLight.position.y = 1;
     group.add(personLight);
 
-    // Interpolation state: previous positions for smooth lerp and secondary motion
+    // Trạng thái nội suy: vị trí trước đó cho lerp mượt và chuyển động thứ cấp
     const prevPositions = [];
     const velocities = [];
     for (let i = 0; i < 17; i++) {
@@ -258,12 +258,12 @@ export class FigurePool {
     };
   }
 
-  // ---- Per-frame update ----
+  // ---- Cập nhật mỗi khung hình ----
 
   /**
-   * Update all figures based on current data frame.
-   * @param {object} data - Current sensing data with persons[], vital_signs, classification
-   * @param {number} elapsed - Elapsed time in seconds
+   * Cập nhật tất cả hình dựa trên khung dữ liệu hiện tại.
+   * @param {object} data - Dữ liệu cảm biến hiện tại với persons[], vital_signs, classification
+   * @param {number} elapsed - Thời gian đã trôi qua tính bằng giây
    */
   update(data, elapsed) {
     const persons = data?.persons || [];
@@ -291,40 +291,40 @@ export class FigurePool {
   }
 
   /**
-   * Apply keypoints to a figure with smooth interpolation, pulsation, and secondary motion.
-   * @param {object} fig - Figure object from the pool
-   * @param {Array} kps - 17-element array of [x,y,z] keypoint positions
-   * @param {number} breathPulse - Current breathing pulse value
-   * @param {Array} pos - Person world position [x,y,z]
-   * @param {number} elapsed - Elapsed time for pulsation effects
-   * @param {string} pose - Current pose name for aura adaptation
+   * Áp dụng điểm khớp vào hình với nội suy mượt, nhịp đập, và chuyển động thứ cấp.
+   * @param {object} fig - Đối tượng hình từ nhóm
+   * @param {Array} kps - Mảng 17 phần tử của vị trí điểm khớp [x,y,z]
+   * @param {number} breathPulse - Giá trị nhịp thở hiện tại
+   * @param {Array} pos - Vị trí thế giới của người [x,y,z]
+   * @param {number} elapsed - Thời gian đã trôi qua cho hiệu ứng nhịp đập
+   * @param {string} pose - Tên tư thế hiện tại cho thích ứng hào quang
    */
   applyKeypoints(fig, kps, breathPulse, pos, elapsed = 0, pose = 'standing') {
     const lerpFactor = fig._initialized ? 0.18 : 1.0;
 
-    // Joints with smooth interpolation and secondary motion
+    // Khớp với nội suy mượt và chuyển động thứ cấp
     for (let i = 0; i < 17 && i < kps.length; i++) {
       const j = fig.joints[i];
       _vecTarget.set(kps[i][0], kps[i][1], kps[i][2]);
 
       if (fig._initialized) {
-        // Compute velocity for overshoot
+        // Tính vận tốc cho vượt quá
         const prev = fig.prevPositions[i];
         const vel = fig.velocities[i];
 
-        // Smooth lerp with per-joint delay
+        // Lerp mượt với độ trễ theo khớp
         const delay = SECONDARY_DELAY[i];
         const jointLerp = lerpFactor + delay;
         j.position.lerp(_vecTarget, Math.min(jointLerp, 0.95));
 
-        // Apply subtle overshoot based on velocity change
+        // Áp dụng vượt quá nhẹ dựa trên thay đổi vận tốc
         const overshoot = OVERSHOOT[i];
         vel.subVectors(j.position, prev).multiplyScalar(overshoot);
         j.position.add(vel);
 
         prev.copy(j.position);
       } else {
-        // First frame: snap to position
+        // Khung hình đầu tiên: nhảy đến vị trí
         j.position.copy(_vecTarget);
         fig.prevPositions[i].copy(_vecTarget);
         fig.velocities[i].set(0, 0, 0);
@@ -332,12 +332,12 @@ export class FigurePool {
 
       j.material.opacity = 0.95;
 
-      // Joint pulsation synced with breathing
+      // Nhịp đập khớp đồng bộ với hơi thở
       const pulseFactor = 1.0 + Math.abs(breathPulse) * 8.0;
       j.material.emissiveIntensity = 0.35 * pulseFactor;
 
       const baseScale = this._settings.jointSize / 0.04;
-      // Subtle size pulsation on breathing
+      // Nhịp đập kích thước nhẹ theo hơi thở
       const pulseScale = baseScale * (1.0 + Math.abs(breathPulse) * 3.0);
       j.scale.setScalar(pulseScale);
 
@@ -351,7 +351,7 @@ export class FigurePool {
 
     fig._initialized = true;
 
-    // Bones with tapered thickness
+    // Xương với độ dày thuôn dần
     for (const bone of fig.bones) {
       const pA = kps[bone.a], pB = kps[bone.b];
       if (pA && pB) {
@@ -359,7 +359,7 @@ export class FigurePool {
         _vecTo.set(pB[0], pB[1], pB[2]);
         const len = _vecFrom.distanceTo(_vecTo);
 
-        // Use interpolated joint positions for smooth bone movement
+        // Sử dụng vị trí khớp nội suy cho chuyển động xương mượt
         if (fig._initialized) {
           const jA = fig.joints[bone.a];
           const jB = fig.joints[bone.b];
@@ -377,7 +377,7 @@ export class FigurePool {
       }
     }
 
-    // Body segments
+    // Phân đoạn cơ thể
     for (const seg of fig.bodySegments) {
       if (seg.isHead) {
         const headJoint = fig.joints[seg.a];
@@ -397,18 +397,18 @@ export class FigurePool {
       seg.mat.emissiveIntensity = 0.1 + Math.abs(breathPulse) * 0.4;
     }
 
-    // Aura — adapt shape to pose
+    // Hào quang — thích ứng hình dạng theo tư thế
     const hipY = (fig.joints[11].position.y + fig.joints[12].position.y) / 2;
     const cx = (fig.joints[11].position.x + fig.joints[12].position.x) / 2;
     const cz = (fig.joints[11].position.z + fig.joints[12].position.z) / 2;
     fig.aura.position.set(cx, hipY, cz);
     fig.auraMat.opacity = this._settings.aura + Math.abs(breathPulse) * 0.8;
 
-    // Pose-adaptive aura: compute from actual keypoint spread
+    // Hào quang thích ứng tư thế: tính từ phạm vi điểm khớp thực tế
     const auraShape = this._computeAuraShape(fig, pose, breathPulse);
     fig.aura.scale.set(auraShape.scaleX, auraShape.scaleY, auraShape.scaleZ);
 
-    // Person light
+    // Đèn người
     fig.personLight.position.set(pos[0], 1.2, pos[2]);
     fig.personLight.intensity = this._settings.glow * 0.4;
 
@@ -416,11 +416,11 @@ export class FigurePool {
   }
 
   /**
-   * Compute pose-adaptive aura shape based on actual keypoint spread.
-   * Wider for exercise/spread poses, narrower for crouching/compact poses.
+   * Tính hình dạng hào quang thích ứng tư thế dựa trên phạm vi điểm khớp thực tế.
+   * Rộng hơn cho tập thể dục/tư thế mở rộng, hẹp hơn cho ngồi xổm/tư thế co gọn.
    */
   _computeAuraShape(fig, pose, breathPulse) {
-    // Measure horizontal spread from shoulders and hips
+    // Đo phạm vi ngang từ vai và hông
     const lShoulder = fig.joints[5].position;
     const rShoulder = fig.joints[6].position;
     const lHip = fig.joints[11].position;
@@ -429,7 +429,7 @@ export class FigurePool {
     const lAnkle = fig.joints[15].position;
     const rAnkle = fig.joints[16].position;
 
-    // Horizontal spread (X-Z plane)
+    // Phạm vi ngang (mặt phẳng X-Z)
     const shoulderWidth = Math.sqrt(
       (rShoulder.x - lShoulder.x) ** 2 +
       (rShoulder.z - lShoulder.z) ** 2
@@ -440,19 +440,19 @@ export class FigurePool {
     );
     const maxWidth = Math.max(shoulderWidth, ankleWidth);
 
-    // Vertical extent
+    // Phạm vi dọc
     const headY = nose.y;
     const footY = Math.min(lAnkle.y, rAnkle.y);
     const height = headY - footY;
 
-    // Normalize to base aura dimensions
+    // Chuẩn hoá theo kích thước hào quang cơ sở
     const baseWidth = 0.44; // default shoulder width
     const baseHeight = 1.7; // default standing height
 
     const widthRatio = Math.max(0.6, Math.min(2.0, maxWidth / baseWidth));
     const heightRatio = Math.max(0.4, Math.min(1.3, height / baseHeight));
 
-    // Breathing modulation
+    // Điều chỉnh hơi thở
     const breathMod = 1 + breathPulse * 2;
 
     return {
@@ -463,8 +463,8 @@ export class FigurePool {
   }
 
   /**
-   * Hide a figure by fading all materials to invisible.
-   * @param {object} fig - Figure object to hide
+   * Ẩn hình bằng cách làm mờ tất cả vật liệu thành trong suốt.
+   * @param {object} fig - Đối tượng hình cần ẩn
    */
   hide(fig) {
     for (const j of fig.joints) {
@@ -480,7 +480,7 @@ export class FigurePool {
   }
 
   /**
-   * Apply wire and joint colors to all figures in the pool.
+   * Áp dụng màu dây và khớp cho tất cả hình trong nhóm.
    * @param {THREE.Color} wireColor
    * @param {THREE.Color} jointColor
    */

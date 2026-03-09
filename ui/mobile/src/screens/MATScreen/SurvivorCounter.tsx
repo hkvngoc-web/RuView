@@ -75,14 +75,14 @@ export const SurvivorCounter = ({ survivors }: SurvivorCounterProps) => {
   return (
     <View style={{ paddingBottom: spacing.md }}>
       <ThemedText preset="displayLg" style={{ color: colors.textPrimary }}>
-        {total} SURVIVORS DETECTED
+        {total} NGƯỜI SỐNG SÓT PHÁT HIỆN
       </ThemedText>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm }}>
-        <BreakoutChip label="Immediate" value={breakdown.immediate} color={colors.danger} />
-        <BreakoutChip label="Delayed" value={breakdown.delayed} color={colors.warn} />
-        <BreakoutChip label="Minimal" value={breakdown.minor} color={colors.success} />
-        <BreakoutChip label="Expectant" value={breakdown.deceased} color={colors.textSecondary} />
-        <BreakoutChip label="Unknown" value={breakdown.unknown} color="#a0aec0" />
+        <BreakoutChip label="Tức thì" value={breakdown.immediate} color={colors.danger} />
+        <BreakoutChip label="Trì hoãn" value={breakdown.delayed} color={colors.warn} />
+        <BreakoutChip label="Tối thiểu" value={breakdown.minor} color={colors.success} />
+        <BreakoutChip label="Dự kiến" value={breakdown.deceased} color={colors.textSecondary} />
+        <BreakoutChip label="Không rõ" value={breakdown.unknown} color="#a0aec0" />
       </View>
     </View>
   );

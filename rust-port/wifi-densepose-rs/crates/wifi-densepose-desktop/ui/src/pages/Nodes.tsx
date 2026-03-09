@@ -27,7 +27,7 @@ export function Nodes() {
         }}
       >
         <div>
-          <h1 className="heading-lg" style={{ margin: 0 }}>Nodes</h1>
+          <h1 className="heading-lg" style={{ margin: 0 }}>Nút Mạng</h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
             {nodes.length} node{nodes.length !== 1 ? "s" : ""} in registry
           </p>
@@ -44,7 +44,7 @@ export function Nodes() {
             fontWeight: 600,
           }}
         >
-          {isScanning ? "Scanning..." : "Refresh"}
+          {isScanning ? "Scanning..." : "Làm Mới"}
         </button>
       </div>
 
@@ -78,7 +78,7 @@ export function Nodes() {
             fontSize: 13,
           }}
         >
-          {isScanning ? "Scanning for nodes..." : "No nodes found. Run a scan to discover ESP32 devices."}
+          {isScanning ? "Đang quét tìm nút..." : "Không tìm thấy nút nào. Chạy quét để phát hiện thiết bị ESP32."}
         </div>
       ) : (
         <div
@@ -92,12 +92,12 @@ export function Nodes() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                <Th>Status</Th>
+                <Th>Trạng thái</Th>
                 <Th>MAC</Th>
                 <Th>IP</Th>
                 <Th>Firmware</Th>
                 <Th>Chip</Th>
-                <Th>Last Seen</Th>
+                <Th>Lần thấy cuối</Th>
               </tr>
             </thead>
             <tbody>
@@ -219,11 +219,11 @@ function ExpandedDetails({ node }: { node: Node }) {
         fontSize: 12,
       }}
     >
-      <DetailField label="Hostname" value={node.hostname ?? "--"} />
-      <DetailField label="Node ID" value={String(node.node_id)} mono />
-      <DetailField label="Mesh Role" value={node.mesh_role} />
+      <DetailField label="Tên máy" value={node.hostname ?? "--"} />
+      <DetailField label="ID Nút" value={String(node.node_id)} mono />
+      <DetailField label="Vai trò lưới" value={node.mesh_role} />
       <DetailField
-        label="TDM Slot"
+        label="Khe TDM"
         value={
           node.tdm_slot != null && node.tdm_total != null
             ? `${node.tdm_slot} / ${node.tdm_total}`
@@ -232,12 +232,12 @@ function ExpandedDetails({ node }: { node: Node }) {
         mono
       />
       <DetailField
-        label="Edge Tier"
+        label="Tầng Biên"
         value={node.edge_tier != null ? String(node.edge_tier) : "--"}
         mono
       />
       <DetailField
-        label="Uptime"
+        label="Thời gian hoạt động"
         value={
           node.uptime_secs != null
             ? `${Math.floor(node.uptime_secs / 3600)}h ${Math.floor((node.uptime_secs % 3600) / 60)}m`
@@ -245,9 +245,9 @@ function ExpandedDetails({ node }: { node: Node }) {
         }
         mono
       />
-      <DetailField label="Discovery" value={node.discovery_method} />
+      <DetailField label="Phát hiện" value={node.discovery_method} />
       <DetailField
-        label="Capabilities"
+        label="Khả năng"
         value={
           node.capabilities
             ? Object.entries(node.capabilities)
@@ -257,8 +257,8 @@ function ExpandedDetails({ node }: { node: Node }) {
             : "--"
         }
       />
-      {node.friendly_name && <DetailField label="Name" value={node.friendly_name} />}
-      {node.notes && <DetailField label="Notes" value={node.notes} />}
+      {node.friendly_name && <DetailField label="Tên" value={node.friendly_name} />}
+      {node.notes && <DetailField label="Ghi chú" value={node.notes} />}
     </div>
   );
 }

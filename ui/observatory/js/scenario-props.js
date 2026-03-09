@@ -1,14 +1,14 @@
 /**
- * ScenarioProps — Scenario-specific room furniture and props
+ * ĐạoCụKịchBản — Đồ nội thất và đạo cụ phòng theo kịch bản
  *
- * Extracted from main.js. Builds and manages visibility of all physical
- * objects that appear/disappear based on the active scenario: bed, chair,
- * exercise mat, door, rubble wall, screen/TV, desks, security cameras,
- * and the alert light system.
+ * Trích xuất từ main.js. Xây dựng và quản lý hiển thị tất cả
+ * vật thể xuất hiện/biến mất theo kịch bản đang hoạt động: giường, ghế,
+ * thảm tập, cửa, tường đổ nát, màn hình/TV, bàn, camera an ninh,
+ * và hệ thống cảnh báo.
  */
 import * as THREE from 'three';
 
-// Scenario-to-prop-name mapping
+// Ánh xạ kịch bản-tên đạo cụ
 const SCENARIO_PROPS = {
   empty_room:       [],
   single_breathing: [],
@@ -32,7 +32,7 @@ export class ScenarioProps {
     this._alertLight = null;
     this._alertIntensity = 0;
 
-    // Animatable references
+    // Tham chiếu hoạt ảnh
     this._screenGlow = null;
     this._camera1Group = null;
     this._camera2Group = null;
@@ -48,7 +48,7 @@ export class ScenarioProps {
     this._build();
   }
 
-  // ---- helper: positioned box with shadow ----
+  // ---- trợ giúp: hộp có vị trí và bóng đổ ----
   _box(x, y, z, w, h, d, mat) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y, z);
@@ -57,7 +57,7 @@ export class ScenarioProps {
     return m;
   }
 
-  // ---- helper: positioned cylinder with shadow ----
+  // ---- trợ giúp: hình trụ có vị trí và bóng đổ ----
   _cyl(x, y, z, rTop, rBot, h, segs, mat) {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, segs), mat);
     m.position.set(x, y, z);
@@ -67,7 +67,7 @@ export class ScenarioProps {
   }
 
   // ========================================
-  //  BUILD ALL PROPS
+  //  XÂY DỰNG TẤT CẢ ĐẠO CỤ
   // ========================================
 
   _build() {
@@ -86,23 +86,23 @@ export class ScenarioProps {
     this._buildAlertSystem();
   }
 
-  // ---- BED (sleep monitoring) ----
+  // ---- GIƯỜNG (theo dõi giấc ngủ) ----
   _buildBed(darkMat) {
     const bedGroup = new THREE.Group();
 
-    // Bed frame with legs
+    // Khung giường có chân
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a6448, roughness: 0.55, metalness: 0.25, emissive: 0x181008, emissiveIntensity: 0.25 });
     const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 1.2), frameMat);
     bedFrame.position.set(3.5, 0.32, -3.5);
     bedFrame.castShadow = true;
     bedGroup.add(bedFrame);
 
-    // Frame legs (4 short posts)
+    // Chân khung (4 trụ ngắn)
     for (const [lx, lz] of [[2.5, -4.0], [4.5, -4.0], [2.5, -3.0], [4.5, -3.0]]) {
       bedGroup.add(this._cyl(lx, 0.13, lz, 0.04, 0.04, 0.26, 6, frameMat));
     }
 
-    // Headboard — tall panel at head of bed
+    // Đầu giường — bảng cao ở đầu giường
     const headboardMat = new THREE.MeshStandardMaterial({ color: 0x6a5440, roughness: 0.65, emissive: 0x140e08, emissiveIntensity: 0.2 });
     const headboard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 1.2), headboardMat);
     headboard.position.set(2.38, 0.65, -3.5);

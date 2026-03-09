@@ -1,90 +1,90 @@
-//! 17-Keypoint Kalman Pose Tracker with Re-ID (ADR-029 Section 2.7)
+//! Bộ Theo Dõi Tư Thế Kalman 17 Điểm Khớp với Tái Nhận Dạng (ADR-029 Mục 2.7)
 //!
-//! Tracks multiple people as persistent 17-keypoint skeletons across time.
-//! Each keypoint has a 6D Kalman state (x, y, z, vx, vy, vz) with a
-//! constant-velocity motion model. Track lifecycle follows:
+//! Theo dõi nhiều người dưới dạng khung xương 17 điểm khớp bền vững qua thời gian.
+//! Mỗi điểm khớp có trạng thái Kalman 6D (x, y, z, vx, vy, vz) với
+//! mô hình chuyển động vận tốc hằng. Vòng đời theo dõi tuân theo:
 //!
-//!   Tentative -> Active -> Lost -> Terminated
+//!   Thử Nghiệm -> Hoạt Động -> Mất Dấu -> Kết Thúc
 //!
-//! Detection-to-track assignment uses a joint cost combining Mahalanobis
-//! distance (60%) and AETHER re-ID embedding cosine similarity (40%),
-//! implemented via `ruvector-mincut::DynamicPersonMatcher`.
+//! Gán phát hiện-theo dõi sử dụng chi phí kết hợp gồm khoảng cách
+//! Mahalanobis (60%) và độ tương đồng cosine nhúng tái nhận dạng AETHER (40%),
+//! triển khai qua `ruvector-mincut::DynamicPersonMatcher`.
 //!
-//! # Parameters
+//! # Tham Số
 //!
-//! | Parameter | Value | Rationale |
-//! |-----------|-------|-----------|
-//! | State dimension | 6 per keypoint | Constant-velocity model |
-//! | Process noise | 0.3 m/s^2 | Normal walking acceleration |
-//! | Measurement noise | 0.08 m | Target <8cm RMS at torso |
-//! | Birth hits | 2 frames | Reject single-frame noise |
-//! | Loss misses | 5 frames | Brief occlusion tolerance |
-//! | Re-ID embedding | 128-dim | AETHER body-shape discriminative |
-//! | Re-ID window | 5 seconds | Crossing recovery |
+//! | Tham số | Giá trị | Lý do |
+//! |---------|---------|-------|
+//! | Chiều trạng thái | 6 mỗi điểm khớp | Mô hình vận tốc hằng |
+//! | Nhiễu quá trình | 0.3 m/s^2 | Gia tốc đi bộ bình thường |
+//! | Nhiễu đo lường | 0.08 m | Mục tiêu <8cm RMS tại thân |
+//! | Số hit sinh | 2 khung | Loại bỏ nhiễu đơn khung |
+//! | Số miss mất | 5 khung | Dung sai che khuất ngắn |
+//! | Nhúng tái nhận dạng | 128 chiều | Phân biệt hình dáng cơ thể AETHER |
+//! | Cửa sổ tái nhận dạng | 5 giây | Khôi phục khi giao nhau |
 //!
-//! # RuVector Integration
+//! # Tích Hợp RuVector
 //!
-//! - `ruvector-mincut` -> Person separation and track assignment
+//! - `ruvector-mincut` -> Phân tách người và gán theo dõi
 
 use super::{TrackId, NUM_KEYPOINTS};
 
-/// Errors from the pose tracker.
+/// Các lỗi từ bộ theo dõi tư thế.
 #[derive(Debug, thiserror::Error)]
 pub enum PoseTrackerError {
-    /// Invalid keypoint index.
-    #[error("Invalid keypoint index {index}, max is {}", NUM_KEYPOINTS - 1)]
+    /// Chỉ số điểm khớp không hợp lệ.
+    #[error("Chỉ số điểm khớp không hợp lệ {index}, tối đa là {}", NUM_KEYPOINTS - 1)]
     InvalidKeypointIndex { index: usize },
 
-    /// Invalid embedding dimension.
-    #[error("Embedding dimension {got} does not match expected {expected}")]
+    /// Chiều nhúng không hợp lệ.
+    #[error("Chiều nhúng {got} không khớp với kỳ vọng {expected}")]
     EmbeddingDimMismatch { expected: usize, got: usize },
 
-    /// Mahalanobis gate exceeded.
-    #[error("Mahalanobis distance {distance:.2} exceeds gate {gate:.2}")]
+    /// Vượt cổng Mahalanobis.
+    #[error("Khoảng cách Mahalanobis {distance:.2} vượt cổng {gate:.2}")]
     MahalanobisGateExceeded { distance: f32, gate: f32 },
 
-    /// Track not found.
-    #[error("Track {0} not found")]
+    /// Không tìm thấy theo dõi.
+    #[error("Không tìm thấy theo dõi {0}")]
     TrackNotFound(TrackId),
 
-    /// No detections provided.
-    #[error("No detections provided for update")]
+    /// Không có phát hiện nào được cung cấp.
+    #[error("Không có phát hiện nào được cung cấp để cập nhật")]
     NoDetections,
 }
 
-/// Per-keypoint Kalman state.
+/// Trạng thái Kalman mỗi điểm khớp.
 ///
-/// Maintains a 6D state vector [x, y, z, vx, vy, vz] and a 6x6 covariance
-/// matrix stored as the upper triangle (21 elements, row-major).
+/// Duy trì vector trạng thái 6D [x, y, z, vx, vy, vz] và ma trận hiệp
+/// phương sai 6x6 lưu dạng tam giác trên (21 phần tử, theo hàng).
 #[derive(Debug, Clone)]
 pub struct KeypointState {
-    /// State vector [x, y, z, vx, vy, vz].
+    /// Vector trạng thái [x, y, z, vx, vy, vz].
     pub state: [f32; 6],
-    /// 6x6 covariance upper triangle (21 elements, row-major).
-    /// Indices: (0,0)=0, (0,1)=1, (0,2)=2, (0,3)=3, (0,4)=4, (0,5)=5,
+    /// Tam giác trên hiệp phương sai 6x6 (21 phần tử, theo hàng).
+    /// Chỉ số: (0,0)=0, (0,1)=1, (0,2)=2, (0,3)=3, (0,4)=4, (0,5)=5,
     ///          (1,1)=6, (1,2)=7, (1,3)=8, (1,4)=9, (1,5)=10,
     ///          (2,2)=11, (2,3)=12, (2,4)=13, (2,5)=14,
     ///          (3,3)=15, (3,4)=16, (3,5)=17,
     ///          (4,4)=18, (4,5)=19,
     ///          (5,5)=20
     pub covariance: [f32; 21],
-    /// Confidence (0.0-1.0) from DensePose model output.
+    /// Độ tin cậy (0.0-1.0) từ đầu ra mô hình DensePose.
     pub confidence: f32,
 }
 
 impl KeypointState {
-    /// Create a new keypoint state at the given 3D position.
+    /// Tạo trạng thái điểm khớp mới tại vị trí 3D cho trước.
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         let mut cov = [0.0_f32; 21];
-        // Initialize diagonal with default uncertainty
-        let pos_var = 0.1 * 0.1;  // 10 cm initial uncertainty
-        let vel_var = 0.5 * 0.5;  // 0.5 m/s initial velocity uncertainty
-        cov[0] = pos_var;   // x variance
-        cov[6] = pos_var;   // y variance
-        cov[11] = pos_var;  // z variance
-        cov[15] = vel_var;  // vx variance
-        cov[18] = vel_var;  // vy variance
-        cov[20] = vel_var;  // vz variance
+        // Khởi tạo đường chéo với độ bất định mặc định
+        let pos_var = 0.1 * 0.1;  // Độ bất định vị trí ban đầu 10 cm
+        let vel_var = 0.5 * 0.5;  // Độ bất định vận tốc ban đầu 0.5 m/s
+        cov[0] = pos_var;   // phương sai x
+        cov[6] = pos_var;   // phương sai y
+        cov[11] = pos_var;  // phương sai z
+        cov[15] = vel_var;  // phương sai vx
+        cov[18] = vel_var;  // phương sai vy
+        cov[20] = vel_var;  // phương sai vz
 
         Self {
             state: [x, y, z, 0.0, 0.0, 0.0],
@@ -93,41 +93,41 @@ impl KeypointState {
         }
     }
 
-    /// Return the position [x, y, z].
+    /// Trả về vị trí [x, y, z].
     pub fn position(&self) -> [f32; 3] {
         [self.state[0], self.state[1], self.state[2]]
     }
 
-    /// Return the velocity [vx, vy, vz].
+    /// Trả về vận tốc [vx, vy, vz].
     pub fn velocity(&self) -> [f32; 3] {
         [self.state[3], self.state[4], self.state[5]]
     }
 
-    /// Predict step: advance state by dt seconds using constant-velocity model.
+    /// Bước dự đoán: tiến trạng thái dt giây sử dụng mô hình vận tốc hằng.
     ///
     /// x' = x + vx * dt
     /// P' = F * P * F^T + Q
     pub fn predict(&mut self, dt: f32, process_noise_accel: f32) {
-        // State prediction: x' = x + v * dt
+        // Dự đoán trạng thái: x' = x + v * dt
         self.state[0] += self.state[3] * dt;
         self.state[1] += self.state[4] * dt;
         self.state[2] += self.state[5] * dt;
 
-        // Process noise Q (constant acceleration model)
+        // Nhiễu quá trình Q (mô hình gia tốc hằng)
         let dt2 = dt * dt;
         let dt3 = dt2 * dt;
         let dt4 = dt3 * dt;
         let q = process_noise_accel * process_noise_accel;
 
-        // Add process noise to diagonal elements
-        // Position variances: + q * dt^4 / 4
+        // Thêm nhiễu quá trình vào các phần tử đường chéo
+        // Phương sai vị trí: + q * dt^4 / 4
         let pos_q = q * dt4 / 4.0;
-        // Velocity variances: + q * dt^2
+        // Phương sai vận tốc: + q * dt^2
         let vel_q = q * dt2;
-        // Position-velocity cross: + q * dt^3 / 2
+        // Chéo vị trí-vận tốc: + q * dt^3 / 2
         let _cross_q = q * dt3 / 2.0;
 
-        // Simplified: only update diagonal for numerical stability
+        // Đơn giản hoá: chỉ cập nhật đường chéo cho ổn định số học
         self.covariance[0] += pos_q;   // xx
         self.covariance[6] += pos_q;   // yy
         self.covariance[11] += pos_q;  // zz
@@ -136,9 +136,9 @@ impl KeypointState {
         self.covariance[20] += vel_q;  // vzvz
     }
 
-    /// Measurement update: incorporate a position observation [x, y, z].
+    /// Cập nhật đo lường: tích hợp quan sát vị trí [x, y, z].
     ///
-    /// Uses the standard Kalman update with position-only measurement model
+    /// Sử dụng cập nhật Kalman chuẩn với mô hình đo lường chỉ vị trí
     /// H = [I3 | 0_3x3].
     pub fn update(
         &mut self,
@@ -148,46 +148,46 @@ impl KeypointState {
     ) {
         let r = measurement_noise * measurement_noise * noise_multiplier;
 
-        // Innovation (residual)
+        // Đổi mới (phần dư)
         let innov = [
             measurement[0] - self.state[0],
             measurement[1] - self.state[1],
             measurement[2] - self.state[2],
         ];
 
-        // Innovation covariance S = H * P * H^T + R
-        // Since H = [I3 | 0], S is just the top-left 3x3 of P + R
+        // Hiệp phương sai đổi mới S = H * P * H^T + R
+        // Vì H = [I3 | 0], S chỉ là khối 3x3 trên-trái của P + R
         let s = [
             self.covariance[0] + r,
             self.covariance[6] + r,
             self.covariance[11] + r,
         ];
 
-        // Kalman gain K = P * H^T * S^-1
-        // For diagonal S, K_ij = P_ij / S_jj (simplified)
+        // Độ lợi Kalman K = P * H^T * S^-1
+        // Với S đường chéo, K_ij = P_ij / S_jj (đơn giản hoá)
         let k = [
-            [self.covariance[0] / s[0], 0.0, 0.0],               // x row
-            [0.0, self.covariance[6] / s[1], 0.0],               // y row
-            [0.0, 0.0, self.covariance[11] / s[2]],              // z row
-            [self.covariance[3] / s[0], 0.0, 0.0],               // vx row
-            [0.0, self.covariance[9] / s[1], 0.0],               // vy row
-            [0.0, 0.0, self.covariance[14] / s[2]],              // vz row
+            [self.covariance[0] / s[0], 0.0, 0.0],               // hàng x
+            [0.0, self.covariance[6] / s[1], 0.0],               // hàng y
+            [0.0, 0.0, self.covariance[11] / s[2]],              // hàng z
+            [self.covariance[3] / s[0], 0.0, 0.0],               // hàng vx
+            [0.0, self.covariance[9] / s[1], 0.0],               // hàng vy
+            [0.0, 0.0, self.covariance[14] / s[2]],              // hàng vz
         ];
 
-        // State update: x' = x + K * innov
+        // Cập nhật trạng thái: x' = x + K * đổi mới
         for i in 0..6 {
             for j in 0..3 {
                 self.state[i] += k[i][j] * innov[j];
             }
         }
 
-        // Covariance update: P' = (I - K*H) * P (simplified diagonal update)
+        // Cập nhật hiệp phương sai: P' = (I - K*H) * P (cập nhật đường chéo đơn giản)
         self.covariance[0] *= 1.0 - k[0][0];
         self.covariance[6] *= 1.0 - k[1][1];
         self.covariance[11] *= 1.0 - k[2][2];
     }
 
-    /// Compute the Mahalanobis distance between this state and a measurement.
+    /// Tính khoảng cách Mahalanobis giữa trạng thái này và một đo lường.
     pub fn mahalanobis_distance(&self, measurement: &[f32; 3]) -> f32 {
         let innov = [
             measurement[0] - self.state[0],
@@ -195,7 +195,7 @@ impl KeypointState {
             measurement[2] - self.state[2],
         ];
 
-        // Using diagonal approximation
+        // Sử dụng xấp xỉ đường chéo
         let mut dist_sq = 0.0_f32;
         let variances = [self.covariance[0], self.covariance[6], self.covariance[11]];
         for i in 0..3 {
@@ -213,66 +213,66 @@ impl Default for KeypointState {
     }
 }
 
-/// Track lifecycle state machine.
+/// Máy trạng thái vòng đời theo dõi.
 ///
-/// Follows the pattern from ADR-026:
-///   Tentative -> Active -> Lost -> Terminated
+/// Tuân theo mẫu từ ADR-026:
+///   Thử Nghiệm -> Hoạt Động -> Mất Dấu -> Kết Thúc
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrackLifecycleState {
-    /// Track has been detected but not yet confirmed (< birth_hits frames).
+    /// Theo dõi đã được phát hiện nhưng chưa xác nhận (< birth_hits khung).
     Tentative,
-    /// Track is confirmed and actively being updated.
+    /// Theo dõi đã xác nhận và đang được cập nhật tích cực.
     Active,
-    /// Track has lost measurement association (< loss_misses frames).
+    /// Theo dõi đã mất liên kết đo lường (< loss_misses khung).
     Lost,
-    /// Track has been terminated (exceeded max lost duration or deemed false positive).
+    /// Theo dõi đã bị kết thúc (vượt thời gian mất tối đa hoặc xác định là dương tính giả).
     Terminated,
 }
 
 impl TrackLifecycleState {
-    /// Returns true if the track is in an active or tentative state.
+    /// Trả về true nếu theo dõi ở trạng thái hoạt động hoặc thử nghiệm.
     pub fn is_alive(&self) -> bool {
         matches!(self, Self::Tentative | Self::Active | Self::Lost)
     }
 
-    /// Returns true if the track can receive measurement updates.
+    /// Trả về true nếu theo dõi có thể nhận cập nhật đo lường.
     pub fn accepts_updates(&self) -> bool {
         matches!(self, Self::Tentative | Self::Active)
     }
 
-    /// Returns true if the track is eligible for re-identification.
+    /// Trả về true nếu theo dõi đủ điều kiện cho tái nhận dạng.
     pub fn is_lost(&self) -> bool {
         matches!(self, Self::Lost)
     }
 }
 
-/// A pose track -- aggregate root for tracking one person.
+/// Một theo dõi tư thế -- gốc tổng hợp để theo dõi một người.
 ///
-/// Contains 17 keypoint Kalman states, lifecycle, and re-ID embedding.
+/// Chứa 17 trạng thái Kalman điểm khớp, vòng đời, và nhúng tái nhận dạng.
 #[derive(Debug, Clone)]
 pub struct PoseTrack {
-    /// Unique track identifier.
+    /// Định danh theo dõi duy nhất.
     pub id: TrackId,
-    /// Per-keypoint Kalman state (COCO-17 ordering).
+    /// Trạng thái Kalman mỗi điểm khớp (thứ tự COCO-17).
     pub keypoints: [KeypointState; NUM_KEYPOINTS],
-    /// Track lifecycle state.
+    /// Trạng thái vòng đời theo dõi.
     pub lifecycle: TrackLifecycleState,
-    /// Running-average AETHER embedding for re-ID (128-dim).
+    /// Nhúng AETHER trung bình cuốn cho tái nhận dạng (128 chiều).
     pub embedding: Vec<f32>,
-    /// Total frames since creation.
+    /// Tổng số khung kể từ khi tạo.
     pub age: u64,
-    /// Frames since last successful measurement update.
+    /// Số khung kể từ lần cập nhật đo lường thành công gần nhất.
     pub time_since_update: u64,
-    /// Number of consecutive measurement updates (for birth gate).
+    /// Số lần cập nhật đo lường liên tiếp (cho cổng sinh).
     pub consecutive_hits: u64,
-    /// Creation timestamp in microseconds.
+    /// Dấu thời gian tạo tính bằng micro giây.
     pub created_at: u64,
-    /// Last update timestamp in microseconds.
+    /// Dấu thời gian cập nhật gần nhất tính bằng micro giây.
     pub updated_at: u64,
 }
 
 impl PoseTrack {
-    /// Create a new tentative track from a detection.
+    /// Tạo theo dõi thử nghiệm mới từ một phát hiện.
     pub fn new(
         id: TrackId,
         keypoint_positions: &[[f32; 3]; NUM_KEYPOINTS],
@@ -297,7 +297,7 @@ impl PoseTrack {
         }
     }
 
-    /// Predict all keypoints forward by dt seconds.
+    /// Dự đoán tất cả điểm khớp tiến dt giây.
     pub fn predict(&mut self, dt: f32, process_noise: f32) {
         for kp in &mut self.keypoints {
             kp.predict(dt, process_noise);
@@ -306,9 +306,9 @@ impl PoseTrack {
         self.time_since_update += 1;
     }
 
-    /// Update all keypoints with new measurements.
+    /// Cập nhật tất cả điểm khớp với đo lường mới.
     ///
-    /// Also updates lifecycle state transitions based on birth/loss gates.
+    /// Đồng thời cập nhật chuyển trạng thái vòng đời dựa trên cổng sinh/mất.
     pub fn update_keypoints(
         &mut self,
         measurements: &[[f32; 3]; NUM_KEYPOINTS],
@@ -324,11 +324,11 @@ impl PoseTrack {
         self.consecutive_hits += 1;
         self.updated_at = timestamp_us;
 
-        // Lifecycle transitions
+        // Chuyển đổi vòng đời
         self.update_lifecycle();
     }
 
-    /// Update the embedding with EMA decay.
+    /// Cập nhật nhúng với suy giảm EMA.
     pub fn update_embedding(&mut self, new_embedding: &[f32], decay: f32) {
         if new_embedding.len() != self.embedding.len() {
             return;
@@ -340,7 +340,7 @@ impl PoseTrack {
         }
     }
 
-    /// Compute the centroid position (mean of all keypoints).
+    /// Tính vị trí trọng tâm (trung bình của tất cả điểm khớp).
     pub fn centroid(&self) -> [f32; 3] {
         let n = NUM_KEYPOINTS as f32;
         let mut c = [0.0_f32; 3];
@@ -356,10 +356,10 @@ impl PoseTrack {
         c
     }
 
-    /// Compute torso jitter RMS in meters.
+    /// Tính RMS rung lắc thân tính bằng mét.
     ///
-    /// Uses the torso keypoints (shoulders, hips) velocity magnitudes
-    /// as a proxy for jitter.
+    /// Sử dụng độ lớn vận tốc các điểm khớp thân (vai, hông)
+    /// làm đại diện cho rung lắc.
     pub fn torso_jitter_rms(&self) -> f32 {
         let torso_indices = super::keypoint::TORSO_INDICES;
         let mut sum_sq = 0.0_f32;
@@ -379,29 +379,29 @@ impl PoseTrack {
         (sum_sq / count as f32).sqrt()
     }
 
-    /// Mark the track as lost.
+    /// Đánh dấu theo dõi là mất dấu.
     pub fn mark_lost(&mut self) {
         if self.lifecycle != TrackLifecycleState::Terminated {
             self.lifecycle = TrackLifecycleState::Lost;
         }
     }
 
-    /// Mark the track as terminated.
+    /// Đánh dấu theo dõi là kết thúc.
     pub fn terminate(&mut self) {
         self.lifecycle = TrackLifecycleState::Terminated;
     }
 
-    /// Update lifecycle state based on consecutive hits and misses.
+    /// Cập nhật trạng thái vòng đời dựa trên số hit và miss liên tiếp.
     fn update_lifecycle(&mut self) {
         match self.lifecycle {
             TrackLifecycleState::Tentative => {
                 if self.consecutive_hits >= 2 {
-                    // Birth gate: promote to Active after 2 consecutive updates
+                    // Cổng sinh: thăng cấp lên Hoạt Động sau 2 lần cập nhật liên tiếp
                     self.lifecycle = TrackLifecycleState::Active;
                 }
             }
             TrackLifecycleState::Lost => {
-                // Re-acquired: promote back to Active
+                // Tái thu nhận: thăng cấp lại Hoạt Động
                 self.lifecycle = TrackLifecycleState::Active;
                 self.consecutive_hits = 1;
             }
@@ -410,28 +410,28 @@ impl PoseTrack {
     }
 }
 
-/// Tracker configuration parameters.
+/// Tham số cấu hình bộ theo dõi.
 #[derive(Debug, Clone)]
 pub struct TrackerConfig {
-    /// Process noise acceleration (m/s^2). Default: 0.3.
+    /// Gia tốc nhiễu quá trình (m/s^2). Mặc định: 0.3.
     pub process_noise: f32,
-    /// Measurement noise std dev (m). Default: 0.08.
+    /// Độ lệch chuẩn nhiễu đo lường (m). Mặc định: 0.08.
     pub measurement_noise: f32,
-    /// Mahalanobis gate threshold (chi-squared(3) at 3-sigma = 9.0).
+    /// Ngưỡng cổng Mahalanobis (chi-squared(3) tại 3-sigma = 9.0).
     pub mahalanobis_gate: f32,
-    /// Frames required for tentative->active promotion. Default: 2.
+    /// Số khung cần thiết để thăng cấp thử nghiệm->hoạt động. Mặc định: 2.
     pub birth_hits: u64,
-    /// Max frames without update before tentative->lost. Default: 5.
+    /// Số khung tối đa không cập nhật trước khi chuyển sang mất dấu. Mặc định: 5.
     pub loss_misses: u64,
-    /// Re-ID window in frames (5 seconds at 20Hz = 100). Default: 100.
+    /// Cửa sổ tái nhận dạng tính bằng khung (5 giây ở 20Hz = 100). Mặc định: 100.
     pub reid_window: u64,
-    /// Embedding EMA decay rate. Default: 0.95.
+    /// Tốc độ suy giảm EMA nhúng. Mặc định: 0.95.
     pub embedding_decay: f32,
-    /// Embedding dimension. Default: 128.
+    /// Chiều nhúng. Mặc định: 128.
     pub embedding_dim: usize,
-    /// Position weight in assignment cost. Default: 0.6.
+    /// Trọng số vị trí trong chi phí gán. Mặc định: 0.6.
     pub position_weight: f32,
-    /// Embedding weight in assignment cost. Default: 0.4.
+    /// Trọng số nhúng trong chi phí gán. Mặc định: 0.4.
     pub embedding_weight: f32,
 }
 
@@ -452,10 +452,10 @@ impl Default for TrackerConfig {
     }
 }
 
-/// Multi-person pose tracker.
+/// Bộ theo dõi tư thế đa người.
 ///
-/// Manages a collection of `PoseTrack` instances with automatic lifecycle
-/// management, detection-to-track assignment, and re-identification.
+/// Quản lý tập hợp các phiên bản `PoseTrack` với quản lý vòng đời tự động,
+/// gán phát hiện-theo dõi, và tái nhận dạng.
 #[derive(Debug)]
 pub struct PoseTracker {
     config: TrackerConfig,
@@ -464,7 +464,7 @@ pub struct PoseTracker {
 }
 
 impl PoseTracker {
-    /// Create a new tracker with default configuration.
+    /// Tạo bộ theo dõi mới với cấu hình mặc định.
     pub fn new() -> Self {
         Self {
             config: TrackerConfig::default(),
@@ -473,7 +473,7 @@ impl PoseTracker {
         }
     }
 
-    /// Create a new tracker with custom configuration.
+    /// Tạo bộ theo dõi mới với cấu hình tùy chỉnh.
     pub fn with_config(config: TrackerConfig) -> Self {
         Self {
             config,
@@ -482,7 +482,7 @@ impl PoseTracker {
         }
     }
 
-    /// Return all active tracks (not terminated).
+    /// Trả về tất cả theo dõi đang hoạt động (chưa kết thúc).
     pub fn active_tracks(&self) -> Vec<&PoseTrack> {
         self.tracks
             .iter()
@@ -490,17 +490,17 @@ impl PoseTracker {
             .collect()
     }
 
-    /// Return all tracks including terminated ones.
+    /// Trả về tất cả theo dõi bao gồm cả đã kết thúc.
     pub fn all_tracks(&self) -> &[PoseTrack] {
         &self.tracks
     }
 
-    /// Return the number of active (alive) tracks.
+    /// Trả về số lượng theo dõi đang hoạt động (còn sống).
     pub fn active_count(&self) -> usize {
         self.tracks.iter().filter(|t| t.lifecycle.is_alive()).count()
     }
 
-    /// Predict step for all tracks (advance by dt seconds).
+    /// Bước dự đoán cho tất cả theo dõi (tiến dt giây).
     pub fn predict_all(&mut self, dt: f32) {
         for track in &mut self.tracks {
             if track.lifecycle.is_alive() {
@@ -508,7 +508,7 @@ impl PoseTracker {
             }
         }
 
-        // Mark tracks as lost after exceeding loss_misses
+        // Đánh dấu theo dõi là mất dấu sau khi vượt loss_misses
         for track in &mut self.tracks {
             if track.lifecycle.accepts_updates()
                 && track.time_since_update >= self.config.loss_misses
@@ -517,7 +517,7 @@ impl PoseTracker {
             }
         }
 
-        // Terminate tracks that have been lost too long
+        // Kết thúc theo dõi đã mất dấu quá lâu
         let reid_window = self.config.reid_window;
         for track in &mut self.tracks {
             if track.lifecycle.is_lost() && track.time_since_update >= reid_window {
@@ -526,7 +526,7 @@ impl PoseTracker {
         }
     }
 
-    /// Create a new track from a detection.
+    /// Tạo theo dõi mới từ một phát hiện.
     pub fn create_track(
         &mut self,
         keypoints: &[[f32; 3]; NUM_KEYPOINTS],
@@ -540,38 +540,38 @@ impl PoseTracker {
         id
     }
 
-    /// Find the track with the given ID.
+    /// Tìm theo dõi với ID cho trước.
     pub fn find_track(&self, id: TrackId) -> Option<&PoseTrack> {
         self.tracks.iter().find(|t| t.id == id)
     }
 
-    /// Find the track with the given ID (mutable).
+    /// Tìm theo dõi với ID cho trước (có thể thay đổi).
     pub fn find_track_mut(&mut self, id: TrackId) -> Option<&mut PoseTrack> {
         self.tracks.iter_mut().find(|t| t.id == id)
     }
 
-    /// Remove terminated tracks from the collection.
+    /// Xoá các theo dõi đã kết thúc khỏi tập hợp.
     pub fn prune_terminated(&mut self) {
         self.tracks
             .retain(|t| t.lifecycle != TrackLifecycleState::Terminated);
     }
 
-    /// Compute the assignment cost between a track and a detection.
+    /// Tính chi phí gán giữa một theo dõi và một phát hiện.
     ///
-    /// cost = position_weight * mahalanobis(track, detection.position)
-    ///      + embedding_weight * (1 - cosine_sim(track.embedding, detection.embedding))
+    /// chi phí = trọng_số_vị_trí * mahalanobis(theo_dõi, phát_hiện.vị_trí)
+    ///         + trọng_số_nhúng * (1 - cosine_sim(theo_dõi.nhúng, phát_hiện.nhúng))
     pub fn assignment_cost(
         &self,
         track: &PoseTrack,
         detection_centroid: &[f32; 3],
         detection_embedding: &[f32],
     ) -> f32 {
-        // Position cost: Mahalanobis distance at centroid
+        // Chi phí vị trí: khoảng cách Mahalanobis tại trọng tâm
         let centroid_kp = track.centroid();
         let centroid_state = KeypointState::new(centroid_kp[0], centroid_kp[1], centroid_kp[2]);
         let maha = centroid_state.mahalanobis_distance(detection_centroid);
 
-        // Embedding cost: 1 - cosine similarity
+        // Chi phí nhúng: 1 - độ tương đồng cosine
         let embed_cost = 1.0 - cosine_similarity(&track.embedding, detection_embedding);
 
         self.config.position_weight * maha + self.config.embedding_weight * embed_cost
@@ -584,9 +584,9 @@ impl Default for PoseTracker {
     }
 }
 
-/// Cosine similarity between two vectors.
+/// Độ tương đồng cosine giữa hai vector.
 ///
-/// Returns a value in [-1.0, 1.0] where 1.0 means identical direction.
+/// Trả về giá trị trong [-1.0, 1.0] trong đó 1.0 nghĩa là cùng hướng.
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let n = a.len().min(b.len());
     if n == 0 {
@@ -611,22 +611,22 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     (dot / denom).clamp(-1.0, 1.0)
 }
 
-/// A detected pose from the model, before assignment to a track.
+/// Tư thế phát hiện từ mô hình, trước khi gán cho một theo dõi.
 #[derive(Debug, Clone)]
 pub struct PoseDetection {
-    /// Per-keypoint positions [x, y, z, confidence] for 17 keypoints.
+    /// Vị trí mỗi điểm khớp [x, y, z, confidence] cho 17 điểm khớp.
     pub keypoints: [[f32; 4]; NUM_KEYPOINTS],
-    /// AETHER re-ID embedding (128-dim).
+    /// Nhúng tái nhận dạng AETHER (128 chiều).
     pub embedding: Vec<f32>,
 }
 
 impl PoseDetection {
-    /// Extract the 3D position array from keypoints.
+    /// Trích xuất mảng vị trí 3D từ các điểm khớp.
     pub fn positions(&self) -> [[f32; 3]; NUM_KEYPOINTS] {
         std::array::from_fn(|i| [self.keypoints[i][0], self.keypoints[i][1], self.keypoints[i][2]])
     }
 
-    /// Compute the centroid of the detection.
+    /// Tính trọng tâm của phát hiện.
     pub fn centroid(&self) -> [f32; 3] {
         let n = NUM_KEYPOINTS as f32;
         let mut c = [0.0_f32; 3];
@@ -641,7 +641,7 @@ impl PoseDetection {
         c
     }
 
-    /// Mean confidence across all keypoints.
+    /// Độ tin cậy trung bình trên tất cả điểm khớp.
     pub fn mean_confidence(&self) -> f32 {
         let sum: f32 = self.keypoints.iter().map(|kp| kp[3]).sum();
         sum / NUM_KEYPOINTS as f32
@@ -673,8 +673,8 @@ mod tests {
     fn keypoint_predict_moves_position() {
         let mut kp = KeypointState::new(0.0, 0.0, 0.0);
         kp.state[3] = 1.0; // vx = 1 m/s
-        kp.predict(0.05, 0.3); // 50ms step
-        assert!((kp.state[0] - 0.05).abs() < 1e-5, "x should be ~0.05, got {}", kp.state[0]);
+        kp.predict(0.05, 0.3); // bước 50ms
+        assert!((kp.state[0] - 0.05).abs() < 1e-5, "x phải xấp xỉ 0.05, nhận được {}", kp.state[0]);
     }
 
     #[test]
@@ -741,7 +741,7 @@ mod tests {
         let mut track = PoseTrack::new(TrackId(0), &positions, 0, 128);
         assert_eq!(track.lifecycle, TrackLifecycleState::Tentative);
 
-        // First update: still tentative (need 2 hits)
+        // Cập nhật đầu tiên: cần 2 hit nên thăng cấp
         track.update_keypoints(&positions, 0.08, 1.0, 100);
         assert_eq!(track.lifecycle, TrackLifecycleState::Active);
     }
@@ -752,11 +752,11 @@ mod tests {
         let mut track = PoseTrack::new(TrackId(0), &positions, 0, 128);
         track.lifecycle = TrackLifecycleState::Active;
 
-        // Predict without updates exceeding loss_misses
+        // Dự đoán mà không cập nhật vượt quá loss_misses
         for _ in 0..6 {
             track.predict(0.05, 0.3);
         }
-        // Manually mark lost (normally done by tracker)
+        // Đánh dấu mất dấu thủ công (thường do bộ theo dõi thực hiện)
         if track.time_since_update >= 5 {
             track.mark_lost();
         }
@@ -780,7 +780,7 @@ mod tests {
         let mut track = PoseTrack::new(TrackId(0), &positions, 0, 4);
         let new_embed = vec![1.0, 2.0, 3.0, 4.0];
         track.update_embedding(&new_embed, 0.5);
-        // EMA: 0.5 * 0.0 + 0.5 * new = new / 2
+        // EMA: 0.5 * 0.0 + 0.5 * mới = mới / 2
         for i in 0..4 {
             assert!((track.embedding[i] - new_embed[i] * 0.5).abs() < 1e-5);
         }
@@ -805,12 +805,12 @@ mod tests {
         let positions = zero_positions();
         let id = tracker.create_track(&positions, 0);
 
-        // Promote to active
+        // Thăng cấp lên hoạt động
         if let Some(t) = tracker.find_track_mut(id) {
             t.lifecycle = TrackLifecycleState::Active;
         }
 
-        // Predict 4 times without update
+        // Dự đoán 4 lần mà không cập nhật
         for _ in 0..4 {
             tracker.predict_all(0.05);
         }
@@ -902,10 +902,10 @@ mod tests {
 
         let track = tracker.find_track(id).unwrap();
         let cost = tracker.assignment_cost(track, &[0.0, 0.0, 0.0], &vec![0.0; 128]);
-        // Zero distance + zero embedding cost should be near 0
-        // But embedding cost = 1 - cosine_sim(zeros, zeros) = 1 - 0 = 1
-        // So cost = 0.6 * 0 + 0.4 * 1 = 0.4
-        assert!((cost - 0.4).abs() < 0.1, "Expected ~0.4, got {}", cost);
+        // Khoảng cách zero + chi phí nhúng zero phải gần 0
+        // Nhưng chi phí nhúng = 1 - cosine_sim(zeros, zeros) = 1 - 0 = 1
+        // Nên chi phí = 0.6 * 0 + 0.4 * 1 = 0.4
+        assert!((cost - 0.4).abs() < 0.1, "Kỳ vọng ~0.4, nhận được {}", cost);
     }
 
     #[test]
@@ -913,7 +913,7 @@ mod tests {
         let positions = zero_positions();
         let track = PoseTrack::new(TrackId(0), &positions, 0, 128);
         let jitter = track.torso_jitter_rms();
-        assert!(jitter < 1e-5, "Stationary track should have near-zero jitter");
+        assert!(jitter < 1e-5, "Theo dõi đứng yên phải có rung lắc gần zero");
     }
 
     #[test]
@@ -937,7 +937,7 @@ mod tests {
         let mut track = PoseTrack::new(TrackId(0), &positions, 0, 128);
         track.terminate();
         assert_eq!(track.lifecycle, TrackLifecycleState::Terminated);
-        track.mark_lost(); // Should not override Terminated
+        track.mark_lost(); // Không nên ghi đè Terminated
         assert_eq!(track.lifecycle, TrackLifecycleState::Terminated);
     }
 }

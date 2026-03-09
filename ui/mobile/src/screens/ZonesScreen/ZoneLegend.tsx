@@ -10,11 +10,11 @@ type LegendStop = {
 };
 
 const LEGEND_STOPS: LegendStop[] = [
-  { label: 'Quiet', color: colorToRgba(0) },
-  { label: 'Low', color: colorToRgba(0.25) },
-  { label: 'Medium', color: colorToRgba(0.5) },
-  { label: 'High', color: colorToRgba(0.75) },
-  { label: 'Active', color: colorToRgba(1) },
+  { label: 'Yên tĩnh', color: colorToRgba(0) },
+  { label: 'Thấp', color: colorToRgba(0.25) },
+  { label: 'Trung bình', color: colorToRgba(0.5) },
+  { label: 'Cao', color: colorToRgba(0.75) },
+  { label: 'Hoạt động', color: colorToRgba(1) },
 ];
 
 function colorToRgba(value: number): string {

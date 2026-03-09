@@ -1,5 +1,5 @@
 """
-FastAPI application for WiFi-DensePose API
+Ứng dụng FastAPI cho WiFi-DensePose API
 """
 
 import asyncio
@@ -24,7 +24,7 @@ from src.api.dependencies import get_pose_service, get_stream_service, get_hardw
 from src.api.websocket.connection_manager import connection_manager
 from src.api.websocket.pose_stream import PoseStreamHandler
 
-# Configure logging
+# Cấu hình ghi log
 settings = get_settings()
 logging.config.dictConfig(settings.get_logging_config())
 logger = logging.getLogger(__name__)
@@ -32,137 +32,137 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    logger.info("Starting WiFi-DensePose API...")
-    
+    """Trình quản lý vòng đời ứng dụng."""
+    logger.info("Đang khởi động WiFi-DensePose API...")
+
     try:
-        # Initialize services
+        # Khởi tạo các dịch vụ
         await initialize_services(app)
-        
-        # Start background tasks
+
+        # Bắt đầu các tác vụ nền
         await start_background_tasks(app)
-        
-        logger.info("WiFi-DensePose API started successfully")
-        
+
+        logger.info("WiFi-DensePose API đã khởi động thành công")
+
         yield
-        
+
     except Exception as e:
-        logger.error(f"Failed to start application: {e}")
+        logger.error(f"Không thể khởi động ứng dụng: {e}")
         raise
     finally:
-        # Cleanup on shutdown
-        logger.info("Shutting down WiFi-DensePose API...")
+        # Dọn dẹp khi tắt máy
+        logger.info("Đang tắt WiFi-DensePose API...")
         await cleanup_services(app)
-        logger.info("WiFi-DensePose API shutdown complete")
+        logger.info("WiFi-DensePose API đã tắt hoàn tất")
 
 
 async def initialize_services(app: FastAPI):
-    """Initialize application services."""
+    """Khởi tạo các dịch vụ ứng dụng."""
     try:
-        # Initialize hardware service
+        # Khởi tạo dịch vụ phần cứng
         hardware_service = get_hardware_service()
         await hardware_service.initialize()
-        
-        # Initialize pose service
+
+        # Khởi tạo dịch vụ tư thế
         pose_service = get_pose_service()
         await pose_service.initialize()
-        
-        # Initialize stream service
+
+        # Khởi tạo dịch vụ truyền phát
         stream_service = get_stream_service()
         await stream_service.initialize()
-        
-        # Initialize pose stream handler
+
+        # Khởi tạo trình xử lý luồng tư thế
         pose_stream_handler = PoseStreamHandler(
             connection_manager=connection_manager,
             pose_service=pose_service,
             stream_service=stream_service
         )
-        
-        # Store in app state for access in routes
+
+        # Lưu vào trạng thái ứng dụng để truy cập trong các route
         app.state.hardware_service = hardware_service
         app.state.pose_service = pose_service
         app.state.stream_service = stream_service
         app.state.pose_stream_handler = pose_stream_handler
-        
-        logger.info("Services initialized successfully")
-        
+
+        logger.info("Đã khởi tạo các dịch vụ thành công")
+
     except Exception as e:
-        logger.error(f"Failed to initialize services: {e}")
+        logger.error(f"Không thể khởi tạo các dịch vụ: {e}")
         raise
 
 
 async def start_background_tasks(app: FastAPI):
-    """Start background tasks."""
+    """Bắt đầu các tác vụ nền."""
     try:
-        # Start pose service
+        # Bắt đầu dịch vụ tư thế
         pose_service = app.state.pose_service
         await pose_service.start()
-        logger.info("Pose service started")
-        
-        # Start pose streaming if enabled
+        logger.info("Dịch vụ tư thế đã bắt đầu")
+
+        # Bắt đầu truyền phát tư thế nếu được bật
         if settings.enable_real_time_processing:
             pose_stream_handler = app.state.pose_stream_handler
             await pose_stream_handler.start_streaming()
-        
-        logger.info("Background tasks started")
-        
+
+        logger.info("Các tác vụ nền đã bắt đầu")
+
     except Exception as e:
-        logger.error(f"Failed to start background tasks: {e}")
+        logger.error(f"Không thể bắt đầu các tác vụ nền: {e}")
         raise
 
 
 async def cleanup_services(app: FastAPI):
-    """Cleanup services on shutdown."""
+    """Dọn dẹp các dịch vụ khi tắt."""
     try:
-        # Stop pose streaming
+        # Dừng truyền phát tư thế
         if hasattr(app.state, 'pose_stream_handler'):
             await app.state.pose_stream_handler.shutdown()
-        
-        # Shutdown connection manager
+
+        # Tắt trình quản lý kết nối
         await connection_manager.shutdown()
-        
-        # Cleanup services
+
+        # Dọn dẹp các dịch vụ
         if hasattr(app.state, 'stream_service'):
             await app.state.stream_service.shutdown()
-        
+
         if hasattr(app.state, 'pose_service'):
             await app.state.pose_service.stop()
-        
+
         if hasattr(app.state, 'hardware_service'):
             await app.state.hardware_service.shutdown()
-        
-        logger.info("Services cleaned up successfully")
-        
+
+        logger.info("Đã dọn dẹp các dịch vụ thành công")
+
     except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
+        logger.error(f"Lỗi trong quá trình dọn dẹp: {e}")
 
 
-# Create FastAPI application
+# Tạo ứng dụng FastAPI
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="WiFi-based human pose estimation and activity recognition API",
+    description="API ước lượng tư thế con người và nhận dạng hoạt động dựa trên WiFi",
     docs_url=settings.docs_url if not settings.is_production else None,
     redoc_url=settings.redoc_url if not settings.is_production else None,
     openapi_url=settings.openapi_url if not settings.is_production else None,
     lifespan=lifespan
 )
 
-# Add middleware
+# Thêm middleware
 if settings.enable_rate_limiting:
     app.add_middleware(RateLimitMiddleware)
 
 if settings.enable_authentication:
     app.add_middleware(AuthMiddleware)
 
-# Add CORS middleware
+# Thêm middleware CORS
 cors_config = settings.get_cors_config()
 app.add_middleware(
     CORSMiddleware,
     **cors_config
 )
 
-# Add trusted host middleware for production
+# Thêm middleware máy chủ tin cậy cho môi trường sản xuất
 if settings.is_production:
     app.add_middleware(
         TrustedHostMiddleware,
@@ -170,10 +170,10 @@ if settings.is_production:
     )
 
 
-# Exception handlers
+# Trình xử lý ngoại lệ
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handle HTTP exceptions."""
+    """Xử lý ngoại lệ HTTP."""
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -188,13 +188,13 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle request validation errors."""
+    """Xử lý lỗi xác thực yêu cầu."""
     return JSONResponse(
         status_code=422,
         content={
             "error": {
                 "code": 422,
-                "message": "Validation error",
+                "message": "Lỗi xác thực",
                 "type": "validation_error",
                 "details": exc.errors()
             }
@@ -204,70 +204,70 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Handle general exceptions."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    
+    """Xử lý ngoại lệ chung."""
+    logger.error(f"Ngoại lệ chưa xử lý: {exc}", exc_info=True)
+
     return JSONResponse(
         status_code=500,
         content={
             "error": {
                 "code": 500,
-                "message": "Internal server error",
+                "message": "Lỗi máy chủ nội bộ",
                 "type": "internal_error"
             }
         }
     )
 
 
-# Middleware for request logging
+# Middleware ghi log yêu cầu
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all requests."""
+    """Ghi log tất cả yêu cầu."""
     start_time = asyncio.get_event_loop().time()
-    
-    # Process request
+
+    # Xử lý yêu cầu
     response = await call_next(request)
-    
-    # Calculate processing time
+
+    # Tính thời gian xử lý
     process_time = asyncio.get_event_loop().time() - start_time
-    
-    # Log request
+
+    # Ghi log yêu cầu
     logger.info(
         f"{request.method} {request.url.path} - "
-        f"Status: {response.status_code} - "
-        f"Time: {process_time:.3f}s"
+        f"Trạng thái: {response.status_code} - "
+        f"Thời gian: {process_time:.3f}s"
     )
-    
-    # Add processing time header
+
+    # Thêm header thời gian xử lý
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     return response
 
 
-# Include routers
+# Bao gồm các router
 app.include_router(
     health.router,
     prefix="/health",
-    tags=["Health"]
+    tags=["Kiểm tra sức khỏe"]
 )
 
 app.include_router(
     pose.router,
     prefix=f"{settings.api_prefix}/pose",
-    tags=["Pose Estimation"]
+    tags=["Ước lượng tư thế"]
 )
 
 app.include_router(
     stream.router,
     prefix=f"{settings.api_prefix}/stream",
-    tags=["Streaming"]
+    tags=["Truyền phát"]
 )
 
 
-# Root endpoint
+# Endpoint gốc
 @app.get("/")
 async def root():
-    """Root endpoint with API information."""
+    """Endpoint gốc với thông tin API."""
     return {
         "name": settings.app_name,
         "version": settings.version,
@@ -283,12 +283,12 @@ async def root():
     }
 
 
-# API information endpoint
+# Endpoint thông tin API
 @app.get(f"{settings.api_prefix}/info")
 async def api_info():
-    """Get detailed API information."""
+    """Lấy thông tin chi tiết API."""
     domain_config = get_domain_config()
-    
+
     return {
         "api": {
             "name": settings.app_name,
@@ -316,18 +316,18 @@ async def api_info():
     }
 
 
-# Status endpoint
+# Endpoint trạng thái
 @app.get(f"{settings.api_prefix}/status")
 async def api_status(request: Request):
-    """Get current API status."""
+    """Lấy trạng thái hiện tại của API."""
     try:
-        # Get services from app state
+        # Lấy các dịch vụ từ trạng thái ứng dụng
         hardware_service = getattr(request.app.state, 'hardware_service', None)
         pose_service = getattr(request.app.state, 'pose_service', None)
         stream_service = getattr(request.app.state, 'stream_service', None)
         pose_stream_handler = getattr(request.app.state, 'pose_stream_handler', None)
-        
-        # Get service statuses
+
+        # Lấy trạng thái các dịch vụ
         status = {
             "api": {
                 "status": "healthy",
@@ -335,59 +335,59 @@ async def api_status(request: Request):
                 "version": settings.version
             },
             "services": {
-                "hardware": await hardware_service.get_status() if hardware_service else {"status": "unavailable"},
-                "pose": await pose_service.get_status() if pose_service else {"status": "unavailable"},
-                "stream": await stream_service.get_status() if stream_service else {"status": "unavailable"}
+                "hardware": await hardware_service.get_status() if hardware_service else {"status": "không khả dụng"},
+                "pose": await pose_service.get_status() if pose_service else {"status": "không khả dụng"},
+                "stream": await stream_service.get_status() if stream_service else {"status": "không khả dụng"}
             },
             "streaming": pose_stream_handler.get_stream_status() if pose_stream_handler else {"is_streaming": False},
             "connections": await connection_manager.get_connection_stats()
         }
-        
+
         return status
-        
+
     except Exception as e:
-        logger.error(f"Error getting API status: {e}")
+        logger.error(f"Lỗi khi lấy trạng thái API: {e}")
         return {
             "api": {
-                "status": "error",
+                "status": "lỗi",
                 "error": str(e)
             }
         }
 
 
-# Metrics endpoint (if enabled)
+# Endpoint số liệu (nếu được bật)
 if settings.metrics_enabled:
     @app.get(f"{settings.api_prefix}/metrics")
     async def api_metrics(request: Request):
-        """Get API metrics."""
+        """Lấy số liệu API."""
         try:
-            # Get services from app state
+            # Lấy các dịch vụ từ trạng thái ứng dụng
             pose_stream_handler = getattr(request.app.state, 'pose_stream_handler', None)
-            
+
             metrics = {
                 "connections": await connection_manager.get_metrics(),
                 "streaming": await pose_stream_handler.get_performance_metrics() if pose_stream_handler else {}
             }
-            
+
             return metrics
-            
+
         except Exception as e:
-            logger.error(f"Error getting metrics: {e}")
+            logger.error(f"Lỗi khi lấy số liệu: {e}")
             return {"error": str(e)}
 
 
-# Development endpoints (only in development)
+# Endpoint phát triển (chỉ trong môi trường phát triển)
 if settings.is_development and settings.enable_test_endpoints:
     @app.get(f"{settings.api_prefix}/dev/config")
     async def dev_config():
-        """Get current configuration (development only).
+        """Lấy cấu hình hiện tại (chỉ môi trường phát triển).
 
-        Returns a sanitized view -- secret keys and passwords are redacted.
+        Trả về bản xem đã được làm sạch -- khóa bí mật và mật khẩu được ẩn.
         """
         _sensitive = {"secret", "password", "token", "key", "credential", "auth"}
         raw = settings.dict()
         sanitized = {
-            k: "***REDACTED***" if any(s in k.lower() for s in _sensitive) else v
+            k: "***ĐÃ ẨN***" if any(s in k.lower() for s in _sensitive) else v
             for k, v in raw.items()
         }
         domain_config = get_domain_config()
@@ -395,31 +395,31 @@ if settings.is_development and settings.enable_test_endpoints:
             "settings": sanitized,
             "domain_config": domain_config.to_dict()
         }
-    
+
     @app.post(f"{settings.api_prefix}/dev/reset")
     async def dev_reset(request: Request):
-        """Reset services (development only)."""
+        """Đặt lại các dịch vụ (chỉ môi trường phát triển)."""
         try:
-            # Reset services
+            # Đặt lại các dịch vụ
             hardware_service = getattr(request.app.state, 'hardware_service', None)
             pose_service = getattr(request.app.state, 'pose_service', None)
-            
+
             if hardware_service:
                 await hardware_service.reset()
-            
+
             if pose_service:
                 await pose_service.reset()
-            
-            return {"message": "Services reset successfully"}
-            
+
+            return {"message": "Đã đặt lại các dịch vụ thành công"}
+
         except Exception as e:
-            logger.error(f"Error resetting services: {e}")
+            logger.error(f"Lỗi khi đặt lại các dịch vụ: {e}")
             return {"error": str(e)}
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.api.main:app",
         host=settings.host,

@@ -66,9 +66,9 @@ const Dashboard: React.FC = () => {
         }}
       >
         <div>
-          <h2 className="heading-lg" style={{ margin: 0 }}>Dashboard</h2>
+          <h2 className="heading-lg" style={{ margin: 0 }}>Bảng Điều Khiển</h2>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-            System overview and quick actions
+            Tổng quan hệ thống và thao tác nhanh
           </p>
         </div>
         <button
@@ -77,11 +77,11 @@ const Dashboard: React.FC = () => {
           className="btn-gradient"
           style={{ opacity: scanning ? 0.6 : 1 }}
         >
-          {scanning ? "Scanning..." : "Scan Network"}
+          {scanning ? "Đang quét..." : "Quét Mạng"}
         </button>
       </div>
 
-      {/* Stats row */}
+      {/* Hàng thống kê */}
       <div
         className="stagger-children"
         style={{
@@ -91,29 +91,29 @@ const Dashboard: React.FC = () => {
           marginBottom: "var(--space-5)",
         }}
       >
-        <StatCard label="Total Nodes" value={nodes.length} />
-        <StatCard label="Online" value={onlineCount} color="var(--status-online)" />
-        <StatCard label="Offline" value={nodes.length - onlineCount} color={nodes.length - onlineCount > 0 ? "var(--status-error)" : "var(--text-muted)"} />
+        <StatCard label="Tổng Số Nút" value={nodes.length} />
+        <StatCard label="Trực tuyến" value={onlineCount} color="var(--status-online)" />
+        <StatCard label="Ngoại tuyến" value={nodes.length - onlineCount} color={nodes.length - onlineCount > 0 ? "var(--status-error)" : "var(--text-muted)"} />
         <StatCard
-          label="Server"
-          value={serverStatus?.running ? "Running" : "Stopped"}
+          label="Máy chủ"
+          value={serverStatus?.running ? "Đang chạy" : "Đã dừng"}
           color={serverStatus?.running ? "var(--status-online)" : "var(--status-error)"}
           isText
         />
       </div>
 
-      {/* Two-column layout */}
+      {/* Bố cục hai cột */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginBottom: "var(--space-5)" }}>
-        {/* Server panel */}
+        {/* Bảng máy chủ */}
         <div className="card">
-          <h3 className="heading-sm" style={{ marginBottom: "var(--space-3)" }}>Sensing Server</h3>
+          <h3 className="heading-sm" style={{ marginBottom: "var(--space-3)" }}>Máy Chủ Cảm Biến</h3>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span
               className={`status-dot ${serverStatus?.running ? "status-dot--online" : "status-dot--error"}`}
               style={{ width: 10, height: 10 }}
             />
             <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 500 }}>
-              {serverStatus?.running ? "Running" : "Stopped"}
+              {serverStatus?.running ? "Đang chạy" : "Đã dừng"}
             </span>
             {serverStatus?.running && serverStatus.pid && (
               <span className="data" style={{ marginLeft: "auto" }}>
@@ -129,30 +129,30 @@ const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Quick actions panel */}
+        {/* Bảng thao tác nhanh */}
         <div className="card">
-          <h3 className="heading-sm" style={{ marginBottom: "var(--space-3)" }}>Quick Actions</h3>
+          <h3 className="heading-sm" style={{ marginBottom: "var(--space-3)" }}>Thao Tác Nhanh</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-            <QuickAction label="Flash Firmware" desc="Flash via serial port" />
-            <QuickAction label="Push OTA Update" desc="Over-the-air to nodes" />
-            <QuickAction label="Upload WASM" desc="Deploy edge modules" />
+            <QuickAction label="Nạp Firmware" desc="Nạp qua cổng nối tiếp" />
+            <QuickAction label="Đẩy Cập Nhật OTA" desc="Cập nhật không dây tới các nút" />
+            <QuickAction label="Tải Lên WASM" desc="Triển khai module biên" />
           </div>
         </div>
       </div>
 
-      {/* Node list */}
+      {/* Danh sách nút */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
-        <h3 className="heading-sm">Discovered Nodes ({nodes.length})</h3>
+        <h3 className="heading-sm">Các Nút Đã Phát Hiện ({nodes.length})</h3>
       </div>
 
       {nodes.length === 0 ? (
         <div className="card empty-state">
           <div className="empty-state-icon">{"\u25C9"}</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
-            No nodes discovered
+            Chưa phát hiện nút nào
           </div>
           <div style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 280, textAlign: "center", lineHeight: 1.5 }}>
-            Click "Scan Network" to discover ESP32 devices on your local network.
+            Click "Quét Mạng" to discover ESP32 devices on your local network.
           </div>
         </div>
       ) : (
@@ -308,7 +308,7 @@ function NodeDashCard({ node }: { node: DiscoveredNode }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 12 }}>
         <KV label="MAC" value={node.mac || "--"} mono />
         <KV label="Firmware" value={node.firmware_version || "--"} mono />
-        <KV label="Node ID" value={String(node.node_id)} mono />
+        <KV label="ID Nút" value={String(node.node_id)} mono />
       </div>
     </div>
   );

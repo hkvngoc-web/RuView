@@ -1,5 +1,5 @@
 """
-Domain-specific configuration for WiFi-DensePose
+Cấu hình đặc thù miền nghiệp vụ cho WiFi-DensePose
 """
 
 from typing import Dict, List, Optional, Any
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, validator
 
 
 class ZoneType(str, Enum):
-    """Zone types for pose detection."""
+    """Các loại khu vực cho phát hiện tư thế."""
     ROOM = "room"
     HALLWAY = "hallway"
     ENTRANCE = "entrance"
@@ -25,7 +25,7 @@ class ZoneType(str, Enum):
 
 
 class ActivityType(str, Enum):
-    """Activity types for pose classification."""
+    """Các loại hoạt động cho phân loại tư thế."""
     STANDING = "standing"
     SITTING = "sitting"
     WALKING = "walking"
@@ -37,7 +37,7 @@ class ActivityType(str, Enum):
 
 
 class HardwareType(str, Enum):
-    """Hardware types for WiFi devices."""
+    """Các loại phần cứng cho thiết bị WiFi."""
     ROUTER = "router"
     ACCESS_POINT = "access_point"
     REPEATER = "repeater"
@@ -47,36 +47,36 @@ class HardwareType(str, Enum):
 
 @dataclass
 class ZoneConfig:
-    """Configuration for a detection zone."""
-    
+    """Cấu hình cho một khu vực phát hiện."""
+
     zone_id: str
     name: str
     zone_type: ZoneType
     description: Optional[str] = None
-    
-    # Physical boundaries (in meters)
+
+    # Ranh giới vật lý (tính bằng mét)
     x_min: float = 0.0
     x_max: float = 10.0
     y_min: float = 0.0
     y_max: float = 10.0
     z_min: float = 0.0
     z_max: float = 3.0
-    
-    # Detection settings
+
+    # Cài đặt phát hiện
     enabled: bool = True
     confidence_threshold: float = 0.5
     max_persons: int = 5
     activity_detection: bool = True
-    
-    # Hardware assignments
+
+    # Gán phần cứng
     primary_router: Optional[str] = None
     secondary_routers: List[str] = field(default_factory=list)
-    
-    # Processing settings
-    processing_interval: float = 0.1  # seconds
+
+    # Cài đặt xử lý
+    processing_interval: float = 0.1  # giây
     data_retention_hours: int = 24
-    
-    # Alert settings
+
+    # Cài đặt cảnh báo
     enable_alerts: bool = False
     alert_threshold: float = 0.8
     alert_activities: List[ActivityType] = field(default_factory=list)
@@ -84,44 +84,44 @@ class ZoneConfig:
 
 @dataclass
 class RouterConfig:
-    """Configuration for a WiFi router/device."""
-    
+    """Cấu hình cho một router/thiết bị WiFi."""
+
     router_id: str
     name: str
     hardware_type: HardwareType
-    
-    # Network settings
+
+    # Cài đặt mạng
     ip_address: str
     mac_address: str
     interface: str = "wlan0"
     channel: int = 6
     frequency: float = 2.4  # GHz
-    
-    # CSI settings
+
+    # Cài đặt CSI
     csi_enabled: bool = True
     csi_rate: int = 100  # Hz
     csi_subcarriers: int = 56
     antenna_count: int = 3
-    
-    # Position (in meters)
+
+    # Vị trí (tính bằng mét)
     x_position: float = 0.0
     y_position: float = 0.0
-    z_position: float = 2.5  # typical ceiling mount
-    
-    # Calibration
+    z_position: float = 2.5  # lắp trần điển hình
+
+    # Hiệu chuẩn
     calibrated: bool = False
     calibration_data: Optional[Dict[str, Any]] = None
-    
-    # Status
+
+    # Trạng thái
     enabled: bool = True
     last_seen: Optional[str] = None
-    
-    # Performance settings
+
+    # Cài đặt hiệu suất
     max_connections: int = 50
     power_level: int = 20  # dBm
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang dictionary."""
         return {
             "router_id": self.router_id,
             "name": self.name,
@@ -150,145 +150,145 @@ class RouterConfig:
 
 
 class PoseModelConfig(BaseModel):
-    """Configuration for pose estimation models."""
-    
-    model_name: str = Field(..., description="Model name")
-    model_path: str = Field(..., description="Path to model file")
-    model_type: str = Field(default="densepose", description="Model type")
-    
-    # Input settings
-    input_width: int = Field(default=256, description="Input image width")
-    input_height: int = Field(default=256, description="Input image height")
-    input_channels: int = Field(default=3, description="Input channels")
-    
-    # Processing settings
-    batch_size: int = Field(default=1, description="Batch size for inference")
-    confidence_threshold: float = Field(default=0.5, description="Confidence threshold")
-    nms_threshold: float = Field(default=0.4, description="NMS threshold")
-    
-    # Output settings
-    max_detections: int = Field(default=10, description="Maximum detections per frame")
-    keypoint_count: int = Field(default=17, description="Number of keypoints")
-    
-    # Performance settings
-    use_gpu: bool = Field(default=True, description="Use GPU acceleration")
-    gpu_memory_fraction: float = Field(default=0.5, description="GPU memory fraction")
-    num_threads: int = Field(default=4, description="Number of CPU threads")
-    
+    """Cấu hình cho các mô hình ước lượng tư thế."""
+
+    model_name: str = Field(..., description="Tên mô hình")
+    model_path: str = Field(..., description="Đường dẫn đến file mô hình")
+    model_type: str = Field(default="densepose", description="Loại mô hình")
+
+    # Cài đặt đầu vào
+    input_width: int = Field(default=256, description="Chiều rộng ảnh đầu vào")
+    input_height: int = Field(default=256, description="Chiều cao ảnh đầu vào")
+    input_channels: int = Field(default=3, description="Số kênh đầu vào")
+
+    # Cài đặt xử lý
+    batch_size: int = Field(default=1, description="Kích thước lô cho suy luận")
+    confidence_threshold: float = Field(default=0.5, description="Ngưỡng độ tin cậy")
+    nms_threshold: float = Field(default=0.4, description="Ngưỡng NMS")
+
+    # Cài đặt đầu ra
+    max_detections: int = Field(default=10, description="Số phát hiện tối đa mỗi khung hình")
+    keypoint_count: int = Field(default=17, description="Số điểm mấu chốt")
+
+    # Cài đặt hiệu suất
+    use_gpu: bool = Field(default=True, description="Sử dụng tăng tốc GPU")
+    gpu_memory_fraction: float = Field(default=0.5, description="Tỷ lệ bộ nhớ GPU")
+    num_threads: int = Field(default=4, description="Số luồng CPU")
+
     @validator("confidence_threshold", "nms_threshold", "gpu_memory_fraction")
     def validate_thresholds(cls, v):
-        """Validate threshold values."""
+        """Xác thực giá trị ngưỡng."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError("Threshold must be between 0.0 and 1.0")
+            raise ValueError("Ngưỡng phải nằm trong khoảng 0.0 đến 1.0")
         return v
 
 
 class StreamingConfig(BaseModel):
-    """Configuration for real-time streaming."""
-    
-    # Stream settings
-    fps: int = Field(default=30, description="Frames per second")
-    resolution: str = Field(default="720p", description="Stream resolution")
-    quality: str = Field(default="medium", description="Stream quality")
-    
-    # Buffer settings
-    buffer_size: int = Field(default=100, description="Buffer size")
-    max_latency_ms: int = Field(default=100, description="Maximum latency in milliseconds")
-    
-    # Compression settings
-    compression_enabled: bool = Field(default=True, description="Enable compression")
-    compression_level: int = Field(default=5, description="Compression level (1-9)")
-    
-    # WebSocket settings
-    ping_interval: int = Field(default=60, description="Ping interval in seconds")
-    timeout: int = Field(default=300, description="Connection timeout in seconds")
-    max_connections: int = Field(default=100, description="Maximum concurrent connections")
-    
-    # Data filtering
-    min_confidence: float = Field(default=0.5, description="Minimum confidence for streaming")
-    include_metadata: bool = Field(default=True, description="Include metadata in stream")
-    
+    """Cấu hình cho truyền phát thời gian thực."""
+
+    # Cài đặt truyền phát
+    fps: int = Field(default=30, description="Số khung hình mỗi giây")
+    resolution: str = Field(default="720p", description="Độ phân giải truyền phát")
+    quality: str = Field(default="medium", description="Chất lượng truyền phát")
+
+    # Cài đặt bộ đệm
+    buffer_size: int = Field(default=100, description="Kích thước bộ đệm")
+    max_latency_ms: int = Field(default=100, description="Độ trễ tối đa tính bằng mili giây")
+
+    # Cài đặt nén
+    compression_enabled: bool = Field(default=True, description="Bật nén")
+    compression_level: int = Field(default=5, description="Mức nén (1-9)")
+
+    # Cài đặt WebSocket
+    ping_interval: int = Field(default=60, description="Khoảng thời gian ping tính bằng giây")
+    timeout: int = Field(default=300, description="Thời gian chờ kết nối tính bằng giây")
+    max_connections: int = Field(default=100, description="Số kết nối đồng thời tối đa")
+
+    # Lọc dữ liệu
+    min_confidence: float = Field(default=0.5, description="Độ tin cậy tối thiểu cho truyền phát")
+    include_metadata: bool = Field(default=True, description="Bao gồm metadata trong luồng")
+
     @validator("fps")
     def validate_fps(cls, v):
-        """Validate FPS value."""
+        """Xác thực giá trị FPS."""
         if not 1 <= v <= 60:
-            raise ValueError("FPS must be between 1 and 60")
+            raise ValueError("FPS phải nằm trong khoảng 1 đến 60")
         return v
-    
+
     @validator("compression_level")
     def validate_compression_level(cls, v):
-        """Validate compression level."""
+        """Xác thực mức nén."""
         if not 1 <= v <= 9:
-            raise ValueError("Compression level must be between 1 and 9")
+            raise ValueError("Mức nén phải nằm trong khoảng 1 đến 9")
         return v
 
 
 class AlertConfig(BaseModel):
-    """Configuration for alerts and notifications."""
-    
-    # Alert types
-    enable_pose_alerts: bool = Field(default=False, description="Enable pose-based alerts")
-    enable_activity_alerts: bool = Field(default=False, description="Enable activity-based alerts")
-    enable_zone_alerts: bool = Field(default=False, description="Enable zone-based alerts")
-    enable_system_alerts: bool = Field(default=True, description="Enable system alerts")
-    
-    # Thresholds
-    confidence_threshold: float = Field(default=0.8, description="Alert confidence threshold")
-    duration_threshold: int = Field(default=5, description="Alert duration threshold in seconds")
-    
-    # Activities that trigger alerts
+    """Cấu hình cho cảnh báo và thông báo."""
+
+    # Loại cảnh báo
+    enable_pose_alerts: bool = Field(default=False, description="Bật cảnh báo dựa trên tư thế")
+    enable_activity_alerts: bool = Field(default=False, description="Bật cảnh báo dựa trên hoạt động")
+    enable_zone_alerts: bool = Field(default=False, description="Bật cảnh báo dựa trên khu vực")
+    enable_system_alerts: bool = Field(default=True, description="Bật cảnh báo hệ thống")
+
+    # Ngưỡng
+    confidence_threshold: float = Field(default=0.8, description="Ngưỡng độ tin cậy cảnh báo")
+    duration_threshold: int = Field(default=5, description="Ngưỡng thời gian cảnh báo tính bằng giây")
+
+    # Hoạt động kích hoạt cảnh báo
     alert_activities: List[ActivityType] = Field(
         default=[ActivityType.FALLING],
-        description="Activities that trigger alerts"
+        description="Các hoạt động kích hoạt cảnh báo"
     )
-    
-    # Notification settings
-    email_enabled: bool = Field(default=False, description="Enable email notifications")
-    webhook_enabled: bool = Field(default=False, description="Enable webhook notifications")
-    sms_enabled: bool = Field(default=False, description="Enable SMS notifications")
-    
-    # Rate limiting
-    max_alerts_per_hour: int = Field(default=10, description="Maximum alerts per hour")
-    cooldown_minutes: int = Field(default=5, description="Cooldown between similar alerts")
+
+    # Cài đặt thông báo
+    email_enabled: bool = Field(default=False, description="Bật thông báo qua email")
+    webhook_enabled: bool = Field(default=False, description="Bật thông báo qua webhook")
+    sms_enabled: bool = Field(default=False, description="Bật thông báo qua SMS")
+
+    # Giới hạn tốc độ
+    max_alerts_per_hour: int = Field(default=10, description="Số cảnh báo tối đa mỗi giờ")
+    cooldown_minutes: int = Field(default=5, description="Thời gian chờ giữa các cảnh báo tương tự")
 
 
 class DomainConfig:
-    """Main domain configuration container."""
-    
+    """Bộ chứa cấu hình miền nghiệp vụ chính."""
+
     def __init__(self):
         self.zones: Dict[str, ZoneConfig] = {}
         self.routers: Dict[str, RouterConfig] = {}
         self.pose_models: Dict[str, PoseModelConfig] = {}
         self.streaming = StreamingConfig()
         self.alerts = AlertConfig()
-        
-        # Load default configurations
+
+        # Tải cấu hình mặc định
         self._load_defaults()
-    
+
     def _load_defaults(self):
-        """Load default configurations."""
-        # Default pose model
+        """Tải các cấu hình mặc định."""
+        # Mô hình tư thế mặc định
         self.pose_models["default"] = PoseModelConfig(
             model_name="densepose_rcnn_R_50_FPN_s1x",
             model_path="./models/densepose_rcnn_R_50_FPN_s1x.pkl",
             model_type="densepose"
         )
-        
-        # Example zone
+
+        # Khu vực ví dụ
         self.zones["living_room"] = ZoneConfig(
             zone_id="living_room",
-            name="Living Room",
+            name="Phòng khách",
             zone_type=ZoneType.LIVING_ROOM,
-            description="Main living area",
+            description="Khu vực sinh hoạt chính",
             x_max=5.0,
             y_max=4.0,
             z_max=3.0
         )
-        
-        # Example router
+
+        # Router ví dụ
         self.routers["main_router"] = RouterConfig(
             router_id="main_router",
-            name="Main Router",
+            name="Router Chính",
             hardware_type=HardwareType.ROUTER,
             ip_address="192.168.1.1",
             mac_address="00:11:22:33:44:55",
@@ -296,94 +296,94 @@ class DomainConfig:
             y_position=2.0,
             z_position=2.5
         )
-    
+
     def add_zone(self, zone: ZoneConfig):
-        """Add a zone configuration."""
+        """Thêm cấu hình khu vực."""
         self.zones[zone.zone_id] = zone
-    
+
     def add_router(self, router: RouterConfig):
-        """Add a router configuration."""
+        """Thêm cấu hình router."""
         self.routers[router.router_id] = router
-    
+
     def add_pose_model(self, model: PoseModelConfig):
-        """Add a pose model configuration."""
+        """Thêm cấu hình mô hình tư thế."""
         self.pose_models[model.model_name] = model
-    
+
     def get_zone(self, zone_id: str) -> Optional[ZoneConfig]:
-        """Get zone configuration by ID."""
+        """Lấy cấu hình khu vực theo ID."""
         return self.zones.get(zone_id)
-    
+
     def get_router(self, router_id: str) -> Optional[RouterConfig]:
-        """Get router configuration by ID."""
+        """Lấy cấu hình router theo ID."""
         return self.routers.get(router_id)
-    
+
     def get_pose_model(self, model_name: str) -> Optional[PoseModelConfig]:
-        """Get pose model configuration by name."""
+        """Lấy cấu hình mô hình tư thế theo tên."""
         return self.pose_models.get(model_name)
-    
+
     def get_zones_for_router(self, router_id: str) -> List[ZoneConfig]:
-        """Get zones that use a specific router."""
+        """Lấy các khu vực sử dụng router cụ thể."""
         zones = []
         for zone in self.zones.values():
-            if (zone.primary_router == router_id or 
+            if (zone.primary_router == router_id or
                 router_id in zone.secondary_routers):
                 zones.append(zone)
         return zones
-    
+
     def get_routers_for_zone(self, zone_id: str) -> List[RouterConfig]:
-        """Get routers assigned to a specific zone."""
+        """Lấy các router được gán cho khu vực cụ thể."""
         zone = self.get_zone(zone_id)
         if not zone:
             return []
-        
+
         routers = []
-        
-        # Add primary router
+
+        # Thêm router chính
         if zone.primary_router and zone.primary_router in self.routers:
             routers.append(self.routers[zone.primary_router])
-        
-        # Add secondary routers
+
+        # Thêm các router phụ
         for router_id in zone.secondary_routers:
             if router_id in self.routers:
                 routers.append(self.routers[router_id])
-        
+
         return routers
-    
+
     def get_all_routers(self) -> List[RouterConfig]:
-        """Get all router configurations."""
+        """Lấy tất cả cấu hình router."""
         return list(self.routers.values())
-    
+
     def validate_configuration(self) -> List[str]:
-        """Validate the entire configuration."""
+        """Xác thực toàn bộ cấu hình."""
         issues = []
-        
-        # Validate zones
+
+        # Xác thực khu vực
         for zone_id, zone in self.zones.items():
             if zone.primary_router and zone.primary_router not in self.routers:
-                issues.append(f"Zone {zone_id} references unknown primary router: {zone.primary_router}")
-            
+                issues.append(f"Khu vực {zone_id} tham chiếu router chính không xác định: {zone.primary_router}")
+
             for router_id in zone.secondary_routers:
                 if router_id not in self.routers:
-                    issues.append(f"Zone {zone_id} references unknown secondary router: {router_id}")
-        
-        # Validate routers
+                    issues.append(f"Khu vực {zone_id} tham chiếu router phụ không xác định: {router_id}")
+
+        # Xác thực router
         for router_id, router in self.routers.items():
             if not router.ip_address:
-                issues.append(f"Router {router_id} missing IP address")
-            
+                issues.append(f"Router {router_id} thiếu địa chỉ IP")
+
             if not router.mac_address:
-                issues.append(f"Router {router_id} missing MAC address")
-        
-        # Validate pose models
+                issues.append(f"Router {router_id} thiếu địa chỉ MAC")
+
+        # Xác thực mô hình tư thế
         for model_name, model in self.pose_models.items():
             import os
             if not os.path.exists(model.model_path):
-                issues.append(f"Pose model {model_name} file not found: {model.model_path}")
-        
+                issues.append(f"File mô hình tư thế {model_name} không tìm thấy: {model.model_path}")
+
         return issues
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert configuration to dictionary."""
+        """Chuyển đổi cấu hình sang dictionary."""
         return {
             "zones": {
                 zone_id: {
@@ -427,55 +427,55 @@ class DomainConfig:
 
 @lru_cache()
 def get_domain_config() -> DomainConfig:
-    """Get cached domain configuration instance."""
+    """Lấy thể hiện cấu hình miền nghiệp vụ được cache."""
     return DomainConfig()
 
 
 def load_domain_config_from_file(file_path: str) -> DomainConfig:
-    """Load domain configuration from file."""
+    """Tải cấu hình miền nghiệp vụ từ file."""
     import json
-    
+
     config = DomainConfig()
-    
+
     try:
         with open(file_path, 'r') as f:
             data = json.load(f)
-        
-        # Load zones
+
+        # Tải khu vực
         for zone_data in data.get("zones", []):
             zone = ZoneConfig(**zone_data)
             config.add_zone(zone)
-        
-        # Load routers
+
+        # Tải router
         for router_data in data.get("routers", []):
             router = RouterConfig(**router_data)
             config.add_router(router)
-        
-        # Load pose models
+
+        # Tải mô hình tư thế
         for model_data in data.get("pose_models", []):
             model = PoseModelConfig(**model_data)
             config.add_pose_model(model)
-        
-        # Load streaming config
+
+        # Tải cấu hình truyền phát
         if "streaming" in data:
             config.streaming = StreamingConfig(**data["streaming"])
-        
-        # Load alerts config
+
+        # Tải cấu hình cảnh báo
         if "alerts" in data:
             config.alerts = AlertConfig(**data["alerts"])
-    
+
     except Exception as e:
-        raise ValueError(f"Failed to load domain configuration: {e}")
-    
+        raise ValueError(f"Không thể tải cấu hình miền nghiệp vụ: {e}")
+
     return config
 
 
 def save_domain_config_to_file(config: DomainConfig, file_path: str):
-    """Save domain configuration to file."""
+    """Lưu cấu hình miền nghiệp vụ vào file."""
     import json
-    
+
     try:
         with open(file_path, 'w') as f:
             json.dump(config.to_dict(), f, indent=2)
     except Exception as e:
-        raise ValueError(f"Failed to save domain configuration: {e}")
+        raise ValueError(f"Không thể lưu cấu hình miền nghiệp vụ: {e}")

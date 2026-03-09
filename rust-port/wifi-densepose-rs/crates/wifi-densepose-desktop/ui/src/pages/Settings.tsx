@@ -58,9 +58,9 @@ export function Settings() {
 
   return (
     <div style={{ padding: "var(--space-5)", maxWidth: 600 }}>
-      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>Settings</h1>
+      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>Cài Đặt</h1>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: "var(--space-5)" }}>
-        Configure server, network, and application preferences
+        Cấu hình máy chủ, mạng và tùy chọn ứng dụng
       </p>
 
       {error && (
@@ -91,23 +91,23 @@ export function Settings() {
             color: "var(--status-online)",
           }}
         >
-          Settings saved.
+          Đã lưu cài đặt.
         </div>
       )}
 
       {/* Sensing Server */}
-      <Section title="Sensing Server">
+      <Section title="Máy Chủ Cảm Biến">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
-          <Field label="HTTP Port">
+          <Field label="Cổng HTTP">
             <NumberInput value={settings.server_http_port} onChange={(v) => update("server_http_port", v)} min={1} max={65535} />
           </Field>
-          <Field label="WebSocket Port">
+          <Field label="Cổng WebSocket">
             <NumberInput value={settings.server_ws_port} onChange={(v) => update("server_ws_port", v)} min={1} max={65535} />
           </Field>
-          <Field label="UDP Port">
+          <Field label="Cổng UDP">
             <NumberInput value={settings.server_udp_port} onChange={(v) => update("server_udp_port", v)} min={1} max={65535} />
           </Field>
-          <Field label="Bind Address">
+          <Field label="Địa Chỉ Gắn Kết">
             <input
               type="text"
               value={settings.bind_address}
@@ -118,40 +118,40 @@ export function Settings() {
           </Field>
         </div>
         <div style={{ marginTop: "var(--space-4)" }}>
-          <Field label="UI Static Files Path">
+          <Field label="Đường Dẫn Tệp Tĩnh UI">
             <input
               type="text"
               value={settings.ui_path}
               onChange={(e) => update("ui_path", e.target.value)}
-              placeholder="Leave empty for default"
+              placeholder="Để trống cho giá trị mặc định"
             />
           </Field>
         </div>
       </Section>
 
       {/* Security */}
-      <Section title="Security">
-        <Field label="OTA Pre-Shared Key (PSK)">
+      <Section title="Bảo Mật">
+        <Field label="Khóa Chia Sẻ Trước OTA (PSK)">
           <div style={{ display: "flex", gap: "var(--space-2)" }}>
             <input
               type={showPsk ? "text" : "password"}
               value={settings.ota_psk}
               onChange={(e) => update("ota_psk", e.target.value)}
-              placeholder="Enter PSK for OTA authentication"
+              placeholder="Nhập PSK để xác thực OTA"
               style={{ flex: 1, fontFamily: "var(--font-mono)" }}
             />
             <button onClick={() => setShowPsk((prev) => !prev)} style={secondaryBtn}>
-              {showPsk ? "Hide" : "Show"}
+              {showPsk ? "Ẩn" : "Hiện"}
             </button>
           </div>
           <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: "var(--space-1)" }}>
-            Used for authenticating OTA firmware updates to nodes.
+            Dùng để xác thực cập nhật firmware OTA tới các nút.
           </p>
         </Field>
       </Section>
 
       {/* Discovery */}
-      <Section title="Network Discovery">
+      <Section title="Phát Hiện Mạng">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
           <Field label="Auto-Discover">
             <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer" }}>
@@ -161,10 +161,10 @@ export function Settings() {
                 onChange={(e) => update("auto_discover", e.target.checked)}
                 style={{ accentColor: "var(--accent)" }}
               />
-              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Enable periodic scanning</span>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Bật quét định kỳ</span>
             </label>
           </Field>
-          <Field label="Scan Interval (ms)">
+          <Field label="Khoảng Thời Gian Quét (ms)">
             <NumberInput
               value={settings.discover_interval_ms}
               onChange={(v) => update("discover_interval_ms", v)}
@@ -179,8 +179,8 @@ export function Settings() {
 
       {/* Actions */}
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--space-5)" }}>
-        <button onClick={reset} style={secondaryBtn}>Reset to Defaults</button>
-        <button onClick={save} style={primaryBtn}>Save Settings</button>
+        <button onClick={reset} style={secondaryBtn}>Đặt Lại Mặc Định</button>
+        <button onClick={save} style={primaryBtn}>Lưu Cài Đặt</button>
       </div>
     </div>
   );

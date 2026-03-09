@@ -11,9 +11,9 @@ import { MainTabsParamList } from './types';
 const createPlaceholder = (label: string) => {
   const Placeholder = () => (
     <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <ThemedText preset="bodyLg">{label} screen not implemented yet</ThemedText>
+      <ThemedText preset="bodyLg">{label} chưa được triển khai</ThemedText>
       <ThemedText preset="bodySm" color="textSecondary">
-        Placeholder shell
+        Giao diện giữ chỗ
       </ThemedText>
     </ThemedView>
   );
@@ -25,7 +25,7 @@ const createPlaceholder = (label: string) => {
         <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.accent} />
           <ThemedText preset="bodySm" color="textSecondary" style={{ marginTop: 8 }}>
-            Loading {label}
+            Đang tải {label}
           </ThemedText>
         </ThemedView>
       }
@@ -49,7 +49,7 @@ const wrapLazy = (
         return module;
       }
     } catch {
-      // keep fallback for shell-only screens
+      // giữ giao diện dự phòng cho màn hình chỉ có shell
     }
     return { default: fallback } as { default: React.ComponentType };
   });

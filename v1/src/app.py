@@ -1,5 +1,5 @@
 """
-FastAPI application factory and configuration
+Nhà máy tạo và cấu hình ứng dụng FastAPI
 """
 
 import logging
@@ -26,83 +26,83 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    logger.info("Starting WiFi-DensePose API...")
-    
+    """Trình quản lý vòng đời ứng dụng."""
+    logger.info("Đang khởi động WiFi-DensePose API...")
+
     try:
-        # Get orchestrator from app state
+        # Lấy trình điều phối từ trạng thái ứng dụng
         orchestrator: ServiceOrchestrator = app.state.orchestrator
-        
-        # Start connection manager
+
+        # Bắt đầu trình quản lý kết nối
         await connection_manager.start()
-        
-        # Start all services
+
+        # Bắt đầu tất cả dịch vụ
         await orchestrator.start()
-        
-        logger.info("WiFi-DensePose API started successfully")
-        
+
+        logger.info("WiFi-DensePose API đã khởi động thành công")
+
         yield
-        
+
     except Exception as e:
-        logger.error(f"Failed to start application: {e}")
+        logger.error(f"Không thể khởi động ứng dụng: {e}")
         raise
     finally:
-        # Cleanup on shutdown
-        logger.info("Shutting down WiFi-DensePose API...")
-        
-        # Shutdown connection manager
+        # Dọn dẹp khi tắt
+        logger.info("Đang tắt WiFi-DensePose API...")
+
+        # Tắt trình quản lý kết nối
         await connection_manager.shutdown()
-        
+
         if hasattr(app.state, 'orchestrator'):
             await app.state.orchestrator.shutdown()
-        logger.info("WiFi-DensePose API shutdown complete")
+        logger.info("WiFi-DensePose API đã tắt hoàn tất")
 
 
 def create_app(settings: Settings, orchestrator: ServiceOrchestrator) -> FastAPI:
-    """Create and configure FastAPI application."""
-    
-    # Create FastAPI application
+    """Tạo và cấu hình ứng dụng FastAPI."""
+
+    # Tạo ứng dụng FastAPI
     app = FastAPI(
         title=settings.app_name,
         version=settings.version,
-        description="WiFi-based human pose estimation and activity recognition API",
+        description="API ước lượng tư thế con người và nhận dạng hoạt động dựa trên WiFi",
         docs_url=settings.docs_url if not settings.is_production else None,
         redoc_url=settings.redoc_url if not settings.is_production else None,
         openapi_url=settings.openapi_url if not settings.is_production else None,
         lifespan=lifespan
     )
-    
-    # Store orchestrator in app state
+
+    # Lưu trình điều phối vào trạng thái ứng dụng
     app.state.orchestrator = orchestrator
     app.state.settings = settings
-    
-    # Add middleware in reverse order (last added = first executed)
+
+    # Thêm middleware theo thứ tự ngược (thêm cuối = thực thi trước)
     setup_middleware(app, settings)
-    
-    # Add exception handlers
+
+    # Thêm trình xử lý ngoại lệ
     setup_exception_handlers(app)
-    
-    # Include routers
+
+    # Bao gồm các router
     setup_routers(app, settings)
-    
-    # Add root endpoints
+
+    # Thêm endpoint gốc
     setup_root_endpoints(app, settings)
-    
+
     return app
 
 
 def setup_middleware(app: FastAPI, settings: Settings):
-    """Setup application middleware."""
-    
-    # Rate limiting middleware
+    """Thiết lập middleware ứng dụng."""
+
+    # Middleware giới hạn tốc độ
     if settings.enable_rate_limiting:
         app.add_middleware(RateLimitMiddleware, settings=settings)
-    
-    # Authentication middleware
+
+    # Middleware xác thực
     if settings.enable_authentication:
         app.add_middleware(AuthenticationMiddleware, settings=settings)
-    
-    # CORS middleware
+
+    # Middleware CORS
     if settings.cors_enabled:
         app.add_middleware(
             CORSMiddleware,
@@ -111,8 +111,8 @@ def setup_middleware(app: FastAPI, settings: Settings):
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             allow_headers=["*"],
         )
-    
-    # Trusted host middleware for production
+
+    # Middleware máy chủ tin cậy cho môi trường sản xuất
     if settings.is_production:
         app.add_middleware(
             TrustedHostMiddleware,
@@ -121,11 +121,11 @@ def setup_middleware(app: FastAPI, settings: Settings):
 
 
 def setup_exception_handlers(app: FastAPI):
-    """Setup global exception handlers."""
-    
+    """Thiết lập trình xử lý ngoại lệ toàn cục."""
+
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """Handle HTTP exceptions."""
+        """Xử lý ngoại lệ HTTP."""
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -137,34 +137,34 @@ def setup_exception_handlers(app: FastAPI):
                 }
             }
         )
-    
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """Handle request validation errors."""
+        """Xử lý lỗi xác thực yêu cầu."""
         return JSONResponse(
             status_code=422,
             content={
                 "error": {
                     "code": 422,
-                    "message": "Validation error",
+                    "message": "Lỗi xác thực",
                     "type": "validation_error",
                     "path": str(request.url.path),
                     "details": exc.errors()
                 }
             }
         )
-    
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Handle general exceptions."""
-        logger.error(f"Unhandled exception on {request.url.path}: {exc}", exc_info=True)
-        
+        """Xử lý ngoại lệ chung."""
+        logger.error(f"Ngoại lệ chưa xử lý tại {request.url.path}: {exc}", exc_info=True)
+
         return JSONResponse(
             status_code=500,
             content={
                 "error": {
                     "code": 500,
-                    "message": "Internal server error",
+                    "message": "Lỗi máy chủ nội bộ",
                     "type": "internal_error",
                     "path": str(request.url.path)
                 }
@@ -173,35 +173,35 @@ def setup_exception_handlers(app: FastAPI):
 
 
 def setup_routers(app: FastAPI, settings: Settings):
-    """Setup API routers."""
-    
-    # Health check router (no prefix)
+    """Thiết lập các router API."""
+
+    # Router kiểm tra sức khỏe (không có prefix)
     app.include_router(
         health.router,
         prefix="/health",
-        tags=["Health"]
+        tags=["Kiểm tra sức khỏe"]
     )
-    
-    # API routers with prefix
+
+    # Các router API với prefix
     app.include_router(
         pose.router,
         prefix=f"{settings.api_prefix}/pose",
-        tags=["Pose Estimation"]
+        tags=["Ước lượng tư thế"]
     )
-    
+
     app.include_router(
         stream.router,
         prefix=f"{settings.api_prefix}/stream",
-        tags=["Streaming"]
+        tags=["Truyền phát"]
     )
 
 
 def setup_root_endpoints(app: FastAPI, settings: Settings):
-    """Setup root application endpoints."""
-    
+    """Thiết lập các endpoint gốc của ứng dụng."""
+
     @app.get("/")
     async def root():
-        """Root endpoint with API information."""
+        """Endpoint gốc với thông tin API."""
         return {
             "name": settings.app_name,
             "version": settings.version,
@@ -215,12 +215,12 @@ def setup_root_endpoints(app: FastAPI, settings: Settings):
                 "real_time_processing": settings.enable_real_time_processing
             }
         }
-    
+
     @app.get(f"{settings.api_prefix}/info")
     async def api_info(request: Request):
-        """Get detailed API information."""
+        """Lấy thông tin chi tiết API."""
         orchestrator: ServiceOrchestrator = request.app.state.orchestrator
-        
+
         return {
             "api": {
                 "name": settings.app_name,
@@ -241,13 +241,13 @@ def setup_root_endpoints(app: FastAPI, settings: Settings):
                 "rate_limit_window": settings.rate_limit_window
             }
         }
-    
+
     @app.get(f"{settings.api_prefix}/status")
     async def api_status(request: Request):
-        """Get current API status."""
+        """Lấy trạng thái hiện tại của API."""
         try:
             orchestrator: ServiceOrchestrator = request.app.state.orchestrator
-            
+
             status = {
                 "api": {
                     "status": "healthy",
@@ -257,81 +257,81 @@ def setup_root_endpoints(app: FastAPI, settings: Settings):
                 "services": await orchestrator.get_service_status(),
                 "connections": await connection_manager.get_connection_stats()
             }
-            
+
             return status
-            
+
         except Exception as e:
-            logger.error(f"Error getting API status: {e}")
+            logger.error(f"Lỗi khi lấy trạng thái API: {e}")
             return {
                 "api": {
-                    "status": "error",
+                    "status": "lỗi",
                     "error": str(e)
                 }
             }
-    
-    # Metrics endpoint (if enabled)
+
+    # Endpoint số liệu (nếu được bật)
     if settings.metrics_enabled:
         @app.get(f"{settings.api_prefix}/metrics")
         async def api_metrics(request: Request):
-            """Get API metrics."""
+            """Lấy số liệu API."""
             try:
                 orchestrator: ServiceOrchestrator = request.app.state.orchestrator
-                
+
                 metrics = {
                     "connections": await connection_manager.get_metrics(),
                     "services": await orchestrator.get_service_metrics()
                 }
-                
+
                 return metrics
-                
+
             except Exception as e:
-                logger.error(f"Error getting metrics: {e}")
+                logger.error(f"Lỗi khi lấy số liệu: {e}")
                 return {"error": str(e)}
-    
-    # Development endpoints (only in development)
+
+    # Endpoint phát triển (chỉ trong môi trường phát triển)
     if settings.is_development and settings.enable_test_endpoints:
         @app.get(f"{settings.api_prefix}/dev/config")
         async def dev_config():
-            """Get current configuration (development only).
+            """Lấy cấu hình hiện tại (chỉ môi trường phát triển).
 
-            Returns a sanitized view of settings.  Secret keys,
-            passwords, and raw environment variables are never exposed.
+            Trả về bản xem đã được làm sạch của cài đặt. Khóa bí mật,
+            mật khẩu và biến môi trường thô không bao giờ được hiển thị.
             """
-            # Build a sanitized copy -- redact any key that looks secret
+            # Xây dựng bản sao đã làm sạch -- ẩn bất kỳ khóa nào có vẻ nhạy cảm
             _sensitive = {"secret", "password", "token", "key", "credential", "auth"}
             raw = settings.dict()
             sanitized = {
-                k: "***REDACTED***" if any(s in k.lower() for s in _sensitive) else v
+                k: "***ĐÃ ẨN***" if any(s in k.lower() for s in _sensitive) else v
                 for k, v in raw.items()
             }
             return {
                 "settings": sanitized,
                 "environment": settings.environment,
             }
-        
+
         @app.post(f"{settings.api_prefix}/dev/reset")
         async def dev_reset(request: Request):
-            """Reset services (development only)."""
+            """Đặt lại các dịch vụ (chỉ môi trường phát triển)."""
             try:
                 orchestrator: ServiceOrchestrator = request.app.state.orchestrator
                 await orchestrator.reset_services()
-                return {"message": "Services reset successfully"}
-                
+                return {"message": "Đã đặt lại các dịch vụ thành công"}
+
             except Exception as e:
-                logger.error(f"Error resetting services: {e}")
+                logger.error(f"Lỗi khi đặt lại các dịch vụ: {e}")
                 return {"error": str(e)}
 
 
-# Create default app instance for uvicorn
+# Tạo thể hiện ứng dụng mặc định cho uvicorn
 def get_app() -> FastAPI:
-    """Get the default application instance."""
+    """Lấy thể hiện ứng dụng mặc định."""
     from src.config.settings import get_settings
     from src.services.orchestrator import ServiceOrchestrator
-    
+
     settings = get_settings()
     orchestrator = ServiceOrchestrator(settings)
     return create_app(settings, orchestrator)
 
 
-# Default app instance for uvicorn
+# Thể hiện ứng dụng mặc định cho uvicorn
 app = get_app()

@@ -20,19 +20,19 @@ interface DiscoveredNode {
 }
 
 const STRATEGY_LABELS: Record<OtaStrategy, string> = {
-  sequential: "Sequential",
-  tdm_safe: "TDM-Safe",
-  parallel: "Parallel",
+  sequential: "Tuần Tự",
+  tdm_safe: "An Toàn TDM",
+  parallel: "Song Song",
 };
 
 const STATE_CONFIG: Record<BatchNodeState, { label: string; color: string }> = {
-  queued: { label: "Queued", color: "var(--text-muted)" },
-  uploading: { label: "Uploading", color: "var(--status-info)" },
-  rebooting: { label: "Rebooting", color: "var(--status-warning)" },
-  verifying: { label: "Verifying", color: "var(--status-info)" },
-  done: { label: "Done", color: "var(--status-online)" },
-  failed: { label: "Failed", color: "var(--status-error)" },
-  skipped: { label: "Skipped", color: "var(--text-muted)" },
+  queued: { label: "Đang chờ", color: "var(--text-muted)" },
+  uploading: { label: "Đang tải lên", color: "var(--status-info)" },
+  rebooting: { label: "Đang khởi động lại", color: "var(--status-warning)" },
+  verifying: { label: "Đang xác minh", color: "var(--status-info)" },
+  done: { label: "Xong", color: "var(--status-online)" },
+  thất bại: { label: "Thất bại", color: "var(--status-error)" },
+  skipped: { label: "Bỏ qua", color: "var(--text-muted)" },
 };
 
 export function OtaUpdate() {
@@ -77,8 +77,8 @@ export function OtaUpdate() {
       const selected = await open({
         multiple: false,
         filters: [
-          { name: "Firmware Binary", extensions: ["bin"] },
-          { name: "All Files", extensions: ["*"] },
+          { name: "Tệp Firmware Nhị Phân", extensions: ["bin"] },
+          { name: "Tất Cả Tệp", extensions: ["*"] },
         ],
       });
       if (selected && typeof selected === "string") setFirmwarePath(selected);
@@ -140,14 +140,14 @@ export function OtaUpdate() {
       // Update per-node states from results
       const finalStates = new Map<string, BatchNodeState>();
       results.forEach((r) => {
-        finalStates.set(r.node_ip, r.success ? "done" : "failed");
+        finalStates.set(r.node_ip, r.success ? "done" : "thất bại");
       });
       setBatchNodeStates(finalStates);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      // Mark all as failed on total failure
+      // Mark all as thất bại on total failure
       const failStates = new Map<string, BatchNodeState>();
-      ips.forEach((ip) => failStates.set(ip, "failed"));
+      ips.forEach((ip) => failStates.set(ip, "thất bại"));
       setBatchNodeStates(failStates);
     } finally {
       setIsBatchUpdating(false);
@@ -183,15 +183,15 @@ export function OtaUpdate() {
 
   return (
     <div style={{ padding: "var(--space-5)", maxWidth: 800 }}>
-      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>OTA Update</h1>
+      <h1 className="heading-lg" style={{ margin: "0 0 var(--space-1)" }}>Cập Nhật OTA</h1>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: "var(--space-5)" }}>
-        Push firmware updates to ESP32 nodes over the network
+        Đẩy cập nhật firmware tới các nút ESP32 qua mạng
       </p>
 
       {/* Mode Tabs */}
       <div style={{ display: "flex", gap: 0, marginBottom: "var(--space-5)" }}>
-        <TabButton label="Single Node" active={mode === "single"} onClick={() => setMode("single")} side="left" />
-        <TabButton label="Batch OTA" active={mode === "batch"} onClick={() => setMode("batch")} side="right" />
+        <TabButton label="Một Nút" active={mode === "single"} onClick={() => setMode("single")} side="left" />
+        <TabButton label="OTA Hàng Loạt" active={mode === "batch"} onClick={() => setMode("batch")} side="right" />
       </div>
 
       {error && <div style={bannerStyle("var(--status-error)")}>{error}</div>}
@@ -199,9 +199,9 @@ export function OtaUpdate() {
       {/* Node Discovery Section */}
       <div style={{ ...cardStyle, marginBottom: "var(--space-4)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
-          <h2 style={sectionTitleStyle}>Discovered Nodes</h2>
+          <h2 style={sectionTitleStyle}>Các Nút Đã Phát Hiện</h2>
           <button onClick={discoverNodes} style={secondaryBtn} disabled={isDiscovering}>
-            {isDiscovering ? "Scanning..." : nodes.length > 0 ? "Re-scan" : "Discover Nodes"}
+            {isDiscovering ? "Scanning..." : nodes.length > 0 ? "Re-scan" : "Phát Hiện Nút"}
           </button>
         </div>
 
@@ -213,7 +213,7 @@ export function OtaUpdate() {
 
         {nodes.length > 0 && mode === "single" && (
           <div>
-            <label style={labelStyle}>Target Node</label>
+            <label style={labelStyle}>Nút Đích</label>
             <select
               value={selectedNodeIp}
               onChange={(e) => setSelectedNodeIp(e.target.value)}
@@ -230,9 +230,9 @@ export function OtaUpdate() {
         {nodes.length > 0 && mode === "batch" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Select Nodes</label>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Chọn Nút</label>
               <button onClick={toggleAll} style={{ ...linkBtn, fontSize: 11 }}>
-                {selectedBatchIps.size === nodes.length ? "Deselect All" : "Select All"}
+                {selectedBatchIps.size === nodes.length ? "Bỏ Chọn Tất Cả" : "Chọn Tất Cả"}
               </button>
             </div>
             <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6 }}>
@@ -281,10 +281,10 @@ export function OtaUpdate() {
         <h2 style={{ ...sectionTitleStyle, marginBottom: "var(--space-3)" }}>Firmware & Configuration</h2>
 
         <div style={{ marginBottom: "var(--space-4)" }}>
-          <label style={labelStyle}>Firmware Binary (.bin)</label>
+          <label style={labelStyle}>Tệp Firmware Nhị Phân (.bin)</label>
           <div style={{ display: "flex", gap: "var(--space-2)" }}>
-            <input type="text" value={firmwarePath} readOnly placeholder="No file selected" style={{ flex: 1 }} />
-            <button onClick={pickFirmware} style={secondaryBtn}>Browse</button>
+            <input type="text" value={firmwarePath} readOnly placeholder="Chưa chọn tệp" style={{ flex: 1 }} />
+            <button onClick={pickFirmware} style={secondaryBtn}>Duyệt</button>
           </div>
         </div>
 
@@ -295,13 +295,13 @@ export function OtaUpdate() {
               type="password"
               value={psk}
               onChange={(e) => setPsk(e.target.value)}
-              placeholder="Leave blank if none"
+              placeholder="Để trống nếu không có"
               style={{ width: "100%" }}
             />
           </div>
           {mode === "batch" && (
             <div>
-              <label style={labelStyle}>Update Strategy</label>
+              <label style={labelStyle}>Chiến Lược Cập Nhật</label>
               <select value={strategy} onChange={(e) => setStrategy(e.target.value as OtaStrategy)} style={{ width: "100%" }}>
                 {(Object.keys(STRATEGY_LABELS) as OtaStrategy[]).map((s) => (
                   <option key={s} value={s}>{STRATEGY_LABELS[s]}</option>
@@ -321,7 +321,7 @@ export function OtaUpdate() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-5)" }}>
         {mode === "single" ? (
           <button onClick={startSingleOta} disabled={!canStartSingle} style={canStartSingle ? primaryBtn : disabledBtn}>
-            {isSingleUpdating ? "Pushing Update..." : "Push Update"}
+            {isSingleUpdating ? "Pushing Update..." : "Đẩy Cập Nhật"}
           </button>
         ) : (
           <button onClick={startBatchOta} disabled={!canStartBatch} style={canStartBatch ? primaryBtn : disabledBtn}>
@@ -333,10 +333,10 @@ export function OtaUpdate() {
       {/* Single Result */}
       {mode === "single" && singleResult && (
         <div style={cardStyle}>
-          <h2 style={{ ...sectionTitleStyle, marginBottom: "var(--space-3)" }}>Result</h2>
+          <h2 style={{ ...sectionTitleStyle, marginBottom: "var(--space-3)" }}>Kết Quả</h2>
           <div style={bannerStyle(singleResult.success ? "var(--status-online)" : "var(--status-error)")}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              {singleResult.success ? "Update Successful" : "Update Failed"}
+              {singleResult.success ? "Cập Nhật Thành Công" : "Cập Nhật Thất Bại"}
             </div>
             <div style={{ fontSize: 12 }}>
               Node: {singleResult.node_ip}
@@ -357,15 +357,15 @@ export function OtaUpdate() {
       {mode === "batch" && batchNodeStates.size > 0 && (
         <div style={cardStyle}>
           <h2 style={{ ...sectionTitleStyle, marginBottom: "var(--space-3)" }}>
-            {isBatchUpdating ? "Update Progress" : "Results"}
+            {isBatchUpdating ? "Tiến Trình Cập Nhật" : "Kết Quả"}
           </h2>
           <div style={{ border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
             {/* Table header */}
             <div style={tableHeaderRow}>
-              <span style={{ ...tableCell, flex: 2 }}>Node IP</span>
-              <span style={{ ...tableCell, flex: 2 }}>Status</span>
-              <span style={{ ...tableCell, flex: 2 }}>Version</span>
-              <span style={{ ...tableCell, flex: 1, textAlign: "right" }}>Duration</span>
+              <span style={{ ...tableCell, flex: 2 }}>IP Nút</span>
+              <span style={{ ...tableCell, flex: 2 }}>Trạng thái</span>
+              <span style={{ ...tableCell, flex: 2 }}>Phiên bản</span>
+              <span style={{ ...tableCell, flex: 1, textAlign: "right" }}>Thời lượng</span>
             </div>
             {/* Table rows */}
             {Array.from(batchNodeStates.entries()).map(([ip, state]) => {
@@ -396,10 +396,10 @@ export function OtaUpdate() {
           {!isBatchUpdating && batchResults.length > 0 && (
             <div style={{ marginTop: "var(--space-3)", display: "flex", gap: "var(--space-4)", fontSize: 12 }}>
               <span style={{ color: "var(--status-online)" }}>
-                {batchResults.filter((r) => r.success).length} succeeded
+                {batchResults.filter((r) => r.success).length} thành công
               </span>
               <span style={{ color: "var(--status-error)" }}>
-                {batchResults.filter((r) => !r.success).length} failed
+                {batchResults.filter((r) => !r.success).length} thất bại
               </span>
               <span style={{ color: "var(--text-muted)" }}>
                 {batchResults.length} total

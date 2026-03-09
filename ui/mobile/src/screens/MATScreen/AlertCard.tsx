@@ -19,7 +19,7 @@ type SeverityMeta = {
 const resolveSeverity = (alert: Alert): SeverityMeta => {
   if (alert.priority === AlertPriority.Critical) {
     return {
-      label: 'URGENT',
+      label: 'KHẨN CẤP',
       icon: '‼',
       color: colors.danger,
     };
@@ -27,14 +27,14 @@ const resolveSeverity = (alert: Alert): SeverityMeta => {
 
   if (alert.priority === AlertPriority.High) {
     return {
-      label: 'HIGH',
+      label: 'CAO',
       icon: '⚠',
       color: colors.warn,
     };
   }
 
   return {
-    label: 'NORMAL',
+    label: 'BÌNH THƯỜNG',
     icon: '•',
     color: colors.accent,
   };
@@ -42,13 +42,13 @@ const resolveSeverity = (alert: Alert): SeverityMeta => {
 
 const formatTime = (value?: string): string => {
   if (!value) {
-    return 'Unknown';
+    return 'Không rõ';
   }
 
   try {
     return new Date(value).toLocaleTimeString();
   } catch {
-    return 'Unknown';
+    return 'Không rõ';
   }
 };
 

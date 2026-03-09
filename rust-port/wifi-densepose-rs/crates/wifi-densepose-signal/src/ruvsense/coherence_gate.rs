@@ -1,56 +1,56 @@
-//! Coherence-Gated Update Policy (ADR-029 Section 2.6)
+//! Chính Sách Cập Nhật Cổng Tương Hợp (ADR-029 Mục 2.6)
 //!
-//! Applies a threshold-based gating rule to the coherence score, producing
-//! a `GateDecision` that controls downstream Kalman filter updates:
+//! Áp dụng quy tắc cổng dựa trên ngưỡng cho điểm tương hợp, tạo ra
+//! một `GateDecision` điều khiển cập nhật bộ lọc Kalman phía sau:
 //!
-//! - **Accept** (coherence > 0.85): Full measurement update with nominal noise.
-//! - **PredictOnly** (0.5 < coherence < 0.85): Kalman predict step only,
-//!   measurement noise inflated 3x.
-//! - **Reject** (coherence < 0.5): Discard measurement entirely.
-//! - **Recalibrate** (>10s continuous low coherence): Trigger SONA/AETHER
-//!   recalibration pipeline.
+//! - **Chấp Nhận** (tương hợp > 0.85): Cập nhật đo lường đầy đủ với nhiễu danh nghĩa.
+//! - **Chỉ Dự Đoán** (0.5 < tương hợp < 0.85): Chỉ chạy bước dự đoán Kalman,
+//!   nhiễu đo lường tăng gấp 3x.
+//! - **Từ Chối** (tương hợp < 0.5): Loại bỏ hoàn toàn đo lường.
+//! - **Hiệu Chuẩn Lại** (>10s tương hợp thấp liên tục): Kích hoạt pipeline
+//!   hiệu chuẩn lại SONA/AETHER.
 //!
-//! The gate operates on the coherence score produced by the `coherence` module
-//! and the stale frame counter from `CoherenceState`.
+//! Cổng hoạt động trên điểm tương hợp do module `coherence` tạo ra
+//! và bộ đếm khung cũ từ `CoherenceState`.
 
-/// Gate decision controlling Kalman filter update behavior.
+/// Quyết định cổng điều khiển hành vi cập nhật bộ lọc Kalman.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GateDecision {
-    /// Coherence is high. Proceed with full Kalman measurement update.
-    /// Contains the inflated measurement noise multiplier (1.0 = nominal).
+    /// Tương hợp cao. Tiến hành cập nhật đo lường Kalman đầy đủ.
+    /// Chứa hệ số nhân nhiễu đo lường tăng (1.0 = danh nghĩa).
     Accept {
-        /// Measurement noise multiplier (1.0 for full accept).
+        /// Hệ số nhân nhiễu đo lường (1.0 cho chấp nhận đầy đủ).
         noise_multiplier: f32,
     },
 
-    /// Coherence is moderate. Run Kalman predict only (no measurement update).
-    /// Measurement noise would be inflated 3x if used.
+    /// Tương hợp trung bình. Chỉ chạy dự đoán Kalman (không cập nhật đo lường).
+    /// Nhiễu đo lường sẽ tăng gấp 3x nếu sử dụng.
     PredictOnly,
 
-    /// Coherence is low. Reject this measurement entirely.
+    /// Tương hợp thấp. Từ chối hoàn toàn đo lường này.
     Reject,
 
-    /// Prolonged low coherence. Trigger environmental recalibration.
-    /// The pipeline should freeze output at last known good pose and
-    /// begin the SONA/AETHER TTT adaptation cycle.
+    /// Tương hợp thấp kéo dài. Kích hoạt hiệu chuẩn lại môi trường.
+    /// Pipeline nên đóng băng đầu ra ở tư thế tốt cuối cùng và
+    /// bắt đầu chu kỳ thích ứng TTT SONA/AETHER.
     Recalibrate {
-        /// Duration of low coherence in frames.
+        /// Thời lượng tương hợp thấp tính bằng khung.
         stale_frames: u64,
     },
 }
 
 impl GateDecision {
-    /// Returns true if this decision allows a measurement update.
+    /// Trả về true nếu quyết định này cho phép cập nhật đo lường.
     pub fn allows_update(&self) -> bool {
         matches!(self, GateDecision::Accept { .. })
     }
 
-    /// Returns true if this is a reject or recalibrate decision.
+    /// Trả về true nếu đây là quyết định từ chối hoặc hiệu chuẩn lại.
     pub fn is_rejected(&self) -> bool {
         matches!(self, GateDecision::Reject | GateDecision::Recalibrate { .. })
     }
 
-    /// Returns the noise multiplier for accepted decisions, or None otherwise.
+    /// Trả về hệ số nhân nhiễu cho quyết định chấp nhận, hoặc None nếu không.
     pub fn noise_multiplier(&self) -> Option<f32> {
         match self {
             GateDecision::Accept { noise_multiplier } => Some(*noise_multiplier),
@@ -59,18 +59,18 @@ impl GateDecision {
     }
 }
 
-/// Configuration for the gate policy thresholds.
+/// Cấu hình cho các ngưỡng chính sách cổng.
 #[derive(Debug, Clone)]
 pub struct GatePolicyConfig {
-    /// Coherence threshold above which measurements are accepted.
+    /// Ngưỡng tương hợp để chấp nhận đo lường.
     pub accept_threshold: f32,
-    /// Coherence threshold below which measurements are rejected.
+    /// Ngưỡng tương hợp để từ chối đo lường.
     pub reject_threshold: f32,
-    /// Maximum stale frames before triggering recalibration.
+    /// Số khung cũ tối đa trước khi kích hoạt hiệu chuẩn lại.
     pub max_stale_frames: u64,
-    /// Noise inflation factor for PredictOnly zone.
+    /// Hệ số tăng nhiễu cho vùng Chỉ Dự Đoán.
     pub predict_only_noise: f32,
-    /// Whether to use adaptive thresholds based on drift profile.
+    /// Có sử dụng ngưỡng thích ứng dựa trên hồ sơ trôi hay không.
     pub adaptive: bool,
 }
 
@@ -79,32 +79,32 @@ impl Default for GatePolicyConfig {
         Self {
             accept_threshold: 0.85,
             reject_threshold: 0.5,
-            max_stale_frames: 200, // 10s at 20Hz
+            max_stale_frames: 200, // 10s ở 20Hz
             predict_only_noise: 3.0,
             adaptive: false,
         }
     }
 }
 
-/// Gate policy that maps coherence scores to gate decisions.
+/// Chính sách cổng ánh xạ điểm tương hợp sang quyết định cổng.
 #[derive(Debug, Clone)]
 pub struct GatePolicy {
-    /// Accept threshold.
+    /// Ngưỡng chấp nhận.
     accept_threshold: f32,
-    /// Reject threshold.
+    /// Ngưỡng từ chối.
     reject_threshold: f32,
-    /// Maximum stale frames before recalibration.
+    /// Số khung cũ tối đa trước khi hiệu chuẩn lại.
     max_stale_frames: u64,
-    /// Noise inflation for predict-only zone.
+    /// Tăng nhiễu cho vùng chỉ dự đoán.
     predict_only_noise: f32,
-    /// Running count of consecutive rejected/predict-only frames.
+    /// Bộ đếm chạy của các khung tương hợp thấp liên tiếp.
     consecutive_low: u64,
-    /// Last decision for tracking transitions.
+    /// Quyết định gần nhất để theo dõi chuyển đổi.
     last_decision: Option<GateDecision>,
 }
 
 impl GatePolicy {
-    /// Create a gate policy with the given thresholds.
+    /// Tạo chính sách cổng với các ngưỡng cho trước.
     pub fn new(accept: f32, reject: f32, max_stale: u64) -> Self {
         Self {
             accept_threshold: accept,
@@ -116,7 +116,7 @@ impl GatePolicy {
         }
     }
 
-    /// Create a gate policy from a configuration.
+    /// Tạo chính sách cổng từ cấu hình.
     pub fn from_config(config: &GatePolicyConfig) -> Self {
         Self {
             accept_threshold: config.accept_threshold,
@@ -128,7 +128,7 @@ impl GatePolicy {
         }
     }
 
-    /// Evaluate the gate decision for a given coherence score and stale count.
+    /// Đánh giá quyết định cổng cho điểm tương hợp và số khung cũ cho trước.
     pub fn evaluate(&mut self, coherence_score: f32, stale_count: u64) -> GateDecision {
         let decision = if stale_count >= self.max_stale_frames {
             GateDecision::Recalibrate {
@@ -151,27 +151,27 @@ impl GatePolicy {
         decision
     }
 
-    /// Return the last gate decision, if any.
+    /// Trả về quyết định cổng gần nhất, nếu có.
     pub fn last_decision(&self) -> Option<&GateDecision> {
         self.last_decision.as_ref()
     }
 
-    /// Return the current count of consecutive low-coherence frames.
+    /// Trả về bộ đếm hiện tại của các khung tương hợp thấp liên tiếp.
     pub fn consecutive_low_count(&self) -> u64 {
         self.consecutive_low
     }
 
-    /// Return the accept threshold.
+    /// Trả về ngưỡng chấp nhận.
     pub fn accept_threshold(&self) -> f32 {
         self.accept_threshold
     }
 
-    /// Return the reject threshold.
+    /// Trả về ngưỡng từ chối.
     pub fn reject_threshold(&self) -> f32 {
         self.reject_threshold
     }
 
-    /// Reset the policy state (e.g., after recalibration).
+    /// Đặt lại trạng thái chính sách (ví dụ: sau hiệu chuẩn lại).
     pub fn reset(&mut self) {
         self.consecutive_low = 0;
         self.last_decision = None;
@@ -184,10 +184,10 @@ impl Default for GatePolicy {
     }
 }
 
-/// Compute an adaptive noise multiplier for the PredictOnly zone.
+/// Tính hệ số nhân nhiễu thích ứng cho vùng Chỉ Dự Đoán.
 ///
-/// As coherence drops from accept to reject threshold, the noise
-/// multiplier increases from 1.0 to `max_inflation`.
+/// Khi tương hợp giảm từ ngưỡng chấp nhận đến ngưỡng từ chối, hệ số nhân
+/// nhiễu tăng từ 1.0 đến `max_inflation`.
 pub fn adaptive_noise_multiplier(
     coherence: f32,
     accept: f32,
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn recalibrate_overrides_accept() {
         let mut gate = GatePolicy::new(0.85, 0.5, 100);
-        // Even with high coherence, stale count triggers recalibration
+        // Ngay cả với tương hợp cao, số khung cũ kích hoạt hiệu chuẩn lại
         let decision = gate.evaluate(0.95, 100);
         assert!(matches!(decision, GateDecision::Recalibrate { .. }));
     }
@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(gate.consecutive_low_count(), 1);
         gate.evaluate(0.6, 0);
         assert_eq!(gate.consecutive_low_count(), 2);
-        gate.evaluate(0.9, 0); // accepted -> resets
+        gate.evaluate(0.9, 0); // chấp nhận -> đặt lại
         assert_eq!(gate.consecutive_low_count(), 0);
     }
 
@@ -305,15 +305,15 @@ mod tests {
     #[test]
     fn adaptive_noise_midpoint() {
         let mid = adaptive_noise_multiplier(0.675, 0.85, 0.5, 3.0);
-        assert!((mid - 2.0).abs() < 0.01, "Midpoint noise should be ~2.0, got {}", mid);
+        assert!((mid - 2.0).abs() < 0.01, "Nhiễu tại điểm giữa phải xấp xỉ 2.0, nhận được {}", mid);
     }
 
     #[test]
     fn adaptive_noise_tiny_range() {
-        // When accept == reject, coherence >= accept returns 1.0
+        // Khi accept == reject, tương hợp >= accept trả về 1.0
         let val = adaptive_noise_multiplier(0.5, 0.5, 0.5, 3.0);
         assert!((val - 1.0).abs() < f32::EPSILON);
-        // Below both thresholds should return max_inflation
+        // Dưới cả hai ngưỡng phải trả về max_inflation
         let val2 = adaptive_noise_multiplier(0.4, 0.5, 0.5, 3.0);
         assert!((val2 - 3.0).abs() < f32::EPSILON);
     }

@@ -1,4 +1,4 @@
-// Tab Manager Component
+// Thành phần Quản lý Tab
 
 export class TabManager {
   constructor(containerElement) {
@@ -8,18 +8,18 @@ export class TabManager {
     this.tabChangeCallbacks = [];
   }
 
-  // Initialize tabs
+  // Khởi tạo các tab
   init() {
-    // Find all tabs and contents
+    // Tìm tất cả tab và nội dung
     this.tabs = Array.from(this.container.querySelectorAll('.nav-tab'));
     this.tabContents = Array.from(this.container.querySelectorAll('.tab-content'));
     
-    // Set up event listeners
+    // Thiết lập bộ lắng nghe sự kiện
     this.tabs.forEach(tab => {
       tab.addEventListener('click', () => this.switchTab(tab));
     });
 
-    // Activate first tab if none active
+    // Kích hoạt tab đầu tiên nếu chưa có tab nào hoạt động
     const activeTab = this.tabs.find(tab => tab.classList.contains('active'));
     if (activeTab) {
       this.activeTab = activeTab.getAttribute('data-tab');
@@ -28,7 +28,7 @@ export class TabManager {
     }
   }
 
-  // Switch to a tab
+  // Chuyển sang tab
   switchTab(tabElement) {
     const tabId = tabElement.getAttribute('data-tab');
     
@@ -36,25 +36,25 @@ export class TabManager {
       return;
     }
 
-    // Update tab states
+    // Cập nhật trạng thái tab
     this.tabs.forEach(tab => {
       tab.classList.toggle('active', tab === tabElement);
     });
 
-    // Update content visibility
+    // Cập nhật hiển thị nội dung
     this.tabContents.forEach(content => {
       content.classList.toggle('active', content.id === tabId);
     });
 
-    // Update active tab
+    // Cập nhật tab đang hoạt động
     const previousTab = this.activeTab;
     this.activeTab = tabId;
 
-    // Notify callbacks
+    // Thông báo callback
     this.notifyTabChange(tabId, previousTab);
   }
 
-  // Switch to tab by ID
+  // Chuyển sang tab theo ID
   switchToTab(tabId) {
     const tab = this.tabs.find(t => t.getAttribute('data-tab') === tabId);
     if (tab) {
@@ -62,11 +62,11 @@ export class TabManager {
     }
   }
 
-  // Register tab change callback
+  // Đăng ký callback thay đổi tab
   onTabChange(callback) {
     this.tabChangeCallbacks.push(callback);
     
-    // Return unsubscribe function
+    // Trả về hàm huỷ đăng ký
     return () => {
       const index = this.tabChangeCallbacks.indexOf(callback);
       if (index > -1) {
@@ -75,23 +75,23 @@ export class TabManager {
     };
   }
 
-  // Notify tab change callbacks
+  // Thông báo các callback thay đổi tab
   notifyTabChange(newTab, previousTab) {
     this.tabChangeCallbacks.forEach(callback => {
       try {
         callback(newTab, previousTab);
       } catch (error) {
-        console.error('Error in tab change callback:', error);
+        console.error('Lỗi trong callback thay đổi tab:', error);
       }
     });
   }
 
-  // Get active tab
+  // Lấy tab đang hoạt động
   getActiveTab() {
     return this.activeTab;
   }
 
-  // Enable/disable tab
+  // Bật/tắt tab
   setTabEnabled(tabId, enabled) {
     const tab = this.tabs.find(t => t.getAttribute('data-tab') === tabId);
     if (tab) {
@@ -100,7 +100,7 @@ export class TabManager {
     }
   }
 
-  // Show/hide tab
+  // Hiện/ẩn tab
   setTabVisible(tabId, visible) {
     const tab = this.tabs.find(t => t.getAttribute('data-tab') === tabId);
     if (tab) {
@@ -108,18 +108,18 @@ export class TabManager {
     }
   }
 
-  // Add badge to tab
+  // Thêm huy hiệu vào tab
   setTabBadge(tabId, badge) {
     const tab = this.tabs.find(t => t.getAttribute('data-tab') === tabId);
     if (!tab) return;
 
-    // Remove existing badge
+    // Xoá huy hiệu hiện tại
     const existingBadge = tab.querySelector('.tab-badge');
     if (existingBadge) {
       existingBadge.remove();
     }
 
-    // Add new badge if provided
+    // Thêm huy hiệu mới nếu có
     if (badge) {
       const badgeElement = document.createElement('span');
       badgeElement.className = 'tab-badge';
@@ -128,7 +128,7 @@ export class TabManager {
     }
   }
 
-  // Clean up
+  // Dọn dẹp
   dispose() {
     this.tabs.forEach(tab => {
       tab.removeEventListener('click', this.switchTab);

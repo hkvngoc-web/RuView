@@ -12,13 +12,13 @@ type Props = {
 
 const MAX_PERSONS = 3;
 
-// COCO skeleton bones
+// Xương khung COCO
 const BONES: [number, number][] = [
   [0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],
   [5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],
 ];
 
-// Standing pose (meters, Y-up)
+// Tư thế đứng (mét, trục Y hướng lên)
 const BASE_POSE: [number, number, number][] = [
   [ 0.00, 1.72, 0.04],  // 0  nose
   [-0.03, 1.76, 0.05],  // 1  left eye
@@ -39,7 +39,7 @@ const BASE_POSE: [number, number, number][] = [
   [ 0.12, 0.04, 0.00],  // 16 right ankle
 ];
 
-// DensePose-style body part colors
+// Màu bộ phận cơ thể kiểu DensePose
 const DENSEPOSE_COLORS: Record<string, number> = {
   head:       0xf4a582,
   neck:       0xd6604d,
@@ -60,10 +60,10 @@ const DENSEPOSE_COLORS: Record<string, number> = {
   rFoot:      0x9970ab,
 };
 
-// Per-person tint offsets to visually distinguish multiple bodies
+// Độ lệch màu cho mỗi người để phân biệt trực quan nhiều cơ thể
 const PERSON_HUES = [0, 0.12, -0.10];
 
-// Body segments: [jointA, jointB, topRadius, botRadius, colorKey]
+// Phân đoạn cơ thể: [khớpA, khớpB, bánKínhTrên, bánKínhDưới, khóaMàu]
 const BODY_SEGS: [number, number, number, number, string][] = [
   [5,  6,  0.10, 0.10, 'torsoFront'],
   [5,  11, 0.09, 0.07, 'torsoSide'],
@@ -132,7 +132,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   const hue = PERSON_HUES[personIdx] ?? 0;
   const tc = (key: string) => tintColor(DENSEPOSE_COLORS[key], hue);
 
-  // Head
+  // Đầu
   const headGeo = new THREE.SphereGeometry(0.105, 20, 16);
   headGeo.scale(1, 1.08, 1);
   const headMat = new THREE.MeshPhysicalMaterial({
@@ -150,7 +150,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   const headGlow = new THREE.Mesh(headGlowGeo, headGlowMat);
   headGlow.visible = false; scene.add(headGlow);
 
-  // Eyes
+  // Mắt
   const eyeGeo = new THREE.SphereGeometry(0.015, 8, 6);
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xeeffff });
   const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
@@ -165,7 +165,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   pupilL.visible = pupilR.visible = false;
   scene.add(pupilL); scene.add(pupilR);
 
-  // Neck
+  // Cổ
   const neckGeo = new THREE.CapsuleGeometry(0.04, 0.08, 4, 8);
   const neckMat = new THREE.MeshPhysicalMaterial({
     color: tc('neck'), emissive: tc('neck'),
@@ -174,7 +174,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   const neck = new THREE.Mesh(neckGeo, neckMat);
   neck.castShadow = true; neck.visible = false; scene.add(neck);
 
-  // Torso
+  // Thân
   const torsoGeo = new THREE.BoxGeometry(0.34, 0.50, 0.18, 2, 3, 2);
   const torsoPos = torsoGeo.attributes.position;
   for (let i = 0; i < torsoPos.count; i++) {
@@ -202,7 +202,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   const torsoGlow = new THREE.Mesh(torsoGlowGeo, torsoGlowMat);
   torsoGlow.visible = false; scene.add(torsoGlow);
 
-  // Hands
+  // Tay
   const handGeo = new THREE.BoxGeometry(0.05, 0.08, 0.025);
   const handL = new THREE.Mesh(handGeo, new THREE.MeshPhysicalMaterial({
     color: tc('lHand'), emissive: tc('lHand'), emissiveIntensity: 0.1, roughness: 0.3, transparent: true, opacity: 0.85,
@@ -212,7 +212,7 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   }));
   handL.visible = handR.visible = false; scene.add(handL); scene.add(handR);
 
-  // Feet
+  // Chân
   const footGeo = new THREE.BoxGeometry(0.06, 0.04, 0.14);
   const footL = new THREE.Mesh(footGeo, new THREE.MeshPhysicalMaterial({
     color: tc('lFoot'), emissive: tc('lFoot'), emissiveIntensity: 0.1, roughness: 0.4, transparent: true, opacity: 0.85,
@@ -222,18 +222,18 @@ function createBodyGroup(scene: THREE.Scene, personIdx: number): BodyGroup {
   }));
   footL.visible = footR.visible = false; scene.add(footL); scene.add(footR);
 
-  // Limb capsules + glow
+  // Hình trụ chi + phát sáng
   const limbs = BODY_SEGS.map(([,, rT, rB, ck]) => makePart(scene, rT, rB, tc(ck)));
   const limbGlows = BODY_SEGS.map(([,, rT, rB, ck]) => makePart(scene, rT * 1.6, rB * 1.6, tc(ck), true));
 
-  // Joint dots
+  // Chấm khớp
   const jDotGeo = new THREE.SphereGeometry(0.018, 6, 4);
   const jDots = Array.from({ length: 17 }, () => {
     const mat = new THREE.MeshBasicMaterial({ color: 0x88ddee, transparent: true, opacity: 0.7 });
     const m = new THREE.Mesh(jDotGeo, mat); m.visible = false; scene.add(m); return m;
   });
 
-  // Skeleton lines
+  // Đường xương
   const skelMat = new THREE.LineBasicMaterial({ color: 0x55ccdd, transparent: true, opacity: 0.25 });
   const skelLines = BONES.map(([a, b]) => {
     const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
@@ -302,7 +302,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       const W = () => container.clientWidth || window.innerWidth;
       const H = () => container.clientHeight || window.innerHeight;
 
-      // --- Renderer ---
+      // --- Trình kết xuất ---
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setSize(W(), H());
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -321,7 +321,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       camera.position.set(0, 1.4, 3.5);
       camera.lookAt(0, 0.9, 0);
 
-      // --- Lighting ---
+      // --- Ánh sáng ---
       scene.add(new THREE.AmbientLight(0x223344, 0.5));
       const key = new THREE.DirectionalLight(0xddeeff, 1.0);
       key.position.set(2, 5, 3);
@@ -339,7 +339,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       const under = new THREE.PointLight(0x225566, 0.4, 5);
       under.position.set(0, 0.1, 1); scene.add(under);
 
-      // --- Ground ---
+      // --- Mặt đất ---
       const groundGeo = new THREE.PlaneGeometry(20, 20);
       const groundMat = new THREE.MeshStandardMaterial({ color: 0x0a0e1a, roughness: 0.9, metalness: 0.1 });
       const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -347,7 +347,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       const gridH = new THREE.GridHelper(20, 40, 0x1a3050, 0x0e1826);
       gridH.position.y = 0.002; scene.add(gridH);
 
-      // --- Signal field (20x20) ---
+      // --- Trường tín hiệu (20x20) ---
       const GS = 20;
       const cellGeo = new THREE.PlaneGeometry(0.38, 0.38);
       const cellMat = new THREE.MeshBasicMaterial({ color: 0x32b8c6, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
@@ -364,7 +364,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       if (sigGrid.instanceColor) sigGrid.instanceColor.needsUpdate = true;
       scene.add(sigGrid);
 
-      // --- ESP32 nodes ---
+      // --- Nút ESP32 ---
       const nodeGeo = new THREE.OctahedronGeometry(0.08, 1);
       const nodeMs: THREE.Mesh[] = [];
       for (let i = 0; i < 8; i++) {
@@ -372,31 +372,31 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
         const m = new THREE.Mesh(nodeGeo, mat); m.visible = false; scene.add(m); nodeMs.push(m);
       }
 
-      // --- Multi-person body groups (Issue #97) ---
+      // --- Nhóm cơ thể đa người (Issue #97) ---
       const bodies: BodyGroup[] = Array.from({ length: MAX_PERSONS }, (_, i) =>
         createBodyGroup(scene, i)
       );
 
-      // Heart ring (shared, positioned on person 0)
+      // Vòng tim (dùng chung, đặt tại người 0)
       const hrGeo = new THREE.TorusGeometry(0.18, 0.006, 8, 32);
       const hrMat = new THREE.MeshBasicMaterial({ color: 0xff3355, transparent: true, opacity: 0 });
       const hrRing = new THREE.Mesh(hrGeo, hrMat); hrRing.visible = false; scene.add(hrRing);
 
-      // Breathing rings (on person 0)
+      // Vòng hô hấp (tại người 0)
       const brRings = [0.22, 0.28, 0.34].map((r) => {
         const geo = new THREE.TorusGeometry(r, 0.003, 6, 32);
         const mat = new THREE.MeshBasicMaterial({ color: 0x44ddaa, transparent: true, opacity: 0 });
         const m = new THREE.Mesh(geo, mat); m.visible = false; scene.add(m); return m;
       });
 
-      // WiFi pulse rings
+      // Vòng xung WiFi
       const wifiRings = [1.0, 1.8, 2.6].map((r) => {
         const geo = new THREE.TorusGeometry(r, 0.01, 6, 48);
         const mat = new THREE.MeshBasicMaterial({ color: 0x32b8c6, transparent: true, opacity: 0.15 });
         const m = new THREE.Mesh(geo, mat); m.rotation.x = Math.PI / 2; m.position.y = 0.01; scene.add(m); return m;
       });
 
-      // Particles
+      // Hạt
       const NP = 400;
       const pGeo = new THREE.BufferGeometry();
       const pA = new Float32Array(NP * 3);
@@ -408,7 +408,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       pGeo.setAttribute('position', new THREE.BufferAttribute(pA, 3));
       scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x3399bb, size: 0.018, transparent: true, opacity: 0.25 })));
 
-      // --- HUD ---
+      // --- Giao diện HUD ---
       const hudC = document.createElement('canvas'); hudC.width = 640; hudC.height = 128;
       const hudT = new THREE.CanvasTexture(hudC);
       const hudS = new THREE.Sprite(new THREE.SpriteMaterial({ map: hudT, transparent: true }));
@@ -418,7 +418,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       const tmpB = new THREE.Vector3();
       const hc = new THREE.Color();
 
-      // State
+      // Trạng thái
       const state: any = {
         renderer, scene, camera, animId: 0,
         camAngle: 0, camR: 3.5, camY: 1.4,
@@ -426,7 +426,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       };
       sceneRef.current = state;
 
-      // Input
+      // Đầu vào
       const cvs = renderer.domElement;
       cvs.addEventListener('mousedown', () => { state.drag = true; });
       cvs.addEventListener('mouseup', () => { state.drag = false; });
@@ -443,7 +443,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
       const onR = () => { camera.aspect = W() / H(); camera.updateProjectionMatrix(); renderer.setSize(W(), H()); };
       window.addEventListener('resize', onR);
 
-      // --- Animate ---
+      // --- Hoạt ảnh ---
       const animate = () => {
         state.animId = requestAnimationFrame(animate);
         const t = performance.now() * 0.001;
@@ -461,20 +461,20 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
         const bPow = fr?.features?.breathing_band_power ?? 0;
         const rssi = fr?.features?.mean_rssi ?? -80;
 
-        // How many persons to show (from server estimate, or 1 if presence)
+        // Số người hiển thị (từ ước tính server, hoặc 1 nếu có hiện diện)
         const nPersons = pres && conf > 0.2
           ? Math.min(MAX_PERSONS, fr?.estimated_persons ?? 1)
           : 0;
 
-        // X-offset spacing for multi-person layout (meters)
+        // Khoảng cách lệch X cho bố cục đa người (mét)
         const personSpacing = 0.9;
 
-        // --- Update each body group ---
+        // --- Cập nhật từng nhóm cơ thể ---
         for (let pi = 0; pi < MAX_PERSONS; pi++) {
           const body = bodies[pi];
           const active = pi < nPersons;
 
-          // Fade in/out per body
+          // Hiệu ứng xuất hiện/biến mất từng cơ thể
           if (active) body.fadeIn = Math.min(1, body.fadeIn + 0.015);
           else body.fadeIn = Math.max(0, body.fadeIn - 0.008);
           const show = body.fadeIn > 0.01;
@@ -485,14 +485,14 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
             continue;
           }
 
-          // Per-person X offset: spread evenly from center
+          // Lệch X mỗi người: trải đều từ tâm
           const half = (nPersons - 1) / 2;
           const xOff = (pi - half) * personSpacing;
 
-          // Per-person animation phase offset (prevent sync)
+          // Lệch pha hoạt ảnh mỗi người (tránh đồng bộ)
           const phOff = pi * 2.094; // ~120 degrees
 
-          // --- Compute target keypoints ---
+          // --- Tính toán điểm khớp mục tiêu ---
           for (let i = 0; i < 17; i++) {
             const [bx, by, bz] = BASE_POSE[i];
             let ax = bx + xOff, ay = by, az = bz;
@@ -504,7 +504,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
               if (i >= 5 && i <= 10) ay += bPhase * bAmp;
               if (i <= 4) ay += bPhase * bAmp * 0.3;
 
-              // Subtle sway (different per person)
+              // Lắc nhẹ (khác nhau mỗi người)
               ax += Math.sin(t * 0.35 + phOff) * 0.004;
               az += Math.cos(t * 0.25 + phOff) * 0.002;
 
@@ -531,12 +531,12 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
             body.targetKps[i].set(ax, ay, az);
           }
 
-          // Smooth interpolation
+          // Nội suy mượt
           const lerpA = 0.04;
           for (let i = 0; i < 17; i++) lerp3(body.smoothKps[i], body.targetKps[i], lerpA);
           const kps = body.smoothKps;
 
-          // Head
+          // Đầu
           body.head.visible = body.headGlow.visible = show;
           tmpA.copy(kps[0]).add(new THREE.Vector3(0, 0.06, 0));
           body.head.position.copy(tmpA);
@@ -544,7 +544,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           (body.head.material as THREE.MeshPhysicalMaterial).opacity = alpha * 0.9;
           (body.headGlow.material as THREE.MeshBasicMaterial).opacity = alpha * 0.08;
 
-          // Eyes + pupils
+          // Mắt + pupils
           body.eyeL.visible = body.eyeR.visible = body.pupilL.visible = body.pupilR.visible = show;
           const hp = body.head.position;
           body.eyeL.position.set(hp.x - 0.032, hp.y + 0.01, hp.z + 0.09);
@@ -552,7 +552,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           body.pupilL.position.set(body.eyeL.position.x, body.eyeL.position.y, body.eyeL.position.z + 0.012);
           body.pupilR.position.set(body.eyeR.position.x, body.eyeR.position.y, body.eyeR.position.z + 0.012);
 
-          // Neck
+          // Cổ
           body.neck.visible = show;
           const neckTop = new THREE.Vector3().copy(kps[0]).add(new THREE.Vector3(0, -0.04, 0));
           const neckBot = tmpA.addVectors(kps[5], kps[6]).multiplyScalar(0.5).add(new THREE.Vector3(0, 0.04, 0));
@@ -560,7 +560,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           body.neck.scale.y = neckTop.distanceTo(neckBot) * 4;
           (body.neck.material as THREE.MeshPhysicalMaterial).opacity = alpha * 0.85;
 
-          // Torso
+          // Thân
           body.torso.visible = body.torsoGlow.visible = show;
           const mSh = tmpA.addVectors(kps[5], kps[6]).multiplyScalar(0.5);
           const mHp = tmpB.addVectors(kps[11], kps[12]).multiplyScalar(0.5);
@@ -572,14 +572,14 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           (body.torso.material as THREE.MeshPhysicalMaterial).opacity = alpha * 0.88;
           (body.torsoGlow.material as THREE.MeshBasicMaterial).opacity = alpha * 0.06;
 
-          // Hands
+          // Tay
           body.handL.visible = body.handR.visible = show;
           body.handL.position.copy(kps[9]).add(new THREE.Vector3(0, -0.04, 0));
           body.handR.position.copy(kps[10]).add(new THREE.Vector3(0, -0.04, 0));
           (body.handL.material as THREE.MeshPhysicalMaterial).opacity = alpha * 0.85;
           (body.handR.material as THREE.MeshPhysicalMaterial).opacity = alpha * 0.85;
 
-          // Feet
+          // Chân
           body.footL.visible = body.footR.visible = show;
           body.footL.position.copy(kps[15]).add(new THREE.Vector3(0, 0.02, 0.04));
           body.footR.position.copy(kps[16]).add(new THREE.Vector3(0, 0.02, 0.04));
@@ -598,7 +598,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
             glowMat.opacity = alpha * (0.06 + mPow * 0.15);
           });
 
-          // Joint dots & skeleton lines
+          // Chấm khớp & skeleton lines
           body.jDots.forEach((d, i) => { d.visible = show; d.position.copy(kps[i]); });
           body.skelLines.forEach(({ line, a, b }) => {
             line.visible = show;
@@ -609,7 +609,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           });
         }
 
-        // Heart ring (person 0 only)
+        // Vòng tim (chỉ người 0)
         const vs = fr?.vital_signs as Record<string, unknown> | undefined;
         const hrBpm = Number(vs?.hr_proxy_bpm ?? vs?.heart_rate_bpm ?? 0);
         const showP0 = bodies[0].fadeIn > 0.01;
@@ -625,7 +625,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           hrRing.scale.setScalar(1 + beat * 0.12);
         }
 
-        // Breathing rings (person 0 only)
+        // Vòng hô hấp (chỉ người 0)
         brRings.forEach((ring, ri) => {
           ring.visible = showP0 && bPow > 0.01;
           if (ring.visible) {
@@ -639,14 +639,14 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           }
         });
 
-        // WiFi pulse rings
+        // Vòng xung WiFi
         wifiRings.forEach((wr, wi) => {
           const phase = (t * 0.5 + wi * 0.4) % 1;
           wr.scale.setScalar(0.8 + phase * 1.5 + mPow);
           (wr.material as THREE.MeshBasicMaterial).opacity = (1 - phase) * 0.12 * (pres ? 1 : 0.3);
         });
 
-        // ESP32 nodes
+        // Nút ESP32
         (fr?.nodes || []).forEach((n, i) => {
           if (i < nodeMs.length) {
             const [px, py, pz] = n.position;
@@ -657,7 +657,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
         });
         for (let i = (fr?.nodes || []).length; i < nodeMs.length; i++) nodeMs[i].visible = false;
 
-        // Signal field
+        // Trường tín hiệu
         const sf = fr?.signal_field;
         if (sf?.values?.length) {
           const gx = sf.grid_size[0], gz = sf.grid_size[2];
@@ -672,10 +672,10 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           if (sigGrid.instanceColor) sigGrid.instanceColor.needsUpdate = true;
         }
 
-        // Lighting follows data
+        // Ánh sáng theo dữ liệu
         rim.intensity = 0.8 + Math.abs(rssi + 50) * 0.015;
 
-        // Particles
+        // Hạt
         const pp = pGeo.attributes.position as THREE.BufferAttribute;
         for (let i = 0; i < NP; i++) {
           (pp.array as Float32Array)[i * 3 + 1] += Math.sin(t * 0.8 + i * 0.5) * 0.0006 + mPow * 0.001;
@@ -692,12 +692,12 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
           ctx.fillText(`WIFI-DENSEPOSE  [${(fr.source || '--').toUpperCase()}]`, 12, 20);
           ctx.font = '12px "SF Mono", Menlo, monospace';
           ctx.fillStyle = '#7799aa';
-          ctx.fillText(`Nodes: ${(fr.nodes || []).length}   RSSI: ${rssi.toFixed(1)} dBm   Motion: ${mot}   Conf: ${(conf * 100).toFixed(0)}%`, 12, 42);
+          ctx.fillText(`Nút: ${(fr.nodes || []).length}   RSSI: ${rssi.toFixed(1)} dBm   Chuyển_động: ${mot}   Độ_tin: ${(conf * 100).toFixed(0)}%`, 12, 42);
           if (vs) {
             const br = Number(vs.breathing_bpm ?? vs.breathing_rate_bpm ?? 0);
             if (br > 0 || hrBpm > 0) {
               ctx.fillStyle = '#44ddaa';
-              ctx.fillText(`Breathing: ${br.toFixed(1)} bpm    Heart: ${hrBpm.toFixed(1)} bpm`, 12, 62);
+              ctx.fillText(`Thở: ${br.toFixed(1)} bpm    Tim: ${hrBpm.toFixed(1)} bpm`, 12, 62);
             }
           }
           const anyShow = bodies.some((b) => b.fadeIn > 0.01);
@@ -705,10 +705,10 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
             ctx.fillStyle = pres ? (mot === 'active' ? '#ff8844' : '#44bbcc') : '#556677';
             const mBar = Math.min(20, Math.round(mPow * 40));
             const mBarStr = '\u2588'.repeat(mBar) + '\u2591'.repeat(20 - mBar);
-            ctx.fillText(`Motion: [${mBarStr}] ${(mPow * 100).toFixed(0)}%`, 12, 82);
+            ctx.fillText(`Chuyển_động: [${mBarStr}] ${(mPow * 100).toFixed(0)}%`, 12, 82);
             ctx.fillStyle = nPersons > 1 ? '#ffaa44' : '#556677';
             ctx.font = '10px "SF Mono", Menlo, monospace';
-            ctx.fillText(`Persons: ${nPersons}   Pose: procedural (CSI-driven)`, 12, 100);
+            ctx.fillText(`Số_người: ${nPersons}   Tư_thế: thủ_tục (CSI-điều_khiển)`, 12, 100);
           }
           hudT.needsUpdate = true;
         }
@@ -731,7 +731,7 @@ export const GaussianSplatWebViewWeb = ({ onReady, onFps, onError, frame }: Prop
         if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       };
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to initialize 3D renderer');
+      onError(err instanceof Error ? err.message : 'Không thể khởi tạo trình kết xuất 3D');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

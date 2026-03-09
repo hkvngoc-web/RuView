@@ -1,9 +1,9 @@
 /**
  * @file display_hal.h
- * @brief ADR-045: RM67162 QSPI AMOLED + CST816S touch HAL.
+ * @brief ADR-045: HAL AMOLED QSPI RM67162 + cảm ứng CST816S.
  *
- * Hardware abstraction for the LilyGO T-Display-S3 AMOLED panel.
- * Probes hardware at boot; returns ESP_ERR_NOT_FOUND if absent.
+ * Trừu tượng hóa phần cứng cho panel AMOLED LilyGO T-Display-S3.
+ * Dò phần cứng khi khởi động; trả về ESP_ERR_NOT_FOUND nếu vắng mặt.
  */
 
 #ifndef DISPLAY_HAL_H
@@ -18,49 +18,49 @@ extern "C" {
 #endif
 
 /**
- * Probe and initialize the RM67162 QSPI AMOLED panel.
+ * Dò và khởi tạo panel AMOLED QSPI RM67162.
  *
- * Configures QSPI bus, sends panel init sequence, and fills
- * the screen with dark background to confirm it works.
- * Returns ESP_ERR_NOT_FOUND if the panel does not respond.
+ * Cấu hình bus QSPI, gửi chuỗi khởi tạo panel, và điền
+ * màn hình nền tối để xác nhận hoạt động.
+ * Trả về ESP_ERR_NOT_FOUND nếu panel không phản hồi.
  *
- * @return ESP_OK on success, ESP_ERR_NOT_FOUND if no display detected.
+ * @return ESP_OK khi thành công, ESP_ERR_NOT_FOUND nếu không phát hiện màn hình.
  */
 esp_err_t display_hal_init_panel(void);
 
 /**
- * Draw a rectangle of pixels to the AMOLED.
- * Sends CASET + RASET + RAMWR directly via QSPI.
+ * Vẽ hình chữ nhật pixel lên AMOLED.
+ * Gửi CASET + RASET + RAMWR trực tiếp qua QSPI.
  *
- * @param x_start  Left column (inclusive).
- * @param y_start  Top row (inclusive).
- * @param x_end    Right column (exclusive).
- * @param y_end    Bottom row (exclusive).
- * @param color_data  RGB565 pixel data, (x_end-x_start)*(y_end-y_start) pixels.
+ * @param x_start  Cột trái (bao gồm).
+ * @param y_start  Hàng trên (bao gồm).
+ * @param x_end    Cột phải (không bao gồm).
+ * @param y_end    Hàng dưới (không bao gồm).
+ * @param color_data  Dữ liệu pixel RGB565, (x_end-x_start)*(y_end-y_start) pixel.
  */
 void display_hal_draw(int x_start, int y_start, int x_end, int y_end,
                       const void *color_data);
 
 /**
- * Probe and initialize the CST816S capacitive touch controller.
+ * Dò và khởi tạo bộ điều khiển cảm ứng điện dung CST816S.
  *
- * @return ESP_OK on success, ESP_ERR_NOT_FOUND if no touch IC detected.
+ * @return ESP_OK khi thành công, ESP_ERR_NOT_FOUND nếu không phát hiện IC cảm ứng.
  */
 esp_err_t display_hal_init_touch(void);
 
 /**
- * Read touch point (non-blocking).
+ * Đọc điểm chạm (không chặn).
  *
- * @param[out] x  Touch X coordinate (0..535).
- * @param[out] y  Touch Y coordinate (0..239).
- * @return true if touch is active, false if released.
+ * @param[out] x  Tọa độ X chạm (0..535).
+ * @param[out] y  Tọa độ Y chạm (0..239).
+ * @return true nếu đang chạm, false nếu đã thả.
  */
 bool display_hal_touch_read(uint16_t *x, uint16_t *y);
 
 /**
- * Set AMOLED brightness via MIPI DCS command.
+ * Đặt độ sáng AMOLED qua lệnh MIPI DCS.
  *
- * @param percent  Brightness 0-100.
+ * @param percent  Độ sáng 0-100.
  */
 void display_hal_set_brightness(uint8_t percent);
 

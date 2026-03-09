@@ -73,12 +73,12 @@ export const MATScreen = () => {
       type: 'earthquake',
       latitude: 37.7749,
       longitude: -122.4194,
-      name: 'Training Scenario',
+      name: 'Kịch Bản Huấn Luyện',
     });
 
     const addZone = postEvent('ADD_ZONE');
     addZone({
-      name: 'Zone A',
+      name: 'Khu Vực A',
       zone_type: 'rectangle',
       x: 60,
       y: 60,
@@ -86,7 +86,7 @@ export const MATScreen = () => {
       height: 120,
     });
     addZone({
-      name: 'Zone B',
+      name: 'Khu Vực B',
       zone_type: 'circle',
       center_x: 300,
       center_y: 170,
@@ -98,7 +98,7 @@ export const MATScreen = () => {
       disaster_type: 1,
       latitude: 37.7749,
       longitude: -122.4194,
-      description: 'Training Scenario',
+      description: 'Kịch Bản Huấn Luyện',
     });
 
     seededRef.current = true;

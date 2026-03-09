@@ -1,6 +1,6 @@
 /**
- * Module A — "The Subcarrier Manifold"
- * 3D scrolling surface: 64 subcarriers x 60 time slots
+ * Mô-đun A — "Đa Tạp Sóng Mang Con"
+ * Bề mặt cuộn 3D: 64 sóng mang con x 60 khe thời gian
  */
 import * as THREE from 'three';
 
@@ -23,7 +23,7 @@ uniform float uTime;
 varying float vHeight;
 varying float vAge;
 void main() {
-  // Color map: low=deep blue, mid=cyan, high=amber
+  // Bản đồ màu: thấp=xanh đậm, trung=lục lam, cao=hổ phách
   vec3 lo = vec3(0.02, 0.06, 0.2);
   vec3 mid = vec3(0.0, 0.83, 1.0);
   vec3 hi = vec3(1.0, 0.53, 0.0);
@@ -33,7 +33,7 @@ void main() {
     ? mix(lo, mid, h * 2.0)
     : mix(mid, hi, (h - 0.5) * 2.0);
 
-  // Fade older rows
+  // Làm mờ hàng cũ hơn
   float alpha = 0.3 + 0.7 * (1.0 - vAge);
   gl_FragColor = vec4(col, alpha);
 }
@@ -54,7 +54,7 @@ export class SubcarrierManifold {
     }
     this._head = 0;
 
-    // Build surface geometry
+    // Xây dựng hình học bề mặt
     const geo = new THREE.PlaneGeometry(8, 5, SUBS - 1, TIME_SLOTS - 1);
     const vertCount = SUBS * TIME_SLOTS;
 
@@ -69,7 +69,7 @@ export class SubcarrierManifold {
     geo.setAttribute('aHeight', new THREE.BufferAttribute(this._heights, 1));
     geo.setAttribute('aAge', new THREE.BufferAttribute(this._ages, 1));
 
-    // Solid surface
+    // Bề mặt đặc
     const mat = new THREE.ShaderMaterial({
       vertexShader: MANIFOLD_VERTEX,
       fragmentShader: MANIFOLD_FRAGMENT,
@@ -83,7 +83,7 @@ export class SubcarrierManifold {
     this._mesh.rotation.x = -Math.PI * 0.35;
     this.group.add(this._mesh);
 
-    // Wireframe overlay
+    // Lớp phủ khung dây
     const wireGeo = geo.clone();
     wireGeo.setAttribute('aHeight', new THREE.BufferAttribute(this._heights, 1));
     wireGeo.setAttribute('aAge', new THREE.BufferAttribute(this._ages, 1));
@@ -114,7 +114,7 @@ export class SubcarrierManifold {
   update(dt, elapsed, data) {
     this._mesh.material.uniforms.uTime.value = elapsed;
 
-    // Push new amplitude data at regular intervals
+    // Đẩy dữ liệu biên độ mới theo khoảng đều
     this._frameAccum += dt;
     if (this._frameAccum >= this._pushInterval && data) {
       this._frameAccum = 0;

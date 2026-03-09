@@ -1,5 +1,5 @@
 """
-Dependency injection for WiFi-DensePose API
+Tiêm phụ thuộc cho WiFi-DensePose API
 """
 
 import logging
@@ -17,17 +17,17 @@ from src.services.hardware_service import HardwareService
 
 logger = logging.getLogger(__name__)
 
-# Security scheme for JWT authentication
+# Sơ đồ bảo mật cho xác thực JWT
 security = HTTPBearer(auto_error=False)
 
 
-# Service dependencies
+# Phụ thuộc dịch vụ
 @lru_cache()
 def get_pose_service() -> PoseService:
-    """Get pose service instance."""
+    """Lấy thể hiện dịch vụ tư thế."""
     settings = get_settings()
     domain_config = get_domain_config()
-    
+
     return PoseService(
         settings=settings,
         domain_config=domain_config
@@ -36,10 +36,10 @@ def get_pose_service() -> PoseService:
 
 @lru_cache()
 def get_stream_service() -> StreamService:
-    """Get stream service instance."""
+    """Lấy thể hiện dịch vụ truyền phát."""
     settings = get_settings()
     domain_config = get_domain_config()
-    
+
     return StreamService(
         settings=settings,
         domain_config=domain_config
@@ -48,62 +48,62 @@ def get_stream_service() -> StreamService:
 
 @lru_cache()
 def get_hardware_service() -> HardwareService:
-    """Get hardware service instance."""
+    """Lấy thể hiện dịch vụ phần cứng."""
     settings = get_settings()
     domain_config = get_domain_config()
-    
+
     return HardwareService(
         settings=settings,
         domain_config=domain_config
     )
 
 
-# Authentication dependencies
+# Phụ thuộc xác thực
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Optional[Dict[str, Any]]:
-    """Get current authenticated user."""
+    """Lấy người dùng đã xác thực hiện tại."""
     settings = get_settings()
-    
-    # Skip authentication if disabled
+
+    # Bỏ qua xác thực nếu đã tắt
     if not settings.enable_authentication:
         return None
-    
-    # Check if user is already set by middleware
+
+    # Kiểm tra xem người dùng đã được thiết lập bởi middleware chưa
     if hasattr(request.state, 'user') and request.state.user:
         return request.state.user
-    
-    # No credentials provided
+
+    # Không có thông tin xác thực được cung cấp
     if not credentials:
         return None
-    
-    # Validate the JWT token
-    # JWT validation must be configured via settings (e.g. JWT_SECRET, JWT_ALGORITHM)
+
+    # Xác thực token JWT
+    # Xác thực JWT phải được cấu hình qua cài đặt (ví dụ: JWT_SECRET, JWT_ALGORITHM)
     if settings.is_development:
         logger.warning(
-            "Authentication credentials provided in development mode but JWT "
-            "validation is not configured. Set up JWT authentication via "
-            "environment variables (JWT_SECRET, JWT_ALGORITHM) or disable "
-            "authentication. Rejecting request."
+            "Thông tin xác thực được cung cấp trong chế độ phát triển nhưng "
+            "xác thực JWT chưa được cấu hình. Thiết lập xác thực JWT qua "
+            "biến môi trường (JWT_SECRET, JWT_ALGORITHM) hoặc tắt "
+            "xác thực. Đang từ chối yêu cầu."
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=(
-                "JWT authentication is not configured. In development mode, either "
-                "disable authentication (enable_authentication=False) or configure "
-                "JWT validation. Returning mock users is not permitted in any environment."
+                "Xác thực JWT chưa được cấu hình. Trong chế độ phát triển, "
+                "hãy tắt xác thực (enable_authentication=False) hoặc cấu hình "
+                "xác thực JWT. Trả về người dùng giả không được phép trong bất kỳ môi trường nào."
             ),
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # In production, implement proper JWT validation
+    # Trong môi trường sản xuất, triển khai xác thực JWT đúng cách
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=(
-            "JWT authentication is not configured. Configure JWT_SECRET and "
-            "JWT_ALGORITHM environment variables, or integrate an external "
-            "identity provider. See docs/authentication.md for setup instructions."
+            "Xác thực JWT chưa được cấu hình. Cấu hình biến môi trường "
+            "JWT_SECRET và JWT_ALGORITHM, hoặc tích hợp nhà cung cấp danh tính "
+            "bên ngoài. Xem docs/authentication.md để biết hướng dẫn thiết lập."
         ),
         headers={"WWW-Authenticate": "Bearer"},
     )
@@ -112,149 +112,149 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    """Get current active user (required authentication)."""
+    """Lấy người dùng hoạt động hiện tại (yêu cầu xác thực)."""
     if not current_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
+            detail="Yêu cầu xác thực",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # Check if user is active
+
+    # Kiểm tra xem người dùng có hoạt động không
     if not current_user.get("is_active", True):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            detail="Người dùng không hoạt động"
         )
-    
+
     return current_user
 
 
 async def get_admin_user(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
-    """Get current admin user (admin privileges required)."""
+    """Lấy người dùng quản trị hiện tại (yêu cầu quyền quản trị)."""
     if not current_user.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required"
+            detail="Yêu cầu quyền quản trị"
         )
-    
+
     return current_user
 
 
-# Permission dependencies
+# Phụ thuộc quyền hạn
 def require_permission(permission: str):
-    """Dependency factory for permission checking."""
-    
+    """Factory phụ thuộc cho kiểm tra quyền hạn."""
+
     async def check_permission(
         current_user: Dict[str, Any] = Depends(get_current_active_user)
     ) -> Dict[str, Any]:
-        """Check if user has required permission."""
+        """Kiểm tra xem người dùng có quyền hạn yêu cầu không."""
         user_permissions = current_user.get("permissions", [])
-        
-        # Admin users have all permissions
+
+        # Người dùng quản trị có tất cả quyền hạn
         if current_user.get("is_admin", False):
             return current_user
-        
-        # Check specific permission
+
+        # Kiểm tra quyền hạn cụ thể
         if permission not in user_permissions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission '{permission}' required"
+                detail=f"Yêu cầu quyền hạn '{permission}'"
             )
-        
+
         return current_user
-    
+
     return check_permission
 
 
-# Zone access dependencies
+# Phụ thuộc truy cập khu vực
 async def validate_zone_access(
     zone_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ) -> str:
-    """Validate user access to a specific zone."""
+    """Xác thực quyền truy cập của người dùng vào khu vực cụ thể."""
     domain_config = get_domain_config()
-    
-    # Check if zone exists
+
+    # Kiểm tra xem khu vực có tồn tại không
     zone = domain_config.get_zone(zone_id)
     if not zone:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Zone '{zone_id}' not found"
+            detail=f"Không tìm thấy khu vực '{zone_id}'"
         )
-    
-    # Check if zone is enabled
+
+    # Kiểm tra xem khu vực có được bật không
     if not zone.enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Zone '{zone_id}' is disabled"
+            detail=f"Khu vực '{zone_id}' đã bị tắt"
         )
-    
-    # If authentication is enabled, check user access
+
+    # Nếu xác thực được bật, kiểm tra quyền truy cập người dùng
     if current_user:
-        # Admin users have access to all zones
+        # Người dùng quản trị có quyền truy cập tất cả khu vực
         if current_user.get("is_admin", False):
             return zone_id
-        
-        # Check user's zone permissions
+
+        # Kiểm tra quyền khu vực của người dùng
         user_zones = current_user.get("zones", [])
         if user_zones and zone_id not in user_zones:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied to zone '{zone_id}'"
+                detail=f"Bị từ chối truy cập khu vực '{zone_id}'"
             )
-    
+
     return zone_id
 
 
-# Router access dependencies
+# Phụ thuộc truy cập router
 async def validate_router_access(
     router_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ) -> str:
-    """Validate user access to a specific router."""
+    """Xác thực quyền truy cập của người dùng vào router cụ thể."""
     domain_config = get_domain_config()
-    
-    # Check if router exists
+
+    # Kiểm tra xem router có tồn tại không
     router = domain_config.get_router(router_id)
     if not router:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Router '{router_id}' not found"
+            detail=f"Không tìm thấy router '{router_id}'"
         )
-    
-    # Check if router is enabled
+
+    # Kiểm tra xem router có được bật không
     if not router.enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Router '{router_id}' is disabled"
+            detail=f"Router '{router_id}' đã bị tắt"
         )
-    
-    # If authentication is enabled, check user access
+
+    # Nếu xác thực được bật, kiểm tra quyền truy cập người dùng
     if current_user:
-        # Admin users have access to all routers
+        # Người dùng quản trị có quyền truy cập tất cả router
         if current_user.get("is_admin", False):
             return router_id
-        
-        # Check user's router permissions
+
+        # Kiểm tra quyền router của người dùng
         user_routers = current_user.get("routers", [])
         if user_routers and router_id not in user_routers:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied to router '{router_id}'"
+                detail=f"Bị từ chối truy cập router '{router_id}'"
             )
-    
+
     return router_id
 
 
-# Service health dependencies
+# Phụ thuộc sức khỏe dịch vụ
 async def check_service_health(
     request: Request,
     service_name: str
 ) -> bool:
-    """Check if a service is healthy."""
+    """Kiểm tra xem dịch vụ có khỏe mạnh không."""
     try:
         if service_name == "pose":
             service = getattr(request.app.state, 'pose_service', None)
@@ -265,69 +265,69 @@ async def check_service_health(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unknown service: {service_name}"
+                detail=f"Dịch vụ không xác định: {service_name}"
             )
-        
+
         if not service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Service '{service_name}' not available"
+                detail=f"Dịch vụ '{service_name}' không khả dụng"
             )
-        
-        # Check service health
+
+        # Kiểm tra sức khỏe dịch vụ
         status_info = await service.get_status()
         if status_info.get("status") != "healthy":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Service '{service_name}' is unhealthy: {status_info.get('error', 'Unknown error')}"
+                detail=f"Dịch vụ '{service_name}' không khỏe mạnh: {status_info.get('error', 'Lỗi không xác định')}"
             )
-        
+
         return True
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error checking service health for {service_name}: {e}")
+        logger.error(f"Lỗi kiểm tra sức khỏe dịch vụ {service_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service '{service_name}' health check failed"
+            detail=f"Kiểm tra sức khỏe dịch vụ '{service_name}' thất bại"
         )
 
 
-# Rate limiting dependencies
+# Phụ thuộc giới hạn tốc độ
 async def check_rate_limit(
     request: Request,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ) -> bool:
-    """Check rate limiting status."""
+    """Kiểm tra trạng thái giới hạn tốc độ."""
     settings = get_settings()
-    
-    # Skip if rate limiting is disabled
+
+    # Bỏ qua nếu giới hạn tốc độ bị tắt
     if not settings.enable_rate_limiting:
         return True
-    
-    # Rate limiting is handled by middleware
-    # This dependency can be used for additional checks
+
+    # Giới hạn tốc độ được xử lý bởi middleware
+    # Phụ thuộc này có thể dùng cho các kiểm tra bổ sung
     return True
 
 
-# Configuration dependencies
+# Phụ thuộc cấu hình
 def get_zone_config(zone_id: str = Depends(validate_zone_access)):
-    """Get zone configuration."""
+    """Lấy cấu hình khu vực."""
     domain_config = get_domain_config()
     return domain_config.get_zone(zone_id)
 
 
 def get_router_config(router_id: str = Depends(validate_router_access)):
-    """Get router configuration."""
+    """Lấy cấu hình router."""
     domain_config = get_domain_config()
     return domain_config.get_router(router_id)
 
 
-# Pagination dependencies
+# Phụ thuộc phân trang
 class PaginationParams:
-    """Pagination parameters."""
-    
+    """Tham số phân trang."""
+
     def __init__(
         self,
         page: int = 1,
@@ -337,21 +337,21 @@ class PaginationParams:
         if page < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Page must be >= 1"
+                detail="Trang phải >= 1"
             )
-        
+
         if size < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Size must be >= 1"
+                detail="Kích thước phải >= 1"
             )
-        
+
         if size > max_size:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Size must be <= {max_size}"
+                detail=f"Kích thước phải <= {max_size}"
             )
-        
+
         self.page = page
         self.size = size
         self.offset = (page - 1) * size
@@ -362,14 +362,14 @@ def get_pagination_params(
     page: int = 1,
     size: int = 20
 ) -> PaginationParams:
-    """Get pagination parameters."""
+    """Lấy tham số phân trang."""
     return PaginationParams(page=page, size=size)
 
 
-# Query filter dependencies
+# Phụ thuộc bộ lọc truy vấn
 class QueryFilters:
-    """Common query filters."""
-    
+    """Bộ lọc truy vấn phổ biến."""
+
     def __init__(
         self,
         start_time: Optional[str] = None,
@@ -381,13 +381,13 @@ class QueryFilters:
         self.end_time = end_time
         self.min_confidence = min_confidence
         self.activity = activity
-        
-        # Validate confidence
+
+        # Xác thực độ tin cậy
         if min_confidence is not None:
             if not 0.0 <= min_confidence <= 1.0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="min_confidence must be between 0.0 and 1.0"
+                    detail="min_confidence phải nằm trong khoảng 0.0 đến 1.0"
                 )
 
 
@@ -397,7 +397,7 @@ def get_query_filters(
     min_confidence: Optional[float] = None,
     activity: Optional[str] = None
 ) -> QueryFilters:
-    """Get query filters."""
+    """Lấy bộ lọc truy vấn."""
     return QueryFilters(
         start_time=start_time,
         end_time=end_time,
@@ -406,62 +406,62 @@ def get_query_filters(
     )
 
 
-# WebSocket dependencies
+# Phụ thuộc WebSocket
 async def get_websocket_user(
     websocket_token: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """Get user from WebSocket token."""
+    """Lấy người dùng từ token WebSocket."""
     settings = get_settings()
-    
-    # Skip authentication if disabled
+
+    # Bỏ qua xác thực nếu đã tắt
     if not settings.enable_authentication:
         return None
 
-    # Validate the WebSocket token
+    # Xác thực token WebSocket
     if not websocket_token:
         return None
 
     if settings.is_development:
         logger.warning(
-            "WebSocket token provided in development mode but token validation "
-            "is not configured. Rejecting. Disable authentication or configure "
-            "JWT validation to allow WebSocket connections."
+            "Token WebSocket được cung cấp trong chế độ phát triển nhưng "
+            "xác thực token chưa được cấu hình. Đang từ chối. Tắt xác thực hoặc "
+            "cấu hình xác thực JWT để cho phép kết nối WebSocket."
         )
         return None
 
-    # WebSocket token validation requires a configured JWT secret and issuer.
-    # Until JWT settings are provided via environment variables
-    # (JWT_SECRET_KEY, JWT_ALGORITHM), tokens are rejected to prevent
-    # unauthorised access. Configure authentication settings and implement
-    # token verification here using the same logic as get_current_user().
-    logger.warning("WebSocket token validation requires JWT configuration. Rejecting token.")
+    # Xác thực token WebSocket yêu cầu khóa bí mật JWT và nhà phát hành đã cấu hình.
+    # Cho đến khi cài đặt JWT được cung cấp qua biến môi trường
+    # (JWT_SECRET_KEY, JWT_ALGORITHM), token sẽ bị từ chối để ngăn
+    # truy cập trái phép. Cấu hình cài đặt xác thực và triển khai
+    # xác minh token ở đây sử dụng cùng logic như get_current_user().
+    logger.warning("Xác thực token WebSocket yêu cầu cấu hình JWT. Đang từ chối token.")
     return None
 
 
 async def get_current_user_ws(
     websocket_token: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """Get current user for WebSocket connections."""
+    """Lấy người dùng hiện tại cho kết nối WebSocket."""
     return await get_websocket_user(websocket_token)
 
 
-# Authentication requirement dependencies
+# Phụ thuộc yêu cầu xác thực
 async def require_auth(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
-    """Require authentication for endpoint access."""
+    """Yêu cầu xác thực để truy cập endpoint."""
     return current_user
 
 
-# Development dependencies
+# Phụ thuộc môi trường phát triển
 async def development_only():
-    """Dependency that only allows access in development."""
+    """Phụ thuộc chỉ cho phép truy cập trong môi trường phát triển."""
     settings = get_settings()
-    
+
     if not settings.is_development:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Endpoint not available in production"
+            detail="Endpoint không khả dụng trong môi trường sản xuất"
         )
-    
+
     return True

@@ -36,7 +36,7 @@ const WebLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
   useEffect(() => {
     import('./GaussianSplatWebView.web').then((mod) => {
       setViewer(() => mod.GaussianSplatWebViewWeb);
-    }).catch(() => onError('Failed to load web viewer'));
+    }).catch(() => onError('Không thể tải trình xem web'));
   }, [onError]);
 
   if (!Viewer) return null;
@@ -52,7 +52,7 @@ const NativeLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
       const { GaussianSplatWebView } = require('./GaussianSplatWebView');
       setWVComponent(() => GaussianSplatWebView);
     } catch {
-      onError('WebView not available on this platform');
+      onError('WebView không khả dụng trên nền tảng này');
     }
   }, [onError]);
 
@@ -71,7 +71,7 @@ const NativeLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
           else if (data.type === 'ERROR') onError(data.payload?.message ?? 'Unknown error');
         } catch { /* ignore */ }
       }}
-      onError={() => onError('WebView renderer failed')}
+      onError={() => onError('Trình kết xuất WebView thất bại')}
     />
   );
 };
@@ -95,9 +95,9 @@ export const LiveScreen = () => {
   if (error) {
     return (
       <ThemedView style={styles.fallbackWrap}>
-        <ThemedText preset="bodyLg">Live visualization failed</ThemedText>
+        <ThemedText preset="bodyLg">Trực quan hóa trực tiếp thất bại</ThemedText>
         <ThemedText preset="bodySm" color="textSecondary" style={styles.errorText}>{error}</ThemedText>
-        <Button title="Retry" onPress={handleRetry} />
+        <Button title="Thử lại" onPress={handleRetry} />
       </ThemedView>
     );
   }
@@ -123,7 +123,7 @@ export const LiveScreen = () => {
         {!ready && (
           <View style={styles.loadingWrap}>
             <LoadingSpinner />
-            <ThemedText preset="bodyMd" style={styles.loadingText}>Loading live renderer</ThemedText>
+            <ThemedText preset="bodyMd" style={styles.loadingText}>Đang tải trình kết xuất trực tiếp</ThemedText>
           </View>
         )}
       </View>

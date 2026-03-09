@@ -8,10 +8,10 @@ import type { Node, WasmModule, WasmModuleState } from "../types";
 // ---------------------------------------------------------------------------
 
 const STATE_STYLES: Record<WasmModuleState, { color: string; label: string }> = {
-  running: { color: "var(--status-online)", label: "Running" },
-  stopped: { color: "var(--status-warning)", label: "Stopped" },
-  error: { color: "var(--status-error)", label: "Error" },
-  loading: { color: "var(--status-info)", label: "Loading" },
+  running: { color: "var(--status-online)", label: "Đang chạy" },
+  stopped: { color: "var(--status-warning)", label: "Đã dừng" },
+  error: { color: "var(--status-error)", label: "Lỗi" },
+  loading: { color: "var(--status-info)", label: "Đang tải" },
 };
 
 // ---------------------------------------------------------------------------
@@ -70,8 +70,8 @@ export function EdgeModules() {
   const handleUpload = async () => {
     if (!selectedIp) return;
     const filePath = await open({
-      title: "Select WASM Module",
-      filters: [{ name: "WASM Modules", extensions: ["wasm"] }],
+      title: "Chọn Module WASM",
+      filters: [{ name: "Module WASM", extensions: ["wasm"] }],
       multiple: false,
       directory: false,
     });
@@ -127,9 +127,9 @@ export function EdgeModules() {
         }}
       >
         <div>
-          <h1 className="heading-lg" style={{ margin: 0 }}>Edge Modules (WASM)</h1>
+          <h1 className="heading-lg" style={{ margin: 0 }}>Module Biên (WASM)</h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
-            Manage WASM modules deployed to ESP32 nodes
+            Quản lý module WASM triển khai tới các nút ESP32
           </p>
         </div>
         <button
@@ -146,7 +146,7 @@ export function EdgeModules() {
             border: "none",
           }}
         >
-          {isUploading ? "Uploading..." : "Upload Module"}
+          {isUploading ? "Đang tải lên..." : "Tải Lên Module"}
         </button>
       </div>
 
@@ -180,7 +180,7 @@ export function EdgeModules() {
             cursor: "pointer",
           }}
         >
-          {nodes.length === 0 && <option value="">No nodes discovered</option>}
+          {nodes.length === 0 && <option value="">Chưa phát hiện nút nào</option>}
           {nodes.map((node) => (
             <option key={node.ip} value={node.ip}>
               {node.ip}{node.hostname ? ` (${node.hostname})` : ""}{node.friendly_name ? ` - ${node.friendly_name}` : ""}
@@ -220,7 +220,7 @@ export function EdgeModules() {
             fontSize: 13,
           }}
         >
-          Loading modules...
+          Đang tải module...
         </div>
       ) : modules.length === 0 ? (
         <div
@@ -235,8 +235,8 @@ export function EdgeModules() {
           }}
         >
           {selectedIp
-            ? "No WASM modules loaded on this node. Use \"Upload Module\" to deploy one."
-            : "Select a node to view its WASM modules."}
+            ? "Không có module WASM nào trên nút này. Use \"Upload Module\" to deploy one."
+            : "Chọn một nút để xem module WASM của nó."}
         </div>
       ) : (
         <div
@@ -250,11 +250,11 @@ export function EdgeModules() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                <Th>Name</Th>
-                <Th>Size</Th>
-                <Th>Status</Th>
-                <Th>Loaded At</Th>
-                <Th>Actions</Th>
+                <Th>Tên</Th>
+                <Th>Kích thước</Th>
+                <Th>Trạng thái</Th>
+                <Th>Tải lúc</Th>
+                <Th>Thao tác</Th>
               </tr>
             </thead>
             <tbody>
@@ -409,13 +409,13 @@ function ModuleRow({
       <td style={{ padding: "10px var(--space-4)", whiteSpace: "nowrap" }}>
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
           {mod.state === "stopped" && (
-            <ActionButton label="Start" onClick={() => onAction(mod.module_id, "start")} />
+            <ActionButton label="Khởi động" onClick={() => onAction(mod.module_id, "start")} />
           )}
           {mod.state === "running" && (
-            <ActionButton label="Stop" onClick={() => onAction(mod.module_id, "stop")} />
+            <ActionButton label="Dừng" onClick={() => onAction(mod.module_id, "stop")} />
           )}
           <ActionButton
-            label="Unload"
+            label="Gỡ bỏ"
             onClick={() => onAction(mod.module_id, "unload")}
             variant="danger"
           />

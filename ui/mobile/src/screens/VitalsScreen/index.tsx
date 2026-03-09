@@ -78,21 +78,21 @@ export default function VitalsScreen() {
           <SparklineChart data={rssiHistory.length > 0 ? rssiHistory : [0]} color={colors.accent} />
         </View>
 
-        <MetricCard label="Variance" value={features?.variance ?? 0} unit="" sparklineData={rssiHistory} color={colors.accent} />
+        <MetricCard label="Phương sai" value={features?.variance ?? 0} unit="" sparklineData={rssiHistory} color={colors.accent} />
         <MetricCard
-          label="Motion Band"
+          label="Dải Chuyển Động"
           value={features?.motion_band_power ?? 0}
           unit=""
           color={colors.success}
         />
         <MetricCard
-          label="Breath Band"
+          label="Dải Hô Hấp"
           value={features?.breathing_band_power ?? 0}
           unit=""
           color={colors.warn}
         />
         <MetricCard
-          label="Spectral Entropy"
+          label="Entropy Phổ"
           value={features?.spectral_entropy ?? 0}
           unit=""
           color={colors.connected}

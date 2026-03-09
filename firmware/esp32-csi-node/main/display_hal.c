@@ -1,13 +1,13 @@
 /**
  * @file display_hal.c
- * @brief ADR-045: SH8601 QSPI AMOLED HAL for Waveshare ESP32-S3-Touch-AMOLED-1.8.
+ * @brief ADR-045: HAL AMOLED QSPI SH8601 cho Waveshare ESP32-S3-Touch-AMOLED-1.8.
  *
- * Uses ESP-IDF esp_lcd_panel_io_spi in QSPI mode (quad_mode=true, lcd_cmd_bits=32).
- * The panel_io layer handles the 0x02/0x32 QSPI command encoding.
+ * Sử dụng esp_lcd_panel_io_spi ESP-IDF ở chế độ QSPI (quad_mode=true, lcd_cmd_bits=32).
+ * Lớp panel_io xử lý mã hóa lệnh QSPI 0x02/0x32.
  *
- * Hardware: SH8601 368x448, FT3168 touch, TCA9554 I/O expander for power/reset.
+ * Phần cứng: SH8601 368x448, cảm ứng FT3168, mở rộng I/O TCA9554 cho nguồn/reset.
  *
- * Pin assignments (Waveshare ESP32-S3-Touch-AMOLED-1.8):
+ * Gán chân (Waveshare ESP32-S3-Touch-AMOLED-1.8):
  *   QSPI: CS=12, CLK=11, D0=4, D1=5, D2=6, D3=7
  *   I2C:  SDA=15, SCL=14  (shared: touch FT3168 + TCA9554 expander)
  *   Touch INT=21
@@ -30,7 +30,7 @@
 
 static const char *TAG = "disp_hal";
 
-/* ---- QSPI Pin Definitions (Waveshare board) ---- */
+/* ---- Định Nghĩa Chân QSPI (bo Waveshare) ---- */
 #define DISP_QSPI_CS       12
 #define DISP_QSPI_CLK      11
 #define DISP_QSPI_D0       4
@@ -38,35 +38,35 @@ static const char *TAG = "disp_hal";
 #define DISP_QSPI_D2       6
 #define DISP_QSPI_D3       7
 
-/* ---- I2C (shared: touch + TCA9554 expander) ---- */
+/* ---- I2C (dùng chung: cảm ứng + mở rộng TCA9554) ---- */
 #define I2C_SDA             15
 #define I2C_SCL             14
 #define TOUCH_INT_PIN       21
 #define I2C_MASTER_NUM      I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ  400000
 
-/* ---- TCA9554 I/O expander ---- */
+/* ---- Mở rộng I/O TCA9554 ---- */
 #define TCA9554_ADDR        0x20
 #define TCA9554_REG_OUTPUT  0x01
 #define TCA9554_REG_CONFIG  0x03
 
-/* ---- FT3168 touch controller ---- */
+/* ---- Bộ điều khiển cảm ứng FT3168 ---- */
 #define FT3168_ADDR         0x38
 
-/* ---- Display dimensions ---- */
+/* ---- Kích thước màn hình ---- */
 #define DISP_H_RES          368
 #define DISP_V_RES          448
 
-/* ---- QSPI opcodes (packed into lcd_cmd bits [31:24]) ---- */
+/* ---- Opcode QSPI (đóng gói trong lcd_cmd bits [31:24]) ---- */
 #define LCD_OPCODE_WRITE_CMD   0x02
 #define LCD_OPCODE_WRITE_COLOR 0x32
 
-/* ---- State ---- */
+/* ---- Trạng thái ---- */
 static esp_lcd_panel_io_handle_t s_io_handle = NULL;
 static bool s_i2c_initialized = false;
 static bool s_touch_initialized = false;
 
-/* ---- I2C helpers ---- */
+/* ---- Trợ giúp I2C ---- */
 
 static esp_err_t i2c_write_reg(uint8_t dev_addr, uint8_t reg, const uint8_t *data, size_t len)
 {
@@ -118,53 +118,53 @@ static esp_err_t init_i2c_bus(void)
     if (ret != ESP_OK) return ret;
 
     s_i2c_initialized = true;
-    ESP_LOGI(TAG, "I2C bus init OK (SDA=%d, SCL=%d)", I2C_SDA, I2C_SCL);
+    ESP_LOGI(TAG, "Khởi tạo bus I2C OK (SDA=%d, SCL=%d)", I2C_SDA, I2C_SCL);
     return ESP_OK;
 }
 
-/* ---- TCA9554 I/O expander: toggle pins for display power/reset ---- */
+/* ---- Mở rộng I/O TCA9554: toggle pins for display power/reset ---- */
 
 static esp_err_t tca9554_init_display_power(void)
 {
-    /* Set pins 0, 1, 2 as outputs */
+    /* Đặt chân 0, 1, 2 làm đầu ra */
     uint8_t cfg = 0xF8;
     esp_err_t ret = i2c_write_reg(TCA9554_ADDR, TCA9554_REG_CONFIG, &cfg, 1);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "TCA9554 not found at 0x%02X: %s", TCA9554_ADDR, esp_err_to_name(ret));
+        ESP_LOGW(TAG, "Không tìm thấy TCA9554 tại 0x%02X: %s", TCA9554_ADDR, esp_err_to_name(ret));
         return ret;
     }
 
-    /* Set pins 0,1,2 LOW (reset state) */
+    /* Đặt chân 0,1,2 LOW (trạng thái reset) */
     uint8_t out = 0x00;
     i2c_write_reg(TCA9554_ADDR, TCA9554_REG_OUTPUT, &out, 1);
     vTaskDelay(pdMS_TO_TICKS(200));
 
-    /* Set pins 0,1,2 HIGH (power on + release reset) */
+    /* Đặt chân 0,1,2 HIGH (bật nguồn + giải phóng reset) */
     out = 0x07;
     i2c_write_reg(TCA9554_ADDR, TCA9554_REG_OUTPUT, &out, 1);
     vTaskDelay(pdMS_TO_TICKS(200));
 
-    ESP_LOGI(TAG, "TCA9554 display power/reset toggled");
+    ESP_LOGI(TAG, "Đã chuyển đổi nguồn/reset màn hình TCA9554");
     return ESP_OK;
 }
 
-/* ---- Panel IO helpers: send commands via esp_lcd QSPI panel IO ---- */
+/* ---- Trợ giúp Panel IO: gửi lệnh qua esp_lcd QSPI panel IO ---- */
 
 static esp_err_t panel_write_cmd(uint8_t dcs_cmd, const void *data, size_t data_len)
 {
-    /* Pack as 32-bit lcd_cmd: [31:24]=opcode, [23:8]=dcs_cmd, [7:0]=0 */
+    /* Đóng gói thành lcd_cmd 32-bit: [31:24]=opcode, [23:8]=dcs_cmd, [7:0]=0 */
     uint32_t lcd_cmd = ((uint32_t)LCD_OPCODE_WRITE_CMD << 24) | ((uint32_t)dcs_cmd << 8);
     return esp_lcd_panel_io_tx_param(s_io_handle, (int)lcd_cmd, data, data_len);
 }
 
 static esp_err_t panel_write_color(const void *color_data, size_t data_len)
 {
-    /* RAMWR (0x2C) packed as 32-bit lcd_cmd with quad opcode */
+    /* RAMWR (0x2C) đóng gói thành lcd_cmd 32-bit với opcode quad */
     uint32_t lcd_cmd = ((uint32_t)LCD_OPCODE_WRITE_COLOR << 24) | (0x2C << 8);
     return esp_lcd_panel_io_tx_color(s_io_handle, (int)lcd_cmd, color_data, data_len);
 }
 
-/* ---- SH8601 init sequence (from Waveshare reference) ---- */
+/* ---- Chuỗi khởi tạo SH8601 (từ tài liệu Waveshare) ---- */
 
 typedef struct {
     uint8_t cmd;
@@ -174,16 +174,16 @@ typedef struct {
 } sh8601_init_cmd_t;
 
 static const sh8601_init_cmd_t sh8601_init_cmds[] = {
-    {0x11, {0x00},                   0, 120},  /* Sleep Out + 120ms */
-    {0x44, {0x01, 0xD1},             2, 0},    /* Partial area */
-    {0x35, {0x00},                   1, 0},    /* Tearing Effect ON */
-    {0x53, {0x20},                   1, 10},   /* Write CTRL Display */
+    {0x11, {0x00},                   0, 120},  /* Thoát ngủ + 120ms */
+    {0x44, {0x01, 0xD1},             2, 0},    /* Vùng từng phần */
+    {0x35, {0x00},                   1, 0},    /* Bật hiệu ứng xé hình */
+    {0x53, {0x20},                   1, 10},   /* Ghi CTRL màn hình */
     {0x2A, {0x00, 0x00, 0x01, 0x6F}, 4, 0},   /* CASET: 0-367 */
     {0x2B, {0x00, 0x00, 0x01, 0xBF}, 4, 0},   /* RASET: 0-447 */
-    {0x51, {0x00},                   1, 10},   /* Brightness: 0 */
-    {0x29, {0x00},                   0, 10},   /* Display ON */
-    {0x51, {0xFF},                   1, 0},    /* Brightness: max */
-    {0x00, {0x00},                   0xFF, 0}, /* End sentinel */
+    {0x51, {0x00},                   1, 10},   /* Độ sáng: 0 */
+    {0x29, {0x00},                   0, 10},   /* Bật màn hình */
+    {0x51, {0xFF},                   1, 0},    /* Độ sáng: tối đa */
+    {0x00, {0x00},                   0xFF, 0}, /* Lính canh kết thúc */
 };
 
 static esp_err_t send_init_sequence(void)
@@ -195,7 +195,7 @@ static esp_err_t send_init_sequence(void)
             cmd->data_len > 0 ? cmd->data : NULL,
             cmd->data_len);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "CMD 0x%02X failed: %s", cmd->cmd, esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Lệnh 0x%02X thất bại: %s", cmd->cmd, esp_err_to_name(ret));
             return ret;
         }
         if (cmd->delay_ms > 0) {
@@ -205,27 +205,27 @@ static esp_err_t send_init_sequence(void)
     return ESP_OK;
 }
 
-/* ---- Public API ---- */
+/* ---- API Công Khai ---- */
 
 esp_err_t display_hal_init_panel(void)
 {
-    ESP_LOGI(TAG, "Initializing Waveshare AMOLED 1.8\" (SH8601 368x448)...");
+    ESP_LOGI(TAG, "Đang khởi tạo Waveshare AMOLED 1.8\" (SH8601 368x448)...");
 
-    /* Step 1: Init I2C bus */
+    /* Bước 1: Khởi tạo bus I2C */
     esp_err_t ret = init_i2c_bus();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "I2C bus init failed");
+        ESP_LOGW(TAG, "Khởi tạo bus I2C thất bại");
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Step 2: TCA9554 display power/reset (optional — only present on Waveshare board) */
+    /* Bước 2: Nguồn/reset màn hình TCA9554 (tùy chọn — chỉ có trên bo Waveshare) */
     ret = tca9554_init_display_power();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "TCA9554 not found — assuming display power is always-on (direct wiring)");
-        /* Continue without TCA9554 — the display may be powered directly */
+        ESP_LOGW(TAG, "Không tìm thấy TCA9554 — giả định nguồn màn hình luôn bật (nối dây trực tiếp)");
+        /* Tiếp tục không có TCA9554 — màn hình có thể được cấp nguồn trực tiếp */
     }
 
-    /* Step 3: Initialize SPI bus */
+    /* Bước 3: Khởi tạo bus SPI */
     spi_bus_config_t bus_cfg = {
         .sclk_io_num     = DISP_QSPI_CLK,
         .data0_io_num    = DISP_QSPI_D0,
@@ -237,16 +237,16 @@ esp_err_t display_hal_init_panel(void)
 
     ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "SPI bus init failed: %s", esp_err_to_name(ret));
+        ESP_LOGW(TAG, "Khởi tạo bus SPI thất bại: %s", esp_err_to_name(ret));
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Step 4: Create panel IO with QSPI mode */
+    /* Bước 4: Tạo panel IO với chế độ QSPI */
     esp_lcd_panel_io_spi_config_t io_config = {
-        .dc_gpio_num       = -1,       /* No DC pin in QSPI mode */
+        .dc_gpio_num       = -1,       /* Không có chân DC trong chế độ QSPI */
         .cs_gpio_num       = DISP_QSPI_CS,
         .pclk_hz           = 40 * 1000 * 1000,
-        .lcd_cmd_bits      = 32,       /* 32-bit command: [opcode|dcs_cmd|0x00] */
+        .lcd_cmd_bits      = 32,       /* Lệnh 32-bit: [opcode|dcs_cmd|0x00] */
         .lcd_param_bits    = 8,
         .spi_mode          = 0,
         .trans_queue_depth = 10,
@@ -257,24 +257,24 @@ esp_err_t display_hal_init_panel(void)
 
     ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &s_io_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Panel IO init failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Khởi tạo Panel IO thất bại: %s", esp_err_to_name(ret));
         spi_bus_free(SPI2_HOST);
         return ESP_ERR_NOT_FOUND;
     }
-    ESP_LOGI(TAG, "QSPI panel IO created (40MHz, quad mode)");
+    ESP_LOGI(TAG, "Panel IO QSPI đã tạo (40MHz, chế độ quad)");
 
-    /* Step 5: Send SH8601 init sequence */
+    /* Bước 5: Gửi chuỗi khởi tạo SH8601 */
     ret = send_init_sequence();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "SH8601 init sequence failed");
+        ESP_LOGW(TAG, "Chuỗi khởi tạo SH8601 thất bại");
         esp_lcd_panel_io_del(s_io_handle);
         spi_bus_free(SPI2_HOST);
         s_io_handle = NULL;
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Step 6: Draw test pattern — cyan bar at top */
-    ESP_LOGI(TAG, "Drawing test pattern...");
+    /* Bước 6: Vẽ mẫu thử — thanh xanh lam ở trên */
+    ESP_LOGI(TAG, "Đang vẽ mẫu thử...");
     uint16_t *line_buf = heap_caps_malloc(DISP_H_RES * 2, MALLOC_CAP_DMA);
     if (line_buf) {
         uint8_t caset[4] = {0, 0, (DISP_H_RES - 1) >> 8, (DISP_H_RES - 1) & 0xFF};
@@ -290,10 +290,10 @@ esp_err_t display_hal_init_panel(void)
             panel_write_color(line_buf, DISP_H_RES * 2);
         }
         free(line_buf);
-        ESP_LOGI(TAG, "Test pattern drawn");
+        ESP_LOGI(TAG, "Đã vẽ mẫu thử");
     }
 
-    ESP_LOGI(TAG, "SH8601 panel init OK (%dx%d)", DISP_H_RES, DISP_V_RES);
+    ESP_LOGI(TAG, "Khởi tạo panel SH8601 OK (%dx%d)", DISP_H_RES, DISP_V_RES);
     return ESP_OK;
 }
 
@@ -302,7 +302,7 @@ void display_hal_draw(int x_start, int y_start, int x_end, int y_end,
 {
     if (!s_io_handle) return;
 
-    /* SH8601 requires coordinates divisible by 2 */
+    /* SH8601 yêu cầu tọa độ chia hết cho 2 */
     x_start &= ~1;
     y_start &= ~1;
     if (x_end & 1) x_end++;
@@ -328,7 +328,7 @@ void display_hal_draw(int x_start, int y_start, int x_end, int y_end,
 
 esp_err_t display_hal_init_touch(void)
 {
-    ESP_LOGI(TAG, "Probing FT3168 touch controller...");
+    ESP_LOGI(TAG, "Probing Bộ điều khiển cảm ứng FT3168...");
 
     if (!s_i2c_initialized) {
         esp_err_t ret = init_i2c_bus();
@@ -346,12 +346,12 @@ esp_err_t display_hal_init_touch(void)
     uint8_t chip_id = 0;
     esp_err_t ret = i2c_read_reg(FT3168_ADDR, 0xA8, &chip_id, 1);
     if (ret != ESP_OK || chip_id == 0x00 || chip_id == 0xFF) {
-        ESP_LOGW(TAG, "FT3168 not found (ret=%s, id=0x%02X)", esp_err_to_name(ret), chip_id);
+        ESP_LOGW(TAG, "Không tìm thấy FT3168 (ret=%s, id=0x%02X)", esp_err_to_name(ret), chip_id);
         return ESP_ERR_NOT_FOUND;
     }
 
     s_touch_initialized = true;
-    ESP_LOGI(TAG, "FT3168 touch init OK (chip_id=0x%02X)", chip_id);
+    ESP_LOGI(TAG, "Khởi tạo cảm ứng FT3168 OK (chip_id=0x%02X)", chip_id);
     return ESP_OK;
 }
 

@@ -25,14 +25,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: "\u25A6" },
-  { id: "nodes", label: "Nodes", icon: "\u25C9" },
-  { id: "flash", label: "Flash", icon: "\u26A1" },
-  { id: "ota", label: "OTA", icon: "\u2B06" },
-  { id: "wasm", label: "Edge Modules", icon: "\u2B21" },
-  { id: "sensing", label: "Sensing", icon: "\u2248" },
-  { id: "mesh", label: "Mesh View", icon: "\u2B2F" },
-  { id: "settings", label: "Settings", icon: "\u2699" },
+  { id: "dashboard", label: "Bảng Điều Khiển", icon: "\u25A6" },
+  { id: "nodes", label: "Nút Mạng", icon: "\u25C9" },
+  { id: "flash", label: "Nạp Firmware", icon: "\u26A1" },
+  { id: "ota", label: "Cập Nhật OTA", icon: "\u2B06" },
+  { id: "wasm", label: "Module Biên", icon: "\u2B21" },
+  { id: "sensing", label: "Cảm Biến", icon: "\u2248" },
+  { id: "mesh", label: "Xem Lưới", icon: "\u2B2F" },
+  { id: "settings", label: "Cài Đặt", icon: "\u2699" },
 ];
 
 interface LiveStatus {
@@ -58,7 +58,7 @@ const App: React.FC = () => {
     setPageKey((k) => k + 1);
   }, []);
 
-  // Poll live status every 5 seconds
+  // Kiểm tra trạng thái trực tiếp mỗi 5 giây
   useEffect(() => {
     const poll = async () => {
       try {
@@ -101,7 +101,7 @@ const App: React.FC = () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Sidebar */}
+        {/* Thanh bên */}
         <nav
           style={{
             width: 220,
@@ -113,7 +113,7 @@ const App: React.FC = () => {
             userSelect: "none",
           }}
         >
-          {/* Brand */}
+          {/* Thương hiệu */}
           <div
             style={{
               padding: "20px 16px 16px",
@@ -262,7 +262,7 @@ const App: React.FC = () => {
             }}
           >
             <span className="status-dot status-dot--online" style={{ width: 6, height: 6 }} />
-            <span>Connected</span>
+            <span>Đã kết nối</span>
             {liveStatus.nodeCount > 0 && (
               <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>
                 {liveStatus.onlineCount}/{liveStatus.nodeCount}
@@ -271,7 +271,7 @@ const App: React.FC = () => {
           </div>
         </nav>
 
-        {/* Main content */}
+        {/* Nội dung chính */}
         <main
           style={{
             flex: 1,
@@ -303,7 +303,7 @@ const App: React.FC = () => {
         }}
       >
         <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>
-          Powered by rUv
+          Phát triển bởi rUv
         </span>
 
         <span style={{ color: "var(--border)" }}>{"\u2502"}</span>
@@ -315,7 +315,7 @@ const App: React.FC = () => {
           />
           {liveStatus.onlineCount > 0
             ? `${liveStatus.onlineCount} node${liveStatus.onlineCount !== 1 ? "s" : ""} online`
-            : "No nodes"}
+            : "Không có nút"}
         </span>
 
         <span style={{ color: "var(--border)" }}>{"\u2502"}</span>
@@ -325,7 +325,7 @@ const App: React.FC = () => {
             className={`status-dot ${liveStatus.serverRunning ? "status-dot--online" : "status-dot--error"}`}
             style={{ width: 6, height: 6 }}
           />
-          Server: {liveStatus.serverRunning ? "running" : "stopped"}
+          Máy chủ: {liveStatus.serverRunning ? "đang chạy" : "đã dừng"}
         </span>
 
         <span style={{ flex: 1 }} />
