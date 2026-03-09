@@ -1,21 +1,21 @@
 """
-WebSocket sensing server.
+Máy chủ WebSocket cảm biến.
 
-Lightweight asyncio server that bridges the WiFi sensing pipeline to the
-browser UI.  Runs the RSSI feature extractor + classifier on a 500 ms
-tick and broadcasts JSON frames to all connected WebSocket clients on
-``ws://localhost:8765``.
+Máy chủ asyncio nhẹ kết nối pipeline cảm biến WiFi với
+giao diện trình duyệt. Chạy bộ trích xuất đặc trưng RSSI + bộ phân loại
+trên nhịp 500 ms và phát sóng khung JSON đến tất cả máy khách WebSocket
+đã kết nối trên ``ws://localhost:8765``.
 
-Usage
------
+Cách dùng
+---------
     pip install websockets
-    python -m v1.src.sensing.ws_server          # or  python v1/src/sensing/ws_server.py
+    python -m v1.src.sensing.ws_server          # hoặc  python v1/src/sensing/ws_server.py
 
-Data sources (tried in order):
-    1. ESP32 CSI over UDP port 5005 (ADR-018 binary frames)
-    2. Windows WiFi RSSI via netsh
-    3. Linux WiFi RSSI via /proc/net/wireless
-    4. Simulated collector (fallback)
+Nguồn dữ liệu (thử theo thứ tự):
+    1. ESP32 CSI qua cổng UDP 5005 (khung nhị phân ADR-018)
+    2. WiFi RSSI Windows qua netsh
+    3. WiFi RSSI Linux qua /proc/net/wireless
+    4. Bộ thu thập mô phỏng (dự phòng)
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from typing import Dict, List, Optional, Set
 
 import numpy as np
 
-# Sensing pipeline imports
+# Import pipeline cảm biến
 from v1.src.sensing.rssi_collector import (
     WifiSample,
     RingBuffer,
@@ -46,32 +46,32 @@ from v1.src.sensing.classifier import MotionLevel, PresenceClassifier, SensingRe
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Cấu hình
 # ---------------------------------------------------------------------------
 
 HOST = "localhost"
 PORT = 8765
-TICK_INTERVAL = 0.5  # seconds between broadcasts
-SIGNAL_FIELD_GRID = 20  # NxN grid for signal field visualization
+TICK_INTERVAL = 0.5  # giây giữa các lần phát sóng
+SIGNAL_FIELD_GRID = 20  # Lưới NxN cho trực quan hóa trường tín hiệu
 ESP32_UDP_PORT = 5005
 
 
 # ---------------------------------------------------------------------------
-# ESP32 UDP Collector — reads ADR-018 binary frames
+# Bộ thu thập UDP ESP32 — đọc khung nhị phân ADR-018
 # ---------------------------------------------------------------------------
 
 class Esp32UdpCollector:
     """
-    Collects real CSI data from ESP32 nodes via UDP (ADR-018 binary format).
+    Thu thập dữ liệu CSI thực từ nút ESP32 qua UDP (định dạng nhị phân ADR-018).
 
-    Parses I/Q pairs, computes mean amplitude per frame, and stores it as
-    an RSSI-equivalent value in the standard WifiSample ring buffer so the
-    existing feature extractor and classifier work unchanged.
+    Phân tích cặp I/Q, tính biên độ trung bình mỗi khung, và lưu dưới dạng
+    giá trị tương đương RSSI trong bộ đệm vòng WifiSample tiêu chuẩn để
+    bộ trích xuất đặc trưng và bộ phân loại hiện có hoạt động không thay đổi.
 
-    Also keeps the last parsed CSI frame for the UI to show subcarrier data.
+    Cũng giữ khung CSI đã phân tích gần nhất để UI hiển thị dữ liệu sóng mang con.
     """
 
-    # ADR-018 header: magic(4) node_id(1) n_ant(1) n_sc(2) freq(4) seq(4) rssi(1) noise(1) reserved(2)
+    # Tiêu đề ADR-018: magic(4) node_id(1) n_ant(1) n_sc(2) freq(4) seq(4) rssi(1) noise(1) reserved(2)
     MAGIC = 0xC5110001
     HEADER_SIZE = 20
     HEADER_FMT = '<IBBHIIBB2x'
@@ -91,7 +91,7 @@ class Esp32UdpCollector:
         self._thread: Optional[threading.Thread] = None
         self._sock: Optional[socket.socket] = None
 
-        # Last CSI frame for enhanced UI
+        # Khung CSI gần nhất cho UI nâng cao
         self.last_csi: Optional[Dict] = None
         self._frames_received = 0
 
@@ -115,7 +115,7 @@ class Esp32UdpCollector:
             target=self._recv_loop, daemon=True, name="esp32-udp-collector"
         )
         self._thread.start()
-        logger.info("Esp32UdpCollector listening on %s:%d", self._bind, self._port)
+        logger.info("Esp32UdpCollector đang lắng nghe trên %s:%d", self._bind, self._port)
 
     def stop(self) -> None:
         self._running = False
@@ -125,7 +125,7 @@ class Esp32UdpCollector:
         if self._sock:
             self._sock.close()
             self._sock = None
-        logger.info("Esp32UdpCollector stopped (%d frames received)", self._frames_received)
+        logger.info("Esp32UdpCollector đã dừng (%d khung đã nhận)", self._frames_received)
 
     def get_samples(self, n: Optional[int] = None) -> List[WifiSample]:
         if n is not None:
@@ -141,7 +141,7 @@ class Esp32UdpCollector:
                 continue
             except Exception:
                 if self._running:
-                    logger.exception("Error receiving ESP32 UDP packet")
+                    logger.exception("Lỗi khi nhận gói UDP ESP32")
 
     def _parse_and_store(self, raw: bytes, addr) -> None:
         if len(raw) < self.HEADER_SIZE:
@@ -156,7 +156,7 @@ class Esp32UdpCollector:
         rssi = rssi_u8 if rssi_u8 < 128 else rssi_u8 - 256
         noise = noise_u8 if noise_u8 < 128 else noise_u8 - 256
 
-        # Parse I/Q data if available
+        # Phân tích dữ liệu I/Q nếu có
         iq_count = n_ant * n_sc
         iq_bytes_needed = self.HEADER_SIZE + iq_count * 2
         amplitude_list = []
@@ -171,7 +171,7 @@ class Esp32UdpCollector:
         else:
             mean_amp = 0.0
 
-        # Store enhanced CSI info for UI
+        # Lưu thông tin CSI nâng cao cho UI
         self.last_csi = {
             "node_id": node_id,
             "n_antennas": n_ant,
@@ -181,16 +181,16 @@ class Esp32UdpCollector:
             "rssi_dbm": rssi,
             "noise_floor_dbm": noise,
             "mean_amplitude": mean_amp,
-            "amplitude": amplitude_list[:56],  # cap for JSON size
+            "amplitude": amplitude_list[:56],  # giới hạn cho kích thước JSON
             "source_addr": f"{addr[0]}:{addr[1]}",
         }
 
-        # Use RSSI from the ESP32 frame header as the primary signal metric.
-        # If RSSI is the default -80 placeholder, derive a pseudo-RSSI from
-        # mean amplitude to keep the feature extractor meaningful.
+        # Sử dụng RSSI từ tiêu đề khung ESP32 làm số liệu tín hiệu chính.
+        # Nếu RSSI là giá trị placeholder -80 mặc định, suy ra pseudo-RSSI từ
+        # biên độ trung bình để bộ trích xuất đặc trưng vẫn có ý nghĩa.
         effective_rssi = float(rssi)
         if rssi == -80 and mean_amp > 0:
-            # Map amplitude (typically 1-20) to dBm range (-70 to -30)
+            # Ánh xạ biên độ (thường 1-20) sang phạm vi dBm (-70 đến -30)
             effective_rssi = -70.0 + min(mean_amp, 20.0) * 2.0
 
         sample = WifiSample(
@@ -208,11 +208,11 @@ class Esp32UdpCollector:
 
 
 # ---------------------------------------------------------------------------
-# Probe for ESP32 UDP
+# Thăm dò UDP ESP32
 # ---------------------------------------------------------------------------
 
 def probe_esp32_udp(port: int = ESP32_UDP_PORT, timeout: float = 2.0) -> bool:
-    """Return True if an ESP32 is actively streaming on the UDP port."""
+    """Trả về True nếu ESP32 đang phát trực tuyến trên cổng UDP."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.settimeout(timeout)
@@ -230,7 +230,7 @@ def probe_esp32_udp(port: int = ESP32_UDP_PORT, timeout: float = 2.0) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Signal field generator
+# Bộ tạo trường tín hiệu
 # ---------------------------------------------------------------------------
 
 def generate_signal_field(
@@ -240,31 +240,31 @@ def generate_signal_field(
     csi_data: Optional[Dict] = None,
 ) -> Dict:
     """
-    Generate a 2-D signal-strength field for the Gaussian splat visualization.
-    When real CSI amplitude data is available, it modulates the field.
+    Tạo trường cường độ tín hiệu 2-D cho trực quan hóa Gaussian splat.
+    Khi có dữ liệu biên độ CSI thực, nó điều chế trường.
     """
     field = np.zeros((grid_size, grid_size), dtype=np.float64)
 
-    # Base noise floor
+    # Sàn nhiễu cơ sở
     rng = np.random.default_rng(int(abs(features.mean * 100)) % (2**31))
     field += rng.uniform(0.02, 0.08, size=(grid_size, grid_size))
 
     cx, cy = grid_size // 2, grid_size // 2
 
-    # Radial attenuation from router
+    # Suy hao hướng tâm từ router
     for y in range(grid_size):
         for x in range(grid_size):
             dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
             attenuation = max(0.0, 1.0 - dist / (grid_size * 0.7))
             field[y, x] += attenuation * 0.3
 
-    # If we have real CSI subcarrier amplitudes, paint them along one axis
+    # Nếu có biên độ sóng mang con CSI thực, vẽ chúng dọc theo một trục
     if csi_data and csi_data.get("amplitude"):
         amps = np.array(csi_data["amplitude"][:grid_size], dtype=np.float64)
         if len(amps) > 0:
             max_a = np.max(amps) if np.max(amps) > 0 else 1.0
             norm_amps = amps / max_a
-            # Spread subcarrier energy as vertical stripes
+            # Trải năng lượng sóng mang con dưới dạng sọc dọc
             for ix, a in enumerate(norm_amps):
                 col = int(ix * grid_size / len(norm_amps))
                 col = min(col, grid_size - 1)
@@ -301,11 +301,11 @@ def generate_signal_field(
 
 
 # ---------------------------------------------------------------------------
-# WebSocket server
+# Máy chủ WebSocket
 # ---------------------------------------------------------------------------
 
 class SensingWebSocketServer:
-    """Async WebSocket server that broadcasts sensing updates."""
+    """Máy chủ WebSocket bất đồng bộ phát sóng cập nhật cảm biến."""
 
     def __init__(self) -> None:
         self.clients: Set = set()
@@ -316,24 +316,24 @@ class SensingWebSocketServer:
         self._running = False
 
     def _create_collector(self):
-        """Auto-detect data source: ESP32 UDP > platform WiFi > simulated.
+        """Tự động phát hiện nguồn dữ liệu: ESP32 UDP > WiFi nền tảng > mô phỏng.
 
-        Uses the ``create_collector`` factory (ADR-049) for platform WiFi
-        detection, which never raises and logs actionable fallback messages.
+        Sử dụng nhà máy ``create_collector`` (ADR-049) cho phát hiện WiFi
+        nền tảng, không bao giờ ném lỗi và ghi nhật ký thông báo dự phòng có ý nghĩa.
         """
         from .rssi_collector import create_collector
 
-        # 1. Try ESP32 UDP first
-        print("  Probing for ESP32 on UDP :5005 ...")
+        # 1. Thử ESP32 UDP trước
+        print("  Đang thăm dò ESP32 trên UDP :5005 ...")
         if probe_esp32_udp(ESP32_UDP_PORT, timeout=2.0):
-            logger.info("ESP32 CSI stream detected on UDP :%d", ESP32_UDP_PORT)
+            logger.info("Phát hiện luồng CSI ESP32 trên UDP :%d", ESP32_UDP_PORT)
             self.source = "esp32"
             return Esp32UdpCollector(port=ESP32_UDP_PORT, sample_rate_hz=10.0)
 
-        # 2. Platform-specific WiFi (auto-detect with graceful fallback)
+        # 2. WiFi theo nền tảng (tự động phát hiện với dự phòng nhẹ nhàng)
         collector = create_collector(preferred="auto", sample_rate_hz=10.0)
 
-        # Map collector class to source label
+        # Ánh xạ lớp bộ thu thập sang nhãn nguồn
         source_map = {
             "LinuxWifiCollector": "linux_wifi",
             "WindowsWifiCollector": "windows_wifi",
@@ -344,8 +344,8 @@ class SensingWebSocketServer:
         return collector
 
     def _build_message(self, features: RssiFeatures, result: SensingResult) -> str:
-        """Build the JSON message to broadcast."""
-        # Get CSI-specific data if available
+        """Xây dựng thông điệp JSON để phát sóng."""
+        # Lấy dữ liệu CSI cụ thể nếu có
         csi_data = None
         if isinstance(self.collector, Esp32UdpCollector):
             csi_data = self.collector.last_csi
@@ -360,7 +360,7 @@ class SensingWebSocketServer:
             "subcarrier_count": 0,
         }
 
-        # Enrich with real CSI data
+        # Bổ sung dữ liệu CSI thực
         if csi_data:
             node_info["node_id"] = csi_data.get("node_id", 1)
             node_info["rssi_dbm"] = csi_data.get("rssi_dbm", features.mean)
@@ -400,19 +400,19 @@ class SensingWebSocketServer:
         return json.dumps(msg)
 
     async def _handler(self, websocket):
-        """Handle a single WebSocket client connection."""
+        """Xử lý một kết nối máy khách WebSocket đơn lẻ."""
         self.clients.add(websocket)
         remote = websocket.remote_address
-        logger.info("Client connected: %s", remote)
+        logger.info("Máy khách đã kết nối: %s", remote)
         try:
             async for _ in websocket:
                 pass
         finally:
             self.clients.discard(websocket)
-            logger.info("Client disconnected: %s", remote)
+            logger.info("Máy khách đã ngắt kết nối: %s", remote)
 
     async def _broadcast(self, message: str) -> None:
-        """Send message to all connected clients."""
+        """Gửi thông điệp đến tất cả máy khách đã kết nối."""
         if not self.clients:
             return
         disconnected = set()
@@ -424,7 +424,7 @@ class SensingWebSocketServer:
         self.clients -= disconnected
 
     async def _tick_loop(self) -> None:
-        """Main sensing loop."""
+        """Vòng lặp cảm biến chính."""
         while self._running:
             try:
                 window = self.extractor.window_seconds
@@ -438,54 +438,54 @@ class SensingWebSocketServer:
                     message = self._build_message(features, result)
                     await self._broadcast(message)
 
-                    # Print status every few ticks
+                    # In trạng thái mỗi vài nhịp
                     if isinstance(self.collector, Esp32UdpCollector):
                         csi = self.collector.last_csi
                         if csi and self.collector.frames_received % 20 == 0:
                             print(
-                                f"  [{csi['source_addr']}] node:{csi['node_id']} "
+                                f"  [{csi['source_addr']}] nút:{csi['node_id']} "
                                 f"seq:{csi['sequence']} sc:{csi['n_subcarriers']} "
                                 f"rssi:{csi['rssi_dbm']}dBm amp:{csi['mean_amplitude']:.1f} "
                                 f"=> {result.motion_level.value} ({result.confidence:.0%})"
                             )
                 else:
-                    logger.debug("Waiting for samples (%d/%d)", len(samples), n_needed)
+                    logger.debug("Đang chờ mẫu (%d/%d)", len(samples), n_needed)
             except Exception:
-                logger.exception("Error in sensing tick")
+                logger.exception("Lỗi trong nhịp cảm biến")
 
             await asyncio.sleep(TICK_INTERVAL)
 
     async def run(self) -> None:
-        """Start the server and run until interrupted."""
+        """Khởi động máy chủ và chạy cho đến khi bị gián đoạn."""
         try:
             import websockets
         except ImportError:
-            print("ERROR: 'websockets' package not found.")
-            print("Install it with:  pip install websockets")
+            print("LỖI: Không tìm thấy gói 'websockets'.")
+            print("Cài đặt bằng:  pip install websockets")
             sys.exit(1)
 
         self.collector = self._create_collector()
         self.collector.start()
         self._running = True
 
-        print(f"\n  Sensing WebSocket server on ws://{HOST}:{PORT}")
-        print(f"  Source: {self.source}")
-        print(f"  Tick: {TICK_INTERVAL}s | Window: {self.extractor.window_seconds}s")
-        print("  Press Ctrl+C to stop\n")
+        print(f"\n  Máy chủ WebSocket cảm biến trên ws://{HOST}:{PORT}")
+        print(f"  Nguồn: {self.source}")
+        print(f"  Nhịp: {TICK_INTERVAL}s | Cửa sổ: {self.extractor.window_seconds}s")
+        print("  Nhấn Ctrl+C để dừng\n")
 
         async with websockets.serve(self._handler, HOST, PORT):
             await self._tick_loop()
 
     def stop(self) -> None:
-        """Stop the server gracefully."""
+        """Dừng máy chủ nhẹ nhàng."""
         self._running = False
         if self.collector:
             self.collector.stop()
-        logger.info("Sensing server stopped")
+        logger.info("Máy chủ cảm biến đã dừng")
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Điểm vào
 # ---------------------------------------------------------------------------
 
 def main():
@@ -500,7 +500,7 @@ def main():
     asyncio.set_event_loop(loop)
 
     def _shutdown(sig, frame):
-        print("\nShutting down...")
+        print("\nĐang tắt...")
         server.stop()
         loop.stop()
 

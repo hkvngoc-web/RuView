@@ -1,11 +1,11 @@
-//! Fresnel Zone Breathing Model
+//! Mô hình hô hấp vùng Fresnel
 //!
-//! Models WiFi signal variation as a function of human chest displacement
-//! crossing Fresnel zone boundaries. At 5 GHz (λ=60mm), chest displacement
-//! of 5-10mm during breathing is a significant fraction of the Fresnel zone
-//! width, producing measurable phase and amplitude changes.
+//! Mô hình biến thiên tín hiệu WiFi như hàm của dịch chuyển ngực người
+//! vượt qua ranh giới vùng Fresnel. Ở tần số 5 GHz (λ=60mm), dịch chuyển ngực
+//! 5-10mm khi thở là phần đáng kể của độ rộng vùng Fresnel,
+//! tạo ra thay đổi pha và biên độ có thể đo được.
 //!
-//! # References
+//! # Tài liệu tham khảo
 //! - FarSense: Pushing the Range Limit (MobiCom 2019)
 //! - Wi-Sleep: Contactless Sleep Staging (UbiComp 2021)
 
@@ -13,22 +13,22 @@ use ruvector_solver::neumann::NeumannSolver;
 use ruvector_solver::types::CsrMatrix;
 use std::f64::consts::PI;
 
-/// Physical constants and defaults for WiFi sensing.
+/// Hằng số vật lý và giá trị mặc định cho cảm biến WiFi.
 pub const SPEED_OF_LIGHT: f64 = 2.998e8; // m/s
 
-/// Fresnel zone geometry for a TX-RX-body configuration.
+/// Hình học vùng Fresnel cho cấu hình TX-RX-cơ thể.
 #[derive(Debug, Clone)]
 pub struct FresnelGeometry {
-    /// Distance from TX to body reflection point (meters)
+    /// Khoảng cách từ TX đến điểm phản xạ trên cơ thể (mét)
     pub d_tx_body: f64,
-    /// Distance from body reflection point to RX (meters)
+    /// Khoảng cách từ điểm phản xạ trên cơ thể đến RX (mét)
     pub d_body_rx: f64,
-    /// Carrier frequency in Hz (e.g., 5.8e9 for 5.8 GHz)
+    /// Tần số sóng mang tính bằng Hz (ví dụ: 5.8e9 cho 5.8 GHz)
     pub frequency: f64,
 }
 
 impl FresnelGeometry {
-    /// Create geometry for a given TX-body-RX configuration.
+    /// Tạo hình học cho cấu hình TX-cơ thể-RX cho trước.
     pub fn new(d_tx_body: f64, d_body_rx: f64, frequency: f64) -> Result<Self, FresnelError> {
         if d_tx_body <= 0.0 || d_body_rx <= 0.0 {
             return Err(FresnelError::InvalidDistance);
@@ -43,12 +43,12 @@ impl FresnelGeometry {
         })
     }
 
-    /// Wavelength in meters.
+    /// Bước sóng tính bằng mét.
     pub fn wavelength(&self) -> f64 {
         SPEED_OF_LIGHT / self.frequency
     }
 
-    /// Radius of the nth Fresnel zone at the body point.
+    /// Bán kính vùng Fresnel thứ n tại điểm cơ thể.
     ///
     /// F_n = sqrt(n * λ * d1 * d2 / (d1 + d2))
     pub fn fresnel_radius(&self, n: u32) -> f64 {
@@ -58,37 +58,37 @@ impl FresnelGeometry {
         (n as f64 * lambda * d1 * d2 / (d1 + d2)).sqrt()
     }
 
-    /// Phase change caused by a small body displacement Δd (meters).
+    /// Thay đổi pha gây ra bởi dịch chuyển nhỏ Δd (mét) của cơ thể.
     ///
-    /// The reflected path changes by 2*Δd (there and back), producing
-    /// phase change: ΔΦ = 2π * 2Δd / λ
+    /// Đường phản xạ thay đổi 2*Δd (đi và về), tạo ra
+    /// thay đổi pha: ΔΦ = 2π * 2Δd / λ
     pub fn phase_change(&self, displacement_m: f64) -> f64 {
         2.0 * PI * 2.0 * displacement_m / self.wavelength()
     }
 
-    /// Expected amplitude variation from chest displacement.
+    /// Biến thiên biên độ dự kiến từ dịch chuyển ngực.
     ///
-    /// The signal amplitude varies as |sin(ΔΦ/2)| when the reflection
-    /// point crosses Fresnel zone boundaries.
+    /// Biên độ tín hiệu biến thiên như |sin(ΔΦ/2)| khi điểm phản xạ
+    /// vượt qua ranh giới vùng Fresnel.
     pub fn expected_amplitude_variation(&self, displacement_m: f64) -> f64 {
         let delta_phi = self.phase_change(displacement_m);
         (delta_phi / 2.0).sin().abs()
     }
 }
 
-/// Breathing rate estimation using Fresnel zone model.
+/// Ước lượng nhịp thở sử dụng mô hình vùng Fresnel.
 #[derive(Debug, Clone)]
 pub struct FresnelBreathingEstimator {
     geometry: FresnelGeometry,
-    /// Expected chest displacement range (meters) for breathing
+    /// Phạm vi dịch chuyển ngực dự kiến (mét) cho hô hấp
     min_displacement: f64,
     max_displacement: f64,
 }
 
 impl FresnelBreathingEstimator {
-    /// Create estimator with geometry and chest displacement bounds.
+    /// Tạo bộ ước lượng với hình học và giới hạn dịch chuyển ngực.
     ///
-    /// Typical adult chest displacement: 4-12mm (0.004-0.012 m)
+    /// Dịch chuyển ngực người lớn thông thường: 4-12mm (0.004-0.012 m)
     pub fn new(geometry: FresnelGeometry) -> Self {
         Self {
             geometry,
@@ -97,11 +97,11 @@ impl FresnelBreathingEstimator {
         }
     }
 
-    /// Check if observed amplitude variation is consistent with breathing.
+    /// Kiểm tra biến thiên biên độ quan sát có nhất quán với hô hấp không.
     ///
-    /// Returns confidence (0.0-1.0) based on whether the observed signal
-    /// variation matches the expected Fresnel model prediction for chest
-    /// displacements in the breathing range.
+    /// Trả về độ tin cậy (0.0-1.0) dựa trên việc biến thiên tín hiệu quan sát
+    /// có khớp với dự đoán mô hình Fresnel cho dịch chuyển ngực
+    /// trong phạm vi hô hấp hay không.
     pub fn breathing_confidence(&self, observed_amplitude_variation: f64) -> f64 {
         let min_expected = self.geometry.expected_amplitude_variation(self.min_displacement);
         let max_expected = self.geometry.expected_amplitude_variation(self.max_displacement);
@@ -113,21 +113,21 @@ impl FresnelBreathingEstimator {
         };
 
         if observed_amplitude_variation >= low && observed_amplitude_variation <= high {
-            // Within expected range: high confidence
+            // Trong phạm vi dự kiến: độ tin cậy cao
             1.0
         } else if observed_amplitude_variation < low {
-            // Below range: scale linearly
+            // Dưới phạm vi: tỷ lệ tuyến tính
             (observed_amplitude_variation / low).clamp(0.0, 1.0)
         } else {
-            // Above range: could be larger motion (walking), lower confidence for breathing
+            // Trên phạm vi: có thể là chuyển động lớn hơn (đi bộ), độ tin cậy thấp cho hô hấp
             (high / observed_amplitude_variation).clamp(0.0, 1.0)
         }
     }
 
-    /// Estimate breathing rate from temporal amplitude signal using the Fresnel model.
+    /// Ước lượng nhịp thở từ tín hiệu biên độ theo thời gian sử dụng mô hình Fresnel.
     ///
-    /// Uses autocorrelation to find periodicity, then validates against
-    /// expected Fresnel amplitude range. Returns (rate_bpm, confidence).
+    /// Sử dụng tự tương quan để tìm tính tuần hoàn, sau đó kiểm chứng với
+    /// phạm vi biên độ Fresnel dự kiến. Trả về (nhịp_bpm, độ_tin_cậy).
     pub fn estimate_breathing_rate(
         &self,
         amplitude_signal: &[f64],
@@ -143,14 +143,14 @@ impl FresnelBreathingEstimator {
             return Err(FresnelError::InvalidFrequency);
         }
 
-        // Remove DC (mean)
+        // Loại bỏ DC (trung bình)
         let mean: f64 = amplitude_signal.iter().sum::<f64>() / amplitude_signal.len() as f64;
         let centered: Vec<f64> = amplitude_signal.iter().map(|x| x - mean).collect();
 
-        // Autocorrelation to find periodicity
+        // Tự tương quan để tìm tính tuần hoàn
         let n = centered.len();
-        let max_lag = (sample_rate * 10.0) as usize; // Up to 10 seconds (6 BPM)
-        let min_lag = (sample_rate * 1.5) as usize; // At least 1.5 seconds (40 BPM)
+        let max_lag = (sample_rate * 10.0) as usize; // Tối đa 10 giây (6 BPM)
+        let min_lag = (sample_rate * 1.5) as usize; // Tối thiểu 1.5 giây (40 BPM)
         let max_lag = max_lag.min(n / 2);
 
         if min_lag >= max_lag {
@@ -160,7 +160,7 @@ impl FresnelBreathingEstimator {
             });
         }
 
-        // Compute autocorrelation for breathing-range lags
+        // Tính tự tương quan cho các trễ trong phạm vi hô hấp
         let mut best_lag = min_lag;
         let mut best_corr = f64::NEG_INFINITY;
         let norm: f64 = centered.iter().map(|x| x * x).sum();
@@ -185,11 +185,11 @@ impl FresnelBreathingEstimator {
         let period_seconds = best_lag as f64 / sample_rate;
         let rate_bpm = 60.0 / period_seconds;
 
-        // Compute amplitude variation for Fresnel confidence
+        // Tính biến thiên biên độ cho độ tin cậy Fresnel
         let amp_var = amplitude_variation(&centered);
         let fresnel_conf = self.breathing_confidence(amp_var);
 
-        // Autocorrelation quality (>0.3 is good periodicity)
+        // Chất lượng tự tương quan (>0.3 là tuần hoàn tốt)
         let autocorr_conf = best_corr.max(0.0).min(1.0);
 
         let confidence = fresnel_conf * 0.4 + autocorr_conf * 0.6;
@@ -205,24 +205,24 @@ impl FresnelBreathingEstimator {
     }
 }
 
-/// Result of breathing rate estimation.
+/// Kết quả ước lượng nhịp thở.
 #[derive(Debug, Clone)]
 pub struct BreathingEstimate {
-    /// Estimated breathing rate in breaths per minute
+    /// Nhịp thở ước lượng tính bằng nhịp mỗi phút
     pub rate_bpm: f64,
-    /// Combined confidence (0.0-1.0)
+    /// Độ tin cậy tổng hợp (0.0-1.0)
     pub confidence: f64,
-    /// Estimated breathing period in seconds
+    /// Chu kỳ thở ước lượng tính bằng giây
     pub period_seconds: f64,
-    /// Peak autocorrelation value at detected period
+    /// Giá trị đỉnh tự tương quan tại chu kỳ phát hiện
     pub autocorrelation_peak: f64,
-    /// Confidence from Fresnel model match
+    /// Độ tin cậy từ khớp mô hình Fresnel
     pub fresnel_confidence: f64,
-    /// Observed amplitude variation
+    /// Biến thiên biên độ quan sát
     pub amplitude_variation: f64,
 }
 
-/// Compute peak-to-peak amplitude variation (normalized).
+/// Tính biến thiên biên độ đỉnh-đến-đỉnh (chuẩn hóa).
 fn amplitude_variation(signal: &[f64]) -> f64 {
     if signal.is_empty() {
         return 0.0;
@@ -232,19 +232,19 @@ fn amplitude_variation(signal: &[f64]) -> f64 {
     max - min
 }
 
-/// Estimate TX-body and body-RX distances from multi-subcarrier Fresnel observations.
+/// Ước lượng khoảng cách TX-cơ thể và cơ thể-RX từ quan sát Fresnel đa sóng mang con.
 ///
-/// When exact geometry is unknown, multiple subcarrier wavelengths provide
-/// different Fresnel zone crossings for the same chest displacement. This
-/// function solves the resulting over-determined system to estimate d1 (TX→body)
-/// and d2 (body→RX) distances.
+/// Khi hình học chính xác không biết, nhiều bước sóng sóng mang con cung cấp
+/// các lần vượt vùng Fresnel khác nhau cho cùng dịch chuyển ngực. Hàm này
+/// giải hệ thống quá xác định kết quả để ước lượng d1 (TX→cơ thể)
+/// và d2 (cơ thể→RX).
 ///
-/// # Arguments
-/// * `observations` - Vec of (wavelength_m, observed_amplitude_variation) from different subcarriers
-/// * `d_total` - Known TX-RX straight-line distance in metres
+/// # Tham số
+/// * `observations` - Vec các (bước_sóng_m, biến_thiên_biên_độ_quan_sát) từ các sóng mang con khác nhau
+/// * `d_total` - Khoảng cách đường thẳng TX-RX đã biết tính bằng mét
 ///
-/// # Returns
-/// Some((d1, d2)) if solvable with ≥3 observations, None otherwise
+/// # Trả về
+/// Some((d1, d2)) nếu giải được với ≥3 quan sát, None nếu không
 pub fn solve_fresnel_geometry(
     observations: &[(f32, f32)],
     d_total: f32,
@@ -254,16 +254,16 @@ pub fn solve_fresnel_geometry(
         return None;
     }
 
-    // Collect per-wavelength coefficients
+    // Thu thập hệ số theo bước sóng
     let inv_w_sq_sum: f32 = observations.iter().map(|(w, _)| 1.0 / (w * w)).sum();
     let a_over_w_sum: f32 = observations.iter().map(|(w, a)| a / w).sum();
 
-    // Normal equations for [d1, d2]^T with relative Tikhonov regularization λ=0.5*inv_w_sq_sum.
-    // Relative scaling ensures the Jacobi iteration matrix has spectral radius ~0.667,
-    // well within the convergence bound required by NeumannSolver.
+    // Phương trình chuẩn cho [d1, d2]^T với chính quy hóa Tikhonov tương đối λ=0.5*inv_w_sq_sum.
+    // Tỷ lệ tương đối đảm bảo ma trận lặp Jacobi có bán kính phổ ~0.667,
+    // nằm trong giới hạn hội tụ yêu cầu bởi NeumannSolver.
     // (A^T A + λI) x = A^T b
-    // For the linearized system: coefficient[0] = 1/w, coefficient[1] = -1/w
-    // So A^T A = [[inv_w_sq_sum, -inv_w_sq_sum], [-inv_w_sq_sum, inv_w_sq_sum]] + λI
+    // Cho hệ tuyến tính hóa: coefficient[0] = 1/w, coefficient[1] = -1/w
+    // Vậy A^T A = [[inv_w_sq_sum, -inv_w_sq_sum], [-inv_w_sq_sum, inv_w_sq_sum]] + λI
     let lambda = 0.5 * inv_w_sq_sum;
     let a00 = inv_w_sq_sum + lambda;
     let a11 = inv_w_sq_sum + lambda;
@@ -293,7 +293,7 @@ mod solver_fresnel_tests {
 
     #[test]
     fn fresnel_geometry_insufficient_obs() {
-        // < 3 observations → None
+        // < 3 quan sát → None
         let obs = vec![(0.06_f32, 0.5_f32), (0.05, 0.4)];
         assert!(solve_fresnel_geometry(&obs, 5.0).is_none());
     }
@@ -307,27 +307,27 @@ mod solver_fresnel_tests {
             (0.045, 0.2),
         ];
         let result = solve_fresnel_geometry(&obs, 5.0);
-        assert!(result.is_some(), "should solve with 4 observations");
+        assert!(result.is_some(), "phải giải được với 4 quan sát");
         let (d1, d2) = result.unwrap();
-        assert!(d1 > 0.0 && d1 < 5.0, "d1={d1} out of range");
-        assert!(d2 > 0.0 && d2 < 5.0, "d2={d2} out of range");
-        assert!((d1 + d2 - 5.0).abs() < 0.01, "d1+d2 should ≈ d_total");
+        assert!(d1 > 0.0 && d1 < 5.0, "d1={d1} ngoài phạm vi");
+        assert!(d2 > 0.0 && d2 < 5.0, "d2={d2} ngoài phạm vi");
+        assert!((d1 + d2 - 5.0).abs() < 0.01, "d1+d2 phải ≈ d_total");
     }
 }
 
-/// Errors from Fresnel computations.
+/// Các lỗi từ tính toán Fresnel.
 #[derive(Debug, thiserror::Error)]
 pub enum FresnelError {
-    #[error("Distance must be positive")]
+    #[error("Khoảng cách phải dương")]
     InvalidDistance,
 
-    #[error("Frequency must be positive")]
+    #[error("Tần số phải dương")]
     InvalidFrequency,
 
-    #[error("Insufficient data: need {needed}, got {got}")]
+    #[error("Không đủ dữ liệu: cần {needed}, có {got}")]
     InsufficientData { needed: usize, got: usize },
 
-    #[error("No signal detected (zero variance)")]
+    #[error("Không phát hiện tín hiệu (phương sai bằng 0)")]
     NoSignal,
 }
 
@@ -336,7 +336,7 @@ mod tests {
     use super::*;
 
     fn test_geometry() -> FresnelGeometry {
-        // TX 3m from body, body 2m from RX, 5 GHz WiFi
+        // TX cách cơ thể 3m, cơ thể cách RX 2m, WiFi 5 GHz
         FresnelGeometry::new(3.0, 2.0, 5.0e9).unwrap()
     }
 
@@ -352,16 +352,16 @@ mod tests {
         let g = test_geometry();
         let f1 = g.fresnel_radius(1);
         // F1 = sqrt(λ * d1 * d2 / (d1 + d2))
-        let lambda = g.wavelength(); // actual: 2.998e8 / 5e9 = 0.05996
+        let lambda = g.wavelength(); // thực tế: 2.998e8 / 5e9 = 0.05996
         let expected = (lambda * 3.0 * 2.0 / 5.0_f64).sqrt();
         assert!((f1 - expected).abs() < 1e-6);
-        assert!(f1 > 0.1 && f1 < 0.5); // Reasonable range
+        assert!(f1 > 0.1 && f1 < 0.5); // Phạm vi hợp lý
     }
 
     #[test]
     fn test_phase_change_from_displacement() {
         let g = test_geometry();
-        // 5mm chest displacement at 5 GHz
+        // Dịch chuyển ngực 5mm ở 5 GHz
         let delta_phi = g.phase_change(0.005);
         // ΔΦ = 2π * 2 * 0.005 / λ
         let lambda = g.wavelength();
@@ -372,11 +372,11 @@ mod tests {
     #[test]
     fn test_amplitude_variation_breathing_range() {
         let g = test_geometry();
-        // 5mm displacement should produce detectable variation
+        // Dịch chuyển 5mm phải tạo biến thiên có thể phát hiện
         let var_5mm = g.expected_amplitude_variation(0.005);
-        assert!(var_5mm > 0.01, "5mm should produce measurable variation");
+        assert!(var_5mm > 0.01, "5mm phải tạo biến thiên có thể đo được");
 
-        // 10mm should produce more variation
+        // 10mm phải tạo biến thiên lớn hơn
         let var_10mm = g.expected_amplitude_variation(0.010);
         assert!(var_10mm > var_5mm || (var_10mm - var_5mm).abs() < 0.1);
     }
@@ -386,12 +386,12 @@ mod tests {
         let g = test_geometry();
         let estimator = FresnelBreathingEstimator::new(g.clone());
 
-        // Signal matching expected breathing range → high confidence
+        // Tín hiệu khớp phạm vi hô hấp dự kiến → độ tin cậy cao
         let expected_var = g.expected_amplitude_variation(0.007);
         let conf = estimator.breathing_confidence(expected_var);
-        assert!(conf > 0.5, "Expected breathing variation should give high confidence");
+        assert!(conf > 0.5, "Biến thiên hô hấp dự kiến phải cho độ tin cậy cao");
 
-        // Zero variation → low confidence
+        // Biến thiên bằng 0 → độ tin cậy thấp
         let conf_zero = estimator.breathing_confidence(0.0);
         assert!(conf_zero < 0.5);
     }
@@ -401,7 +401,7 @@ mod tests {
         let g = test_geometry();
         let estimator = FresnelBreathingEstimator::new(g);
 
-        // Generate 30 seconds of breathing signal at 16 BPM (0.267 Hz)
+        // Sinh 30 giây tín hiệu hô hấp ở 16 BPM (0.267 Hz)
         let sample_rate = 100.0; // Hz
         let duration = 30.0;
         let n = (sample_rate * duration) as usize;
@@ -418,10 +418,10 @@ mod tests {
             .estimate_breathing_rate(&signal, sample_rate)
             .unwrap();
 
-        // Should detect ~16 BPM (within 2 BPM tolerance)
+        // Phải phát hiện ~16 BPM (trong dung sai 2 BPM)
         assert!(
             (result.rate_bpm - 16.0).abs() < 2.0,
-            "Expected ~16 BPM, got {:.1}",
+            "Kỳ vọng ~16 BPM, nhận được {:.1}",
             result.rate_bpm
         );
         assert!(result.confidence > 0.3);

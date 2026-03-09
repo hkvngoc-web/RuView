@@ -1,19 +1,19 @@
-//! Hampel Filter for robust outlier detection and removal.
+//! Bộ lọc Hampel cho phát hiện và loại bỏ ngoại lai bền vững.
 //!
-//! Uses running median and MAD (Median Absolute Deviation) instead of
-//! mean/std, making it resistant to up to 50% contamination — unlike
-//! Z-score methods where outliers corrupt the mean and mask themselves.
+//! Sử dụng trung vị trượt và MAD (Độ lệch tuyệt đối trung vị) thay vì
+//! trung bình/độ lệch chuẩn, giúp chống chịu được đến 50% nhiễm bẩn — không giống
+//! phương pháp Z-score nơi ngoại lai làm hỏng trung bình và che giấu chính mình.
 //!
-//! # References
+//! # Tài liệu tham khảo
 //! - Hampel (1974), "The Influence Curve and its Role in Robust Estimation"
-//! - Used in WiGest (SenSys 2015), WiDance (MobiCom 2017)
+//! - Sử dụng trong WiGest (SenSys 2015), WiDance (MobiCom 2017)
 
-/// Configuration for the Hampel filter.
+/// Cấu hình cho bộ lọc Hampel.
 #[derive(Debug, Clone)]
 pub struct HampelConfig {
-    /// Half-window size (total window = 2*half_window + 1)
+    /// Nửa kích thước cửa sổ (tổng cửa sổ = 2*half_window + 1)
     pub half_window: usize,
-    /// Threshold in units of estimated σ (typically 3.0)
+    /// Ngưỡng tính bằng đơn vị σ ước lượng (thường là 3.0)
     pub threshold: f64,
 }
 
@@ -26,28 +26,28 @@ impl Default for HampelConfig {
     }
 }
 
-/// Result of Hampel filtering.
+/// Kết quả lọc Hampel.
 #[derive(Debug, Clone)]
 pub struct HampelResult {
-    /// Filtered signal (outliers replaced with local median)
+    /// Tín hiệu đã lọc (ngoại lai được thay bằng trung vị cục bộ)
     pub filtered: Vec<f64>,
-    /// Indices where outliers were detected
+    /// Các chỉ số nơi ngoại lai được phát hiện
     pub outlier_indices: Vec<usize>,
-    /// Local median values at each sample
+    /// Giá trị trung vị cục bộ tại mỗi mẫu
     pub medians: Vec<f64>,
-    /// Estimated local σ at each sample
+    /// σ cục bộ ước lượng tại mỗi mẫu
     pub sigma_estimates: Vec<f64>,
 }
 
-/// Scale factor converting MAD to σ for Gaussian distributions.
+/// Hệ số tỷ lệ chuyển đổi MAD sang σ cho phân phối Gauss.
 /// MAD = 0.6745 * σ → σ = MAD / 0.6745 = 1.4826 * MAD
 const MAD_SCALE: f64 = 1.4826;
 
-/// Apply Hampel filter to a 1D signal.
+/// Áp dụng bộ lọc Hampel cho tín hiệu 1D.
 ///
-/// For each sample, computes the median and MAD of the surrounding window.
-/// If the sample deviates from the median by more than `threshold * σ_est`,
-/// it is replaced with the median.
+/// Với mỗi mẫu, tính trung vị và MAD của cửa sổ xung quanh.
+/// Nếu mẫu lệch khỏi trung vị nhiều hơn `threshold * σ_est`,
+/// nó được thay bằng trung vị.
 pub fn hampel_filter(signal: &[f64], config: &HampelConfig) -> Result<HampelResult, HampelError> {
     if signal.is_empty() {
         return Err(HampelError::EmptySignal);
@@ -76,11 +76,11 @@ pub fn hampel_filter(signal: &[f64], config: &HampelConfig) -> Result<HampelResu
 
         let deviation = (signal[i] - med).abs();
         let is_outlier = if sigma > 1e-15 {
-            // Normal case: compare deviation to threshold * sigma
+            // Trường hợp bình thường: so sánh độ lệch với threshold * sigma
             deviation > config.threshold * sigma
         } else {
-            // Zero-MAD case: all window values identical except possibly this sample.
-            // Any non-zero deviation from the median is an outlier.
+            // Trường hợp MAD bằng 0: tất cả giá trị cửa sổ giống nhau trừ có thể mẫu này.
+            // Bất kỳ độ lệch khác 0 nào so với trung vị là ngoại lai.
             deviation > 1e-15
         };
 
@@ -98,7 +98,7 @@ pub fn hampel_filter(signal: &[f64], config: &HampelConfig) -> Result<HampelResu
     })
 }
 
-/// Apply Hampel filter to each row of a 2D array (e.g., per-antenna CSI).
+/// Áp dụng bộ lọc Hampel cho mỗi hàng của mảng 2D (ví dụ: CSI theo từng anten).
 pub fn hampel_filter_2d(
     data: &[Vec<f64>],
     config: &HampelConfig,
@@ -106,7 +106,7 @@ pub fn hampel_filter_2d(
     data.iter().map(|row| hampel_filter(row, config)).collect()
 }
 
-/// Compute median of a slice (sorts a copy).
+/// Tính trung vị của một lát (sắp xếp bản sao).
 fn median(data: &[f64]) -> f64 {
     if data.is_empty() {
         return 0.0;
@@ -121,18 +121,18 @@ fn median(data: &[f64]) -> f64 {
     }
 }
 
-/// Compute MAD (Median Absolute Deviation) given precomputed median.
+/// Tính MAD (Độ lệch tuyệt đối trung vị) với trung vị đã tính sẵn.
 fn median_absolute_deviation(data: &[f64], med: f64) -> f64 {
     let deviations: Vec<f64> = data.iter().map(|x| (x - med).abs()).collect();
     median(&deviations)
 }
 
-/// Errors from Hampel filtering.
+/// Các lỗi từ bộ lọc Hampel.
 #[derive(Debug, thiserror::Error)]
 pub enum HampelError {
-    #[error("Signal is empty")]
+    #[error("Tín hiệu rỗng")]
     EmptySignal,
-    #[error("Half-window must be > 0")]
+    #[error("Nửa cửa sổ phải > 0")]
     InvalidWindow,
 }
 
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_clean_signal_unchanged() {
-        // A smooth sinusoid should have zero outliers
+        // Sóng sin mượt không nên có ngoại lai
         let signal: Vec<f64> = (0..100)
             .map(|i| (i as f64 * 0.1).sin())
             .collect();
@@ -153,7 +153,7 @@ mod tests {
         for i in 0..signal.len() {
             assert!(
                 (result.filtered[i] - signal[i]).abs() < 1e-10,
-                "Clean signal modified at index {}",
+                "Tín hiệu sạch bị thay đổi tại chỉ số {}",
                 i
             );
         }
@@ -162,11 +162,11 @@ mod tests {
     #[test]
     fn test_single_spike_detected() {
         let mut signal: Vec<f64> = vec![1.0; 50];
-        signal[25] = 100.0; // Huge spike
+        signal[25] = 100.0; // Đỉnh nhọn lớn
 
         let result = hampel_filter(&signal, &HampelConfig::default()).unwrap();
         assert!(result.outlier_indices.contains(&25));
-        assert!((result.filtered[25] - 1.0).abs() < 1e-10); // Replaced with median
+        assert!((result.filtered[25] - 1.0).abs() < 1e-10); // Được thay bằng trung vị
     }
 
     #[test]
@@ -175,7 +175,7 @@ mod tests {
             .map(|i| (i as f64 * 0.05).sin())
             .collect();
 
-        // Insert spikes
+        // Chèn đỉnh nhọn
         signal[30] = 50.0;
         signal[100] = -50.0;
         signal[170] = 80.0;
@@ -193,9 +193,9 @@ mod tests {
 
     #[test]
     fn test_z_score_masking_resistance() {
-        // 50 clean samples + many outliers: Z-score would fail, Hampel should work
+        // 50 mẫu sạch + nhiều ngoại lai: Z-score sẽ thất bại, Hampel phải hoạt động
         let mut signal: Vec<f64> = vec![0.0; 100];
-        // Insert 30% contamination (Z-score would be confused)
+        // Chèn 30% nhiễm bẩn (Z-score sẽ bị nhầm lẫn)
         for i in (0..100).step_by(3) {
             signal[i] = 50.0;
         }
@@ -206,7 +206,7 @@ mod tests {
         };
         let result = hampel_filter(&signal, &config).unwrap();
 
-        // The contaminated samples should be detected as outliers
+        // Các mẫu bị nhiễm phải được phát hiện là ngoại lai
         assert!(!result.outlier_indices.is_empty());
     }
 

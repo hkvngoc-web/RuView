@@ -1,16 +1,16 @@
-//! Body Velocity Profile (BVP) extraction.
+//! Trích xuất hồ sơ vận tốc cơ thể (BVP).
 //!
-//! BVP is a domain-independent 2D representation (velocity × time) that encodes
-//! how different body parts move at different speeds. Because BVP captures
-//! velocity distributions rather than raw CSI values, it generalizes across
-//! environments (different rooms, furniture, AP placement).
+//! BVP là biểu diễn 2D không phụ thuộc miền (vận tốc × thời gian) mã hóa
+//! cách các bộ phận cơ thể khác nhau chuyển động ở các tốc độ khác nhau. Vì BVP nắm bắt
+//! phân phối vận tốc thay vì giá trị CSI thô, nó tổng quát hóa qua
+//! các môi trường (phòng khác nhau, nội thất, vị trí AP).
 //!
-//! # Algorithm
-//! 1. Apply STFT to each subcarrier's temporal amplitude stream
-//! 2. Map frequency bins to velocity via v = f_doppler * λ / 2
-//! 3. Aggregate |STFT| across subcarriers to form BVP
+//! # Thuật toán
+//! 1. Áp dụng STFT cho luồng biên độ theo thời gian của mỗi sóng mang con
+//! 2. Ánh xạ bin tần số sang vận tốc qua v = f_doppler * λ / 2
+//! 3. Tổng hợp |STFT| qua các sóng mang con để tạo BVP
 //!
-//! # References
+//! # Tài liệu tham khảo
 //! - Widar 3.0: Zero-Effort Cross-Domain Gesture Recognition (MobiSys 2019)
 
 use ndarray::Array2;
@@ -20,18 +20,18 @@ use ruvector_attention::traits::Attention;
 use rustfft::FftPlanner;
 use std::f64::consts::PI;
 
-/// Configuration for BVP extraction.
+/// Cấu hình cho trích xuất BVP.
 #[derive(Debug, Clone)]
 pub struct BvpConfig {
-    /// STFT window size (samples)
+    /// Kích thước cửa sổ STFT (số mẫu)
     pub window_size: usize,
-    /// STFT hop size (samples)
+    /// Bước nhảy STFT (số mẫu)
     pub hop_size: usize,
-    /// Carrier frequency in Hz (for velocity mapping)
+    /// Tần số sóng mang tính bằng Hz (cho ánh xạ vận tốc)
     pub carrier_frequency: f64,
-    /// Number of velocity bins to output
+    /// Số bin vận tốc đầu ra
     pub n_velocity_bins: usize,
-    /// Maximum velocity to resolve (m/s)
+    /// Vận tốc tối đa có thể phân giải (m/s)
     pub max_velocity: f64,
 }
 
@@ -47,26 +47,26 @@ impl Default for BvpConfig {
     }
 }
 
-/// Body Velocity Profile result.
+/// Kết quả hồ sơ vận tốc cơ thể.
 #[derive(Debug, Clone)]
 pub struct BodyVelocityProfile {
-    /// BVP matrix: (n_velocity_bins × n_time_frames)
-    /// Each column is a velocity distribution at a time instant.
+    /// Ma trận BVP: (n_velocity_bins × n_time_frames)
+    /// Mỗi cột là phân phối vận tốc tại một thời điểm.
     pub data: Array2<f64>,
-    /// Velocity values for each row bin (m/s)
+    /// Giá trị vận tốc cho mỗi bin hàng (m/s)
     pub velocity_bins: Vec<f64>,
-    /// Number of time frames
+    /// Số khung thời gian
     pub n_time: usize,
-    /// Time resolution (seconds per frame)
+    /// Độ phân giải thời gian (giây mỗi khung)
     pub time_resolution: f64,
-    /// Velocity resolution (m/s per bin)
+    /// Độ phân giải vận tốc (m/s mỗi bin)
     pub velocity_resolution: f64,
 }
 
-/// Extract Body Velocity Profile from temporal CSI data.
+/// Trích xuất hồ sơ vận tốc cơ thể từ dữ liệu CSI theo thời gian.
 ///
-/// `csi_temporal`: (num_samples × num_subcarriers) amplitude matrix
-/// `sample_rate`: sampling rate in Hz
+/// `csi_temporal`: ma trận biên độ (num_samples × num_subcarriers)
+/// `sample_rate`: tần số lấy mẫu tính bằng Hz
 pub fn extract_bvp(
     csi_temporal: &Array2<f64>,
     sample_rate: f64,
@@ -84,14 +84,14 @@ pub fn extract_bvp(
         return Err(BvpError::NoSubcarriers);
     }
     if config.hop_size == 0 || config.window_size == 0 {
-        return Err(BvpError::InvalidConfig("window_size and hop_size must be > 0".into()));
+        return Err(BvpError::InvalidConfig("window_size và hop_size phải > 0".into()));
     }
 
     let wavelength = 2.998e8 / config.carrier_frequency;
     let n_frames = (n_samples - config.window_size) / config.hop_size + 1;
     let n_fft_bins = config.window_size / 2 + 1;
 
-    // Hann window
+    // Cửa sổ Hann
     let window: Vec<f64> = (0..config.window_size)
         .map(|i| 0.5 * (1.0 - (2.0 * PI * i as f64 / (config.window_size - 1) as f64).cos()))
         .collect();
@@ -99,13 +99,13 @@ pub fn extract_bvp(
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(config.window_size);
 
-    // Compute STFT magnitude for each subcarrier, then aggregate
+    // Tính biên độ STFT cho mỗi sóng mang con, sau đó tổng hợp
     let mut aggregated = Array2::zeros((n_fft_bins, n_frames));
 
     for sc in 0..n_sc {
         let col: Vec<f64> = csi_temporal.column(sc).to_vec();
 
-        // Remove DC from this subcarrier
+        // Loại bỏ DC khỏi sóng mang con này
         let mean: f64 = col.iter().sum::<f64>() / col.len() as f64;
 
         for frame in 0..n_frames {
@@ -119,17 +119,17 @@ pub fn extract_bvp(
 
             fft.process(&mut buffer);
 
-            // Accumulate magnitude across subcarriers
+            // Tích lũy biên độ qua các sóng mang con
             for bin in 0..n_fft_bins {
                 aggregated[[bin, frame]] += buffer[bin].norm();
             }
         }
     }
 
-    // Normalize by number of subcarriers
+    // Chuẩn hóa theo số sóng mang con
     aggregated /= n_sc as f64;
 
-    // Map FFT bins to velocity bins
+    // Ánh xạ bin FFT sang bin vận tốc
     let freq_resolution = sample_rate / config.window_size as f64;
     let velocity_resolution = config.max_velocity * 2.0 / config.n_velocity_bins as f64;
 
@@ -137,13 +137,13 @@ pub fn extract_bvp(
         .map(|i| -config.max_velocity + i as f64 * velocity_resolution)
         .collect();
 
-    // Resample FFT bins to velocity bins using v = f_doppler * λ / 2
+    // Lấy mẫu lại bin FFT sang bin vận tốc sử dụng v = f_doppler * λ / 2
     let mut bvp = Array2::zeros((config.n_velocity_bins, n_frames));
 
     for (v_idx, &velocity) in velocity_bins.iter().enumerate() {
-        // Convert velocity to Doppler frequency
+        // Chuyển đổi vận tốc sang tần số Doppler
         let doppler_freq = 2.0 * velocity / wavelength;
-        // Convert to FFT bin index
+        // Chuyển đổi sang chỉ số bin FFT
         let fft_bin = (doppler_freq.abs() / freq_resolution).round() as usize;
 
         if fft_bin < n_fft_bins {
@@ -162,32 +162,32 @@ pub fn extract_bvp(
     })
 }
 
-/// Errors from BVP extraction.
+/// Các lỗi từ trích xuất BVP.
 #[derive(Debug, thiserror::Error)]
 pub enum BvpError {
-    #[error("Insufficient samples: need {needed}, got {got}")]
+    #[error("Không đủ mẫu: cần {needed}, có {got}")]
     InsufficientSamples { needed: usize, got: usize },
 
-    #[error("No subcarriers in input")]
+    #[error("Không có sóng mang con trong đầu vào")]
     NoSubcarriers,
 
-    #[error("Invalid configuration: {0}")]
+    #[error("Cấu hình không hợp lệ: {0}")]
     InvalidConfig(String),
 }
 
-/// Compute attention-weighted BVP aggregation across subcarriers.
+/// Tính tổng hợp BVP có trọng số attention qua các sóng mang con.
 ///
-/// Uses ScaledDotProductAttention to weight each subcarrier's velocity
-/// profile by its relevance to the overall body motion query. Subcarriers
-/// in multipath nulls receive low attention weight automatically.
+/// Sử dụng ScaledDotProductAttention để đánh trọng số hồ sơ vận tốc
+/// của mỗi sóng mang con theo mức liên quan đến truy vấn chuyển động cơ thể tổng thể.
+/// Các sóng mang con ở vùng triệt tiêu đa đường nhận trọng số attention thấp tự động.
 ///
-/// # Arguments
-/// * `stft_rows` - Per-subcarrier STFT magnitudes: Vec of `[n_velocity_bins]` slices
-/// * `sensitivity` - Per-subcarrier sensitivity score (higher = more motion-responsive)
-/// * `n_velocity_bins` - Number of velocity bins (d for attention)
+/// # Tham số
+/// * `stft_rows` - Biên độ STFT theo từng sóng mang con: Vec các lát `[n_velocity_bins]`
+/// * `sensitivity` - Điểm nhạy theo từng sóng mang con (cao hơn = phản hồi chuyển động tốt hơn)
+/// * `n_velocity_bins` - Số bin vận tốc (d cho attention)
 ///
-/// # Returns
-/// Attention-weighted BVP as Vec<f32> of length n_velocity_bins
+/// # Trả về
+/// BVP có trọng số attention dạng Vec<f32> với độ dài n_velocity_bins
 pub fn attention_weighted_bvp(
     stft_rows: &[Vec<f32>],
     sensitivity: &[f32],
@@ -200,7 +200,7 @@ pub fn attention_weighted_bvp(
     let attn = ScaledDotProductAttention::new(n_velocity_bins);
     let sens_sum: f32 = sensitivity.iter().sum::<f32>().max(1e-9);
 
-    // Query: sensitivity-weighted mean of all subcarrier profiles
+    // Truy vấn: trung bình có trọng số nhạy của tất cả hồ sơ sóng mang con
     let query: Vec<f32> = (0..n_velocity_bins)
         .map(|v| {
             stft_rows
@@ -219,7 +219,7 @@ pub fn attention_weighted_bvp(
 
     attn.compute(&query, &keys, &values)
         .unwrap_or_else(|_| {
-            // Fallback: plain weighted sum
+            // Phương án dự phòng: tổng có trọng số đơn giản
             (0..n_velocity_bins)
                 .map(|v| {
                     stft_rows
@@ -279,7 +279,7 @@ mod tests {
         };
 
         let bvp = extract_bvp(&csi, 100.0, &config).unwrap();
-        assert_eq!(bvp.data.dim().0, 64); // velocity bins
+        assert_eq!(bvp.data.dim().0, 64); // bin vận tốc
         let expected_frames = (1000 - 128) / 32 + 1;
         assert_eq!(bvp.n_time, expected_frames);
         assert_eq!(bvp.velocity_bins.len(), 64);
@@ -299,7 +299,7 @@ mod tests {
 
         let bvp = extract_bvp(&csi, 100.0, &config).unwrap();
 
-        // Velocity bins should span [-3.0, +3.0)
+        // Bin vận tốc nên trải trong khoảng [-3.0, +3.0)
         assert!(bvp.velocity_bins[0] < 0.0);
         assert!(*bvp.velocity_bins.last().unwrap() > 0.0);
         assert!((bvp.velocity_bins[0] - (-3.0)).abs() < 0.2);
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_static_scene_low_velocity() {
-        // Constant signal → no Doppler → BVP should peak at velocity=0
+        // Tín hiệu không đổi → không có Doppler → BVP nên đạt đỉnh tại velocity=0
         let csi = Array2::from_elem((500, 10), 1.0);
 
         let config = BvpConfig {
@@ -320,20 +320,20 @@ mod tests {
 
         let bvp = extract_bvp(&csi, 100.0, &config).unwrap();
 
-        // After removing DC and applying window, constant signal has
-        // near-zero energy at all Doppler frequencies
+        // Sau khi loại bỏ DC và áp dụng cửa sổ, tín hiệu không đổi có
+        // năng lượng gần 0 tại tất cả tần số Doppler
         let total_energy: f64 = bvp.data.iter().sum();
-        // For a constant signal with DC removed, total energy should be very small
+        // Với tín hiệu không đổi có DC đã loại bỏ, tổng năng lượng nên rất nhỏ
         assert!(
             total_energy < 1.0,
-            "Static scene should have low Doppler energy, got {}",
+            "Cảnh tĩnh nên có năng lượng Doppler thấp, nhận được {}",
             total_energy
         );
     }
 
     #[test]
     fn test_moving_body_nonzero_velocity() {
-        // A sinusoidal amplitude modulation simulates motion → Doppler energy
+        // Điều chế biên độ hình sin mô phỏng chuyển động → năng lượng Doppler
         let n = 1000;
         let motion_freq = 5.0; // Hz
         let csi = Array2::from_shape_fn((n, 8), |(t, _)| {
@@ -350,7 +350,7 @@ mod tests {
 
         let bvp = extract_bvp(&csi, 100.0, &config).unwrap();
         let total_energy: f64 = bvp.data.iter().sum();
-        assert!(total_energy > 0.0, "Moving body should produce Doppler energy");
+        assert!(total_energy > 0.0, "Cơ thể chuyển động phải tạo năng lượng Doppler");
     }
 
     #[test]

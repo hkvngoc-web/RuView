@@ -64,26 +64,26 @@ export class Scene {
     // Ánh sáng
     this._setupLights();
 
-    // Clock for animation delta
+    // Đồng hồ cho delta hoạt hình
     this.clock = new THREE.Clock();
 
-    // Handle resize
+    // Xử lý thay đổi kích thước
     this._resizeObserver = new ResizeObserver(() => this._onResize());
     this._resizeObserver.observe(this.container);
     window.addEventListener('resize', () => this._onResize());
   }
 
   _setupLights() {
-    // Ambient light - subtle blue tint for tech feel
+    // Ánh sáng xung quanh - sắc xanh nhẹ cho cảm giác công nghệ
     const ambient = new THREE.AmbientLight(0x223355, 0.4);
     this.scene.add(ambient);
 
-    // Hemisphere light - sky/ground gradient
+    // Ánh sáng bán cầu - gradient trời/đất
     const hemi = new THREE.HemisphereLight(0x4488cc, 0x112233, 0.5);
     hemi.position.set(0, 20, 0);
     this.scene.add(hemi);
 
-    // Key light - warm directional light from above-right
+    // Ánh sáng chính - ánh sáng định hướng ấm từ trên-phải
     const keyLight = new THREE.DirectionalLight(0xffeedd, 0.8);
     keyLight.position.set(5, 10, 5);
     keyLight.castShadow = true;
@@ -97,7 +97,7 @@ export class Scene {
     keyLight.shadow.camera.bottom = -10;
     this.scene.add(keyLight);
 
-    // Fill light - cool from left
+    // Ánh sáng phụ - lạnh từ bên trái
     const fillLight = new THREE.DirectionalLight(0x88aaff, 0.3);
     fillLight.position.set(-5, 6, -3);
     this.scene.add(fillLight);

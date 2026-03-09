@@ -1,43 +1,43 @@
-//! Hardware Normalizer — ADR-027 MERIDIAN Phase 1
+//! Bộ chuẩn hóa phần cứng — ADR-027 MERIDIAN Pha 1
 //!
-//! Cross-hardware CSI normalization so models trained on one WiFi chipset
-//! generalize to others. The normalizer detects hardware from subcarrier
-//! count, resamples to a canonical grid (default 56) via Catmull-Rom cubic
-//! interpolation, z-score normalizes amplitude, and sanitizes phase
-//! (unwrap + linear-trend removal).
+//! Chuẩn hóa CSI chéo phần cứng để mô hình huấn luyện trên một chipset WiFi
+//! tổng quát hóa sang các chipset khác. Bộ chuẩn hóa phát hiện phần cứng từ
+//! số sóng mang con, lấy mẫu lại về lưới chuẩn tắc (mặc định 56) qua nội suy
+//! bậc ba Catmull-Rom, chuẩn hóa Z-score biên độ, và làm sạch pha
+//! (giải cuộn + loại bỏ xu hướng tuyến tính).
 
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use thiserror::Error;
 
-/// Errors from hardware normalization.
+/// Các lỗi từ chuẩn hóa phần cứng.
 #[derive(Debug, Error)]
 pub enum HardwareNormError {
-    #[error("Empty CSI frame (amplitude len={amp}, phase len={phase})")]
+    #[error("Khung CSI rỗng (độ dài biên độ={amp}, pha={phase})")]
     EmptyFrame { amp: usize, phase: usize },
-    #[error("Amplitude/phase length mismatch ({amp} vs {phase})")]
+    #[error("Độ dài biên độ/pha không khớp ({amp} vs {phase})")]
     LengthMismatch { amp: usize, phase: usize },
-    #[error("Unknown hardware for subcarrier count {0}")]
+    #[error("Phần cứng không xác định cho số sóng mang con {0}")]
     UnknownHardware(usize),
-    #[error("Invalid canonical subcarrier count: {0}")]
+    #[error("Số sóng mang con chuẩn tắc không hợp lệ: {0}")]
     InvalidCanonical(usize),
 }
 
-/// Known WiFi chipset families with their subcarrier counts and MIMO configs.
+/// Các họ chipset WiFi đã biết với số sóng mang con và cấu hình MIMO.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HardwareType {
-    /// ESP32-S3 with LWIP CSI: 64 subcarriers, 1x1 SISO
+    /// ESP32-S3 với LWIP CSI: 64 sóng mang con, SISO 1x1
     Esp32S3,
-    /// Intel 5300 NIC: 30 subcarriers, up to 3x3 MIMO
+    /// Intel 5300 NIC: 30 sóng mang con, MIMO tối đa 3x3
     Intel5300,
-    /// Atheros (ath9k/ath10k): 56 subcarriers, up to 3x3 MIMO
+    /// Atheros (ath9k/ath10k): 56 sóng mang con, MIMO tối đa 3x3
     Atheros,
-    /// Generic / unknown hardware
+    /// Phần cứng chung / không xác định
     Generic,
 }
 
 impl HardwareType {
-    /// Expected subcarrier count for this hardware.
+    /// Số sóng mang con dự kiến cho phần cứng này.
     pub fn subcarrier_count(&self) -> usize {
         match self {
             Self::Esp32S3 => 64,
@@ -47,7 +47,7 @@ impl HardwareType {
         }
     }
 
-    /// Maximum MIMO spatial streams.
+    /// Số luồng không gian MIMO tối đa.
     pub fn mimo_streams(&self) -> usize {
         match self {
             Self::Esp32S3 => 1,
@@ -58,7 +58,7 @@ impl HardwareType {
     }
 }
 
-/// Per-hardware amplitude statistics for z-score normalization.
+/// Thống kê biên độ theo phần cứng cho chuẩn hóa Z-score.
 #[derive(Debug, Clone)]
 pub struct AmplitudeStats {
     pub mean: f64,
@@ -71,18 +71,18 @@ impl Default for AmplitudeStats {
     }
 }
 
-/// A CSI frame normalized to a canonical representation.
+/// Khung CSI đã chuẩn hóa về biểu diễn chuẩn tắc.
 #[derive(Debug, Clone)]
 pub struct CanonicalCsiFrame {
-    /// Z-score normalized amplitude (length = canonical_subcarriers).
+    /// Biên độ chuẩn hóa Z-score (độ dài = canonical_subcarriers).
     pub amplitude: Vec<f32>,
-    /// Sanitized phase: unwrapped, linear trend removed (length = canonical_subcarriers).
+    /// Pha đã làm sạch: giải cuộn, loại bỏ xu hướng tuyến tính (độ dài = canonical_subcarriers).
     pub phase: Vec<f32>,
-    /// Hardware type that produced the original frame.
+    /// Loại phần cứng đã tạo khung gốc.
     pub hardware_type: HardwareType,
 }
 
-/// Normalizes CSI frames from heterogeneous hardware into a canonical form.
+/// Chuẩn hóa khung CSI từ phần cứng không đồng nhất thành dạng chuẩn tắc.
 #[derive(Debug)]
 pub struct HardwareNormalizer {
     canonical_subcarriers: usize,
@@ -90,12 +90,12 @@ pub struct HardwareNormalizer {
 }
 
 impl HardwareNormalizer {
-    /// Create a normalizer with default canonical subcarrier count (56).
+    /// Tạo bộ chuẩn hóa với số sóng mang con chuẩn tắc mặc định (56).
     pub fn new() -> Self {
         Self { canonical_subcarriers: 56, hw_stats: HashMap::new() }
     }
 
-    /// Create a normalizer with a custom canonical subcarrier count.
+    /// Tạo bộ chuẩn hóa với số sóng mang con chuẩn tắc tùy chỉnh.
     pub fn with_canonical_subcarriers(count: usize) -> Result<Self, HardwareNormError> {
         if count == 0 {
             return Err(HardwareNormError::InvalidCanonical(count));
@@ -103,17 +103,17 @@ impl HardwareNormalizer {
         Ok(Self { canonical_subcarriers: count, hw_stats: HashMap::new() })
     }
 
-    /// Register amplitude statistics for a specific hardware type.
+    /// Đăng ký thống kê biên độ cho loại phần cứng cụ thể.
     pub fn set_hw_stats(&mut self, hw: HardwareType, stats: AmplitudeStats) {
         self.hw_stats.insert(hw, stats);
     }
 
-    /// Return the canonical subcarrier count.
+    /// Trả về số sóng mang con chuẩn tắc.
     pub fn canonical_subcarriers(&self) -> usize {
         self.canonical_subcarriers
     }
 
-    /// Detect hardware type from subcarrier count.
+    /// Phát hiện loại phần cứng từ số sóng mang con.
     pub fn detect_hardware(subcarrier_count: usize) -> HardwareType {
         match subcarrier_count {
             64 => HardwareType::Esp32S3,
@@ -123,11 +123,11 @@ impl HardwareNormalizer {
         }
     }
 
-    /// Normalize a raw CSI frame into canonical form.
+    /// Chuẩn hóa khung CSI thô thành dạng chuẩn tắc.
     ///
-    /// 1. Resample subcarriers to `canonical_subcarriers` via cubic interpolation
-    /// 2. Z-score normalize amplitude (mean=0, std=1)
-    /// 3. Sanitize phase: unwrap + remove linear trend
+    /// 1. Lấy mẫu lại sóng mang con về `canonical_subcarriers` qua nội suy bậc ba
+    /// 2. Chuẩn hóa Z-score biên độ (mean=0, std=1)
+    /// 3. Làm sạch pha: giải cuộn + loại bỏ xu hướng tuyến tính
     pub fn normalize(
         &self,
         raw_amplitude: &[f64],
@@ -164,8 +164,8 @@ impl Default for HardwareNormalizer {
     fn default() -> Self { Self::new() }
 }
 
-/// Resample a 1-D signal to `dst_len` using Catmull-Rom cubic interpolation.
-/// Identity passthrough when `src.len() == dst_len`.
+/// Lấy mẫu lại tín hiệu 1-D về `dst_len` sử dụng nội suy bậc ba Catmull-Rom.
+/// Truyền thẳng khi `src.len() == dst_len`.
 fn resample_cubic(src: &[f64], dst_len: usize) -> Vec<f64> {
     let n = src.len();
     if n == dst_len { return src.to_vec(); }
@@ -194,7 +194,7 @@ fn clamp_idx(idx: isize, len: usize) -> usize {
     idx.max(0).min(len as isize - 1) as usize
 }
 
-/// Z-score normalize to mean=0, std=1. Uses per-hardware stats if available.
+/// Chuẩn hóa Z-score về mean=0, std=1. Dùng thống kê theo phần cứng nếu có.
 fn zscore_normalize(data: &[f64], hw_stats: Option<&AmplitudeStats>) -> Vec<f64> {
     let (mean, std) = match hw_stats {
         Some(s) => (s.mean, s.std),
@@ -213,12 +213,12 @@ fn compute_mean_std(data: &[f64]) -> (f64, f64) {
     (mean, var.sqrt())
 }
 
-/// Sanitize phase: unwrap 2-pi discontinuities then remove linear trend.
-/// Mirrors `PhaseSanitizer::unwrap_1d` logic, adds least-squares detrend.
+/// Làm sạch pha: giải cuộn gián đoạn 2-pi sau đó loại bỏ xu hướng tuyến tính.
+/// Phản ánh logic `PhaseSanitizer::unwrap_1d`, thêm khử xu hướng bình phương tối thiểu.
 fn sanitize_phase(phase: &[f64]) -> Vec<f64> {
     if phase.is_empty() { return Vec::new(); }
 
-    // Unwrap
+    // Giải cuộn
     let mut uw = phase.to_vec();
     let mut correction = 0.0;
     let mut prev = uw[0];
@@ -230,7 +230,7 @@ fn sanitize_phase(phase: &[f64]) -> Vec<f64> {
         prev = phase[i];
     }
 
-    // Remove linear trend: y = slope*x + intercept
+    // Loại bỏ xu hướng tuyến tính: y = slope*x + intercept
     let n = uw.len() as f64;
     let xm = (n - 1.0) / 2.0;
     let ym = uw.iter().sum::<f64>() / n;
@@ -270,7 +270,7 @@ mod tests {
         let input: Vec<f64> = (0..56).map(|i| i as f64 * 0.1).collect();
         let output = resample_cubic(&input, 56);
         for (a, b) in input.iter().zip(output.iter()) {
-            assert!((a - b).abs() < 1e-12, "Identity resampling must be passthrough");
+            assert!((a - b).abs() < 1e-12, "Lấy mẫu lại đồng nhất phải truyền thẳng");
         }
     }
 
@@ -306,8 +306,8 @@ mod tests {
         let n = z.len() as f64;
         let mean = z.iter().sum::<f64>() / n;
         let std = (z.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (n - 1.0)).sqrt();
-        assert!(mean.abs() < 1e-10, "Mean should be ~0, got {mean}");
-        assert!((std - 1.0).abs() < 1e-10, "Std should be ~1, got {std}");
+        assert!(mean.abs() < 1e-10, "Trung bình phải ~0, nhận được {mean}");
+        assert!((std - 1.0).abs() < 1e-10, "Độ lệch chuẩn phải ~1, nhận được {std}");
     }
 
     #[test]
@@ -316,7 +316,7 @@ mod tests {
         assert!((z[0] + 1.0).abs() < 1e-12);
         assert!(z[1].abs() < 1e-12);
         assert!((z[2] - 1.0).abs() < 1e-12);
-        // Constant signal: std=0 => safe fallback, all zeros
+        // Tín hiệu không đổi: std=0 => phương án dự phòng an toàn, tất cả bằng 0
         for &v in &zscore_normalize(&vec![5.0; 50], None) { assert!(v.abs() < 1e-12); }
     }
 
@@ -324,7 +324,7 @@ mod tests {
     fn phase_sanitize_removes_linear_trend() {
         let san = sanitize_phase(&(0..56).map(|i| 0.5 * i as f64).collect::<Vec<_>>());
         assert_eq!(san.len(), 56);
-        for &v in &san { assert!(v.abs() < 1e-10, "Detrended should be ~0, got {v}"); }
+        for &v in &san { assert!(v.abs() < 1e-10, "Đã khử xu hướng phải ~0, nhận được {v}"); }
     }
 
     #[test]
@@ -336,7 +336,7 @@ mod tests {
         }).collect();
         let san = sanitize_phase(&raw);
         for i in 1..san.len() {
-            assert!((san[i] - san[i - 1]).abs() < 1.0, "Phase jump at {i}");
+            assert!((san[i] - san[i - 1]).abs() < 1.0, "Bước nhảy pha tại {i}");
         }
     }
 
@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(r.phase.len(), 56);
         assert_eq!(r.hardware_type, HardwareType::Esp32S3);
         let mean: f64 = r.amplitude.iter().map(|&v| v as f64).sum::<f64>() / 56.0;
-        assert!(mean.abs() < 0.1, "Mean should be ~0, got {mean}");
+        assert!(mean.abs() < 0.1, "Trung bình phải ~0, nhận được {mean}");
     }
 
     #[test]

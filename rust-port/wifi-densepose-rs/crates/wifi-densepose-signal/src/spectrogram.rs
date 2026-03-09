@@ -1,11 +1,11 @@
-//! CSI Spectrogram Generation
+//! Tạo biểu đồ phổ CSI
 //!
-//! Constructs 2D time-frequency matrices via Short-Time Fourier Transform (STFT)
-//! applied to temporal CSI amplitude streams. The resulting spectrograms are the
-//! standard input format for CNN-based WiFi activity recognition.
+//! Xây dựng ma trận thời gian-tần số 2D qua biến đổi Fourier ngắn hạn (STFT)
+//! áp dụng cho luồng biên độ CSI theo thời gian. Các biểu đồ phổ kết quả là
+//! định dạng đầu vào chuẩn cho nhận dạng hoạt động WiFi dựa trên CNN.
 //!
-//! # References
-//! - Used in virtually all CNN-based WiFi sensing papers since 2018
+//! # Tài liệu tham khảo
+//! - Được sử dụng trong hầu như tất cả các bài báo cảm biến WiFi dựa CNN từ năm 2018
 
 use ndarray::Array2;
 use num_complex::Complex64;
@@ -13,16 +13,16 @@ use ruvector_attn_mincut::attn_mincut;
 use rustfft::FftPlanner;
 use std::f64::consts::PI;
 
-/// Configuration for spectrogram generation.
+/// Cấu hình cho tạo biểu đồ phổ.
 #[derive(Debug, Clone)]
 pub struct SpectrogramConfig {
-    /// FFT window size (number of samples per frame)
+    /// Kích thước cửa sổ FFT (số mẫu mỗi khung)
     pub window_size: usize,
-    /// Hop size (step between consecutive frames). Smaller = more overlap.
+    /// Bước nhảy (khoảng cách giữa các khung liên tiếp). Nhỏ hơn = chồng lắp nhiều hơn.
     pub hop_size: usize,
-    /// Window function to apply
+    /// Hàm cửa sổ áp dụng
     pub window_fn: WindowFunction,
-    /// Whether to compute power (magnitude squared) or magnitude
+    /// Tính công suất (bình phương biên độ) hay biên độ
     pub power: bool,
 }
 
@@ -37,38 +37,38 @@ impl Default for SpectrogramConfig {
     }
 }
 
-/// Window function types.
+/// Các loại hàm cửa sổ.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowFunction {
-    /// Rectangular (no windowing)
+    /// Hình chữ nhật (không tạo cửa sổ)
     Rectangular,
-    /// Hann window (cosine-squared taper)
+    /// Cửa sổ Hann (giảm biên dạng cosine bình phương)
     Hann,
-    /// Hamming window
+    /// Cửa sổ Hamming
     Hamming,
-    /// Blackman window (lower sidelobe level)
+    /// Cửa sổ Blackman (mức thùy phụ thấp hơn)
     Blackman,
 }
 
-/// Result of spectrogram computation.
+/// Kết quả tính biểu đồ phổ.
 #[derive(Debug, Clone)]
 pub struct Spectrogram {
-    /// Power/magnitude values: rows = frequency bins, columns = time frames.
-    /// Only positive frequencies (0 to Nyquist), so rows = window_size/2 + 1.
+    /// Giá trị công suất/biên độ: hàng = bin tần số, cột = khung thời gian.
+    /// Chỉ tần số dương (0 đến Nyquist), nên hàng = window_size/2 + 1.
     pub data: Array2<f64>,
-    /// Number of frequency bins
+    /// Số bin tần số
     pub n_freq: usize,
-    /// Number of time frames
+    /// Số khung thời gian
     pub n_time: usize,
-    /// Frequency resolution (Hz per bin)
+    /// Độ phân giải tần số (Hz mỗi bin)
     pub freq_resolution: f64,
-    /// Time resolution (seconds per frame)
+    /// Độ phân giải thời gian (giây mỗi khung)
     pub time_resolution: f64,
 }
 
-/// Compute spectrogram of a 1D signal.
+/// Tính biểu đồ phổ của tín hiệu 1D.
 ///
-/// Returns a time-frequency matrix suitable as CNN input.
+/// Trả về ma trận thời gian-tần số phù hợp làm đầu vào CNN.
 pub fn compute_spectrogram(
     signal: &[f64],
     sample_rate: f64,
@@ -100,7 +100,7 @@ pub fn compute_spectrogram(
         let start = frame * config.hop_size;
         let end = start + config.window_size;
 
-        // Apply window and convert to complex
+        // Áp dụng cửa sổ và chuyển sang phức
         let mut buffer: Vec<Complex64> = signal[start..end]
             .iter()
             .zip(window.iter())
@@ -109,7 +109,7 @@ pub fn compute_spectrogram(
 
         fft.process(&mut buffer);
 
-        // Store positive frequencies
+        // Lưu tần số dương
         for bin in 0..n_freq {
             let mag = buffer[bin].norm();
             data[[bin, frame]] = if config.power { mag * mag } else { mag };
@@ -125,10 +125,10 @@ pub fn compute_spectrogram(
     })
 }
 
-/// Compute spectrogram for each subcarrier from a temporal CSI matrix.
+/// Tính biểu đồ phổ cho mỗi sóng mang con từ ma trận CSI theo thời gian.
 ///
-/// Input: `csi_temporal` is (num_samples × num_subcarriers) amplitude matrix.
-/// Returns one spectrogram per subcarrier.
+/// Đầu vào: `csi_temporal` là ma trận biên độ (num_samples × num_subcarriers).
+/// Trả về một biểu đồ phổ cho mỗi sóng mang con.
 pub fn compute_multi_subcarrier_spectrogram(
     csi_temporal: &Array2<f64>,
     sample_rate: f64,
@@ -145,7 +145,7 @@ pub fn compute_multi_subcarrier_spectrogram(
     Ok(spectrograms)
 }
 
-/// Generate a window function.
+/// Sinh hàm cửa sổ.
 fn make_window(kind: WindowFunction, size: usize) -> Vec<f64> {
     match kind {
         WindowFunction::Rectangular => vec![1.0; size],
@@ -165,20 +165,20 @@ fn make_window(kind: WindowFunction, size: usize) -> Vec<f64> {
     }
 }
 
-/// Apply attention-gating to a computed CSI spectrogram using ruvector-attn-mincut.
+/// Áp dụng cổng attention cho biểu đồ phổ CSI đã tính bằng ruvector-attn-mincut.
 ///
-/// Treats each time frame as an attention token (d = n_freq_bins features,
-/// seq_len = n_time_frames tokens). Self-attention (Q=K=V) gates coherent
-/// body-motion frames and suppresses uncorrelated noise/interference frames.
+/// Coi mỗi khung thời gian là một token attention (d = n_freq_bins đặc trưng,
+/// seq_len = n_time_frames token). Tự attention (Q=K=V) lọc các khung chuyển động
+/// cơ thể tương hợp và triệt chế khung nhiễu/nhiễu loạn không tương quan.
 ///
-/// # Arguments
-/// * `spectrogram` - Row-major [n_freq_bins × n_time_frames] f32 slice
-/// * `n_freq` - Number of frequency bins (feature dimension d)
-/// * `n_time` - Number of time frames (sequence length)
-/// * `lambda` - Gating strength: 0.1 = mild, 0.3 = moderate, 0.5 = aggressive
+/// # Tham số
+/// * `spectrogram` - Dạng hàng chính [n_freq_bins × n_time_frames] lát f32
+/// * `n_freq` - Số bin tần số (chiều đặc trưng d)
+/// * `n_time` - Số khung thời gian (độ dài chuỗi)
+/// * `lambda` - Cường độ cổng: 0.1 = nhẹ, 0.3 = trung bình, 0.5 = mạnh
 ///
-/// # Returns
-/// Gated spectrogram as Vec<f32>, same shape as input
+/// # Trả về
+/// Biểu đồ phổ đã qua cổng dạng Vec<f32>, cùng kích thước đầu vào
 pub fn gate_spectrogram(
     spectrogram: &[f32],
     n_freq: usize,
@@ -186,19 +186,19 @@ pub fn gate_spectrogram(
     lambda: f32,
 ) -> Vec<f32> {
     debug_assert_eq!(spectrogram.len(), n_freq * n_time,
-        "spectrogram length must equal n_freq * n_time");
+        "độ dài biểu đồ phổ phải bằng n_freq * n_time");
 
     if n_freq == 0 || n_time == 0 {
         return spectrogram.to_vec();
     }
 
-    // Q = K = V = spectrogram (self-attention over time frames)
+    // Q = K = V = biểu đồ phổ (tự attention theo khung thời gian)
     let result = attn_mincut(
         spectrogram,
         spectrogram,
         spectrogram,
-        n_freq,  // d = feature dimension
-        n_time,  // seq_len = time tokens
+        n_freq,  // d = chiều đặc trưng
+        n_time,  // seq_len = token thời gian
         lambda,
         /*tau=*/ 2,
         /*eps=*/ 1e-7_f32,
@@ -206,16 +206,16 @@ pub fn gate_spectrogram(
     result.output
 }
 
-/// Errors from spectrogram computation.
+/// Các lỗi từ tính biểu đồ phổ.
 #[derive(Debug, thiserror::Error)]
 pub enum SpectrogramError {
-    #[error("Signal too short ({signal_len} samples) for window size {window_size}")]
+    #[error("Tín hiệu quá ngắn ({signal_len} mẫu) cho kích thước cửa sổ {window_size}")]
     SignalTooShort { signal_len: usize, window_size: usize },
 
-    #[error("Hop size must be > 0")]
+    #[error("Bước nhảy phải > 0")]
     InvalidHopSize,
 
-    #[error("Window size must be > 0")]
+    #[error("Kích thước cửa sổ phải > 0")]
     InvalidWindowSize,
 }
 
@@ -239,13 +239,13 @@ mod tests {
 
         let spec = compute_spectrogram(&signal, sample_rate, &config).unwrap();
         assert_eq!(spec.n_freq, 65); // 128/2 + 1
-        assert_eq!(spec.n_time, (1000 - 128) / 32 + 1); // 28 frames
+        assert_eq!(spec.n_time, (1000 - 128) / 32 + 1); // 28 khung
         assert_eq!(spec.data.dim(), (65, 28));
     }
 
     #[test]
     fn test_single_frequency_peak() {
-        // A pure 10 Hz tone at 100 Hz sampling → peak at bin 10/100*256 ≈ bin 26
+        // Tín hiệu thuần 10 Hz ở tần số lấy mẫu 100 Hz → đỉnh tại bin 10/100*256 ≈ bin 26
         let sample_rate = 100.0;
         let freq = 10.0;
         let signal: Vec<f64> = (0..1024)
@@ -261,7 +261,7 @@ mod tests {
 
         let spec = compute_spectrogram(&signal, sample_rate, &config).unwrap();
 
-        // Find peak frequency bin in the first frame
+        // Tìm bin tần số đỉnh trong khung đầu tiên
         let frame = spec.data.column(0);
         let peak_bin = frame
             .iter()
@@ -273,7 +273,7 @@ mod tests {
         let peak_freq = peak_bin as f64 * spec.freq_resolution;
         assert!(
             (peak_freq - freq).abs() < spec.freq_resolution * 2.0,
-            "Peak at {:.1} Hz, expected {:.1} Hz",
+            "Đỉnh tại {:.1} Hz, kỳ vọng {:.1} Hz",
             peak_freq,
             freq
         );
@@ -290,7 +290,7 @@ mod tests {
             for i in 0..32 {
                 assert!(
                     (w[i] - w[63 - i]).abs() < 1e-10,
-                    "{:?} not symmetric at {}",
+                    "{:?} không đối xứng tại {}",
                     wf,
                     i
                 );
@@ -358,10 +358,10 @@ mod gate_tests {
         let n_freq = 8_usize;
         let n_time = 4_usize;
         let spectrogram: Vec<f32> = vec![1.0; n_freq * n_time];
-        // Uniform input — gated output should also be approximately uniform
+        // Đầu vào đồng nhất — đầu ra đã qua cổng cũng phải gần đồng nhất
         let gated = gate_spectrogram(&spectrogram, n_freq, n_time, 0.01);
         assert_eq!(gated.len(), n_freq * n_time);
-        // All values should be finite
+        // Tất cả giá trị phải hữu hạn
         assert!(gated.iter().all(|x| x.is_finite()));
     }
 }

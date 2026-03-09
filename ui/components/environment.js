@@ -1,5 +1,5 @@
-// Room Environment - WiFi DensePose 3D Visualization
-// Grid floor, AP/receiver markers, detection zones, confidence heatmap
+// Môi trường Phòng - Trực quan hoá 3D WiFi DensePose
+// Sàn lưới, đánh dấu AP/receiver, vùng phát hiện, bản đồ nhiệt độ tin cậy
 
 export class Environment {
   constructor(scene) {
@@ -7,12 +7,12 @@ export class Environment {
     this.group = new THREE.Group();
     this.group.name = 'environment';
 
-    // Room dimensions (meters)
+    // Kích thước phòng (mét)
     this.roomWidth = 8;
     this.roomDepth = 6;
     this.roomHeight = 3;
 
-    // AP and receiver positions
+    // Vị trí AP và receiver
     this.accessPoints = [
       { id: 'TX1', pos: [-3.5, 2.5, -2.8], type: 'transmitter' },
       { id: 'TX2', pos: [0, 2.5, -2.8], type: 'transmitter' },
@@ -24,11 +24,11 @@ export class Environment {
       { id: 'RX3', pos: [3.5, 2.5, 2.8], type: 'receiver' }
     ];
 
-    // Detection zones
+    // Vùng phát hiện
     this.zones = [
-      { id: 'zone_1', center: [-2, 0, 0], radius: 2, color: 0x0066ff, label: 'Zone 1' },
-      { id: 'zone_2', center: [0, 0, 0], radius: 2, color: 0x00cc66, label: 'Zone 2' },
-      { id: 'zone_3', center: [2, 0, 0], radius: 2, color: 0xff6600, label: 'Zone 3' }
+      { id: 'zone_1', center: [-2, 0, 0], radius: 2, color: 0x0066ff, label: 'Vùng 1' },
+      { id: 'zone_2', center: [0, 0, 0], radius: 2, color: 0x00cc66, label: 'Vùng 2' },
+      { id: 'zone_3', center: [2, 0, 0], radius: 2, color: 0xff6600, label: 'Vùng 3' }
     ];
 
     // Confidence heatmap state

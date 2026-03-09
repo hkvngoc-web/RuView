@@ -1,11 +1,11 @@
 """
-RSSI data collection from Linux WiFi interfaces.
+Thu thập dữ liệu RSSI từ giao diện WiFi Linux.
 
-Provides two concrete collectors:
-    - LinuxWifiCollector: reads real RSSI from /proc/net/wireless and iw commands
-    - SimulatedCollector: produces deterministic synthetic signals for testing
+Cung cấp hai bộ thu thập cụ thể:
+    - LinuxWifiCollector: đọc RSSI thực từ /proc/net/wireless và lệnh iw
+    - SimulatedCollector: tạo tín hiệu tổng hợp xác định cho kiểm thử
 
-Both share the same WifiSample dataclass and thread-safe ring buffer.
+Cả hai đều chia sẻ cùng dataclass WifiSample và bộ đệm vòng an toàn luồng.
 """
 
 from __future__ import annotations
@@ -28,29 +28,29 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Data types
+# Kiểu dữ liệu
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class WifiSample:
-    """A single WiFi measurement sample."""
+    """Một mẫu đo WiFi đơn lẻ."""
 
-    timestamp: float          # UNIX epoch seconds (time.time())
-    rssi_dbm: float           # Received signal strength in dBm
-    noise_dbm: float          # Noise floor in dBm
-    link_quality: float       # Link quality 0-1 (normalised)
-    tx_bytes: int             # Cumulative TX bytes
-    rx_bytes: int             # Cumulative RX bytes
-    retry_count: int          # Cumulative retry count
-    interface: str            # WiFi interface name
+    timestamp: float          # Giây epoch UNIX (time.time())
+    rssi_dbm: float           # Cường độ tín hiệu nhận được tính bằng dBm
+    noise_dbm: float          # Sàn nhiễu tính bằng dBm
+    link_quality: float       # Chất lượng liên kết 0-1 (đã chuẩn hóa)
+    tx_bytes: int             # Tổng byte TX tích lũy
+    rx_bytes: int             # Tổng byte RX tích lũy
+    retry_count: int          # Tổng số lần thử lại tích lũy
+    interface: str            # Tên giao diện WiFi
 
 
 # ---------------------------------------------------------------------------
-# Thread-safe ring buffer
+# Bộ đệm vòng an toàn luồng
 # ---------------------------------------------------------------------------
 
 class RingBuffer:
-    """Thread-safe fixed-size ring buffer for WifiSample objects."""
+    """Bộ đệm vòng kích thước cố định an toàn luồng cho đối tượng WifiSample."""
 
     def __init__(self, max_size: int) -> None:
         self._buf: Deque[WifiSample] = deque(maxlen=max_size)
@@ -61,12 +61,12 @@ class RingBuffer:
             self._buf.append(sample)
 
     def get_all(self) -> List[WifiSample]:
-        """Return a snapshot of all samples (oldest first)."""
+        """Trả về bản chụp tất cả mẫu (cũ nhất trước)."""
         with self._lock:
             return list(self._buf)
 
     def get_last_n(self, n: int) -> List[WifiSample]:
-        """Return the most recent *n* samples."""
+        """Trả về *n* mẫu gần nhất."""
         with self._lock:
             items = list(self._buf)
             return items[-n:] if n < len(items) else items
@@ -81,11 +81,11 @@ class RingBuffer:
 
 
 # ---------------------------------------------------------------------------
-# Collector protocol
+# Giao thức bộ thu thập
 # ---------------------------------------------------------------------------
 
 class WifiCollector(Protocol):
-    """Protocol that all WiFi collectors must satisfy."""
+    """Giao thức mà tất cả bộ thu thập WiFi phải tuân thủ."""
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
@@ -95,25 +95,25 @@ class WifiCollector(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Linux WiFi collector (real hardware)
+# Bộ thu thập WiFi Linux (phần cứng thực)
 # ---------------------------------------------------------------------------
 
 class LinuxWifiCollector:
     """
-    Collects real RSSI data from a Linux WiFi interface.
+    Thu thập dữ liệu RSSI thực từ giao diện WiFi Linux.
 
-    Data sources:
-        - /proc/net/wireless  (RSSI, noise, link quality)
-        - iw dev <iface> station dump  (TX/RX bytes, retry count)
+    Nguồn dữ liệu:
+        - /proc/net/wireless  (RSSI, nhiễu, chất lượng liên kết)
+        - iw dev <iface> station dump  (byte TX/RX, số lần thử lại)
 
     Parameters
     ----------
     interface : str
-        WiFi interface name, e.g. ``"wlan0"``.
+        Tên giao diện WiFi, ví dụ ``"wlan0"``.
     sample_rate_hz : float
-        Target sampling rate in Hz (default 10).
+        Tốc độ lấy mẫu mục tiêu tính bằng Hz (mặc định 10).
     buffer_seconds : int
-        How many seconds of history to keep in the ring buffer (default 120).
+        Số giây lịch sử giữ trong bộ đệm vòng (mặc định 120).
     """
 
     def __init__(
@@ -128,14 +128,14 @@ class LinuxWifiCollector:
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
-    # -- public API ----------------------------------------------------------
+    # -- API công khai -------------------------------------------------------
 
     @property
     def sample_rate_hz(self) -> float:
         return self._rate
 
     def start(self) -> None:
-        """Start the background sampling thread."""
+        """Khởi động luồng lấy mẫu nền."""
         if self._running:
             return
         self._validate_interface()
@@ -145,83 +145,83 @@ class LinuxWifiCollector:
         )
         self._thread.start()
         logger.info(
-            "LinuxWifiCollector started on %s at %.1f Hz",
+            "LinuxWifiCollector đã khởi động trên %s ở %.1f Hz",
             self._interface,
             self._rate,
         )
 
     def stop(self) -> None:
-        """Stop the background sampling thread."""
+        """Dừng luồng lấy mẫu nền."""
         self._running = False
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
-        logger.info("LinuxWifiCollector stopped")
+        logger.info("LinuxWifiCollector đã dừng")
 
     def get_samples(self, n: Optional[int] = None) -> List[WifiSample]:
         """
-        Return collected samples.
+        Trả về các mẫu đã thu thập.
 
         Parameters
         ----------
-        n : int or None
-            If given, return only the most recent *n* samples.
+        n : int hoặc None
+            Nếu được cung cấp, chỉ trả về *n* mẫu gần nhất.
         """
         if n is not None:
             return self._buffer.get_last_n(n)
         return self._buffer.get_all()
 
     def collect_once(self) -> WifiSample:
-        """Collect a single sample right now (blocking)."""
+        """Thu thập một mẫu đơn lẻ ngay lập tức (chặn)."""
         return self._read_sample()
 
-    # -- availability check --------------------------------------------------
+    # -- kiểm tra khả dụng --------------------------------------------------
 
     @classmethod
     def is_available(cls, interface: str = "wlan0") -> tuple[bool, str]:
-        """Check if Linux WiFi collection is possible without raising.
+        """Kiểm tra xem có thể thu thập WiFi Linux mà không ném lỗi hay không.
 
         Returns
         -------
         (available, reason) : tuple[bool, str]
-            ``available`` is True when /proc/net/wireless exists and lists
-            the requested interface.  ``reason`` is a human-readable
-            explanation when unavailable.
+            ``available`` là True khi /proc/net/wireless tồn tại và liệt kê
+            giao diện được yêu cầu. ``reason`` là giải thích dễ đọc khi
+            không khả dụng.
         """
         if not os.path.exists("/proc/net/wireless"):
             return False, (
-                "/proc/net/wireless not found. "
-                "This environment has no Linux wireless subsystem "
-                "(common in Docker, WSL, or headless servers)."
+                "Không tìm thấy /proc/net/wireless. "
+                "Môi trường này không có hệ thống con không dây Linux "
+                "(phổ biến trong Docker, WSL, hoặc máy chủ headless)."
             )
         try:
             with open("/proc/net/wireless", "r") as f:
                 content = f.read()
         except OSError as exc:
-            return False, f"Cannot read /proc/net/wireless: {exc}"
+            return False, f"Không thể đọc /proc/net/wireless: {exc}"
 
         if interface not in content:
             names = cls._parse_interface_names(content)
             return False, (
-                f"Interface '{interface}' not listed in /proc/net/wireless. "
-                f"Available: {names or '(none)'}. "
-                f"Ensure the interface is up and associated with an AP."
+                f"Giao diện '{interface}' không được liệt kê trong /proc/net/wireless. "
+                f"Khả dụng: {names or '(không có)'}. "
+                f"Đảm bảo giao diện đang hoạt động và đã kết nối với AP."
             )
         return True, "ok"
 
-    # -- internals -----------------------------------------------------------
+    # -- nội bộ --------------------------------------------------------------
 
     def _validate_interface(self) -> None:
-        """Check that the interface exists on this machine."""
+        """Kiểm tra giao diện tồn tại trên máy này."""
         available, reason = self.is_available(self._interface)
         if not available:
             raise RuntimeError(reason)
 
     @staticmethod
     def _parse_interface_names(proc_content: str) -> List[str]:
-        """Extract interface names from /proc/net/wireless content."""
+        """Trích xuất tên giao diện từ nội dung /proc/net/wireless."""
         names: List[str] = []
-        for line in proc_content.splitlines()[2:]:  # skip header lines
+        for line in proc_content.splitlines()[2:]:  # bỏ qua dòng tiêu đề
             parts = line.split(":")
             if len(parts) >= 2:
                 names.append(parts[0].strip())
@@ -235,14 +235,14 @@ class LinuxWifiCollector:
                 sample = self._read_sample()
                 self._buffer.append(sample)
             except Exception:
-                logger.exception("Error reading WiFi sample")
+                logger.exception("Lỗi khi đọc mẫu WiFi")
             elapsed = time.monotonic() - t0
             sleep_time = max(0.0, interval - elapsed)
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
     def _read_sample(self) -> WifiSample:
-        """Read one sample from the OS."""
+        """Đọc một mẫu từ hệ điều hành."""
         rssi, noise, quality = self._read_proc_wireless()
         tx_bytes, rx_bytes, retries = self._read_iw_station()
         return WifiSample(
@@ -257,30 +257,30 @@ class LinuxWifiCollector:
         )
 
     def _read_proc_wireless(self) -> tuple[float, float, float]:
-        """Parse /proc/net/wireless for the configured interface."""
+        """Phân tích /proc/net/wireless cho giao diện đã cấu hình."""
         try:
             with open("/proc/net/wireless", "r") as f:
                 for line in f:
                     if self._interface in line:
-                        # Format: iface: status quality signal noise ...
+                        # Định dạng: iface: status quality signal noise ...
                         parts = line.split()
                         # parts[0] = "wlan0:", parts[2]=quality, parts[3]=signal, parts[4]=noise
                         quality_raw = float(parts[2].rstrip("."))
                         signal_raw = float(parts[3].rstrip("."))
                         noise_raw = float(parts[4].rstrip("."))
-                        # Normalise quality to 0..1 (max is typically 70)
+                        # Chuẩn hóa chất lượng về 0..1 (tối đa thường là 70)
                         quality = min(1.0, max(0.0, quality_raw / 70.0))
                         return signal_raw, noise_raw, quality
         except (FileNotFoundError, IndexError, ValueError) as exc:
             raise RuntimeError(
-                f"Failed to read /proc/net/wireless for {self._interface}: {exc}"
+                f"Không thể đọc /proc/net/wireless cho {self._interface}: {exc}"
             ) from exc
         raise RuntimeError(
-            f"Interface {self._interface} not found in /proc/net/wireless"
+            f"Không tìm thấy giao diện {self._interface} trong /proc/net/wireless"
         )
 
     def _read_iw_station(self) -> tuple[int, int, int]:
-        """Run ``iw dev <iface> station dump`` and parse TX/RX/retries."""
+        """Chạy ``iw dev <iface> station dump`` và phân tích TX/RX/thử lại."""
         try:
             result = subprocess.run(
                 ["iw", "dev", self._interface, "station", "dump"],
@@ -295,7 +295,7 @@ class LinuxWifiCollector:
             retries = self._extract_int(text, r"tx retries:\s*(\d+)")
             return tx_bytes, rx_bytes, retries
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            # iw not installed or timed out -- degrade gracefully
+            # iw chưa cài đặt hoặc hết thời gian -- giảm cấp nhẹ nhàng
             return 0, 0, 0
 
     @staticmethod
@@ -305,43 +305,43 @@ class LinuxWifiCollector:
 
 
 # ---------------------------------------------------------------------------
-# Simulated collector (deterministic, for testing)
+# Bộ thu thập mô phỏng (xác định, cho kiểm thử)
 # ---------------------------------------------------------------------------
 
 class SimulatedCollector:
     """
-    Deterministic simulated WiFi collector for testing.
+    Bộ thu thập WiFi mô phỏng xác định cho kiểm thử.
 
-    Generates a synthetic RSSI signal composed of:
-        - A constant baseline (-50 dBm default)
-        - An optional sinusoidal component (configurable frequency/amplitude)
-        - Optional step-change injection (for change-point testing)
-        - Deterministic noise from a seeded PRNG
+    Tạo tín hiệu RSSI tổng hợp bao gồm:
+        - Một đường cơ sở hằng số (-50 dBm mặc định)
+        - Một thành phần hình sin tùy chọn (tần số/biên độ có thể cấu hình)
+        - Tiêm thay đổi bước tùy chọn (cho kiểm thử điểm thay đổi)
+        - Nhiễu xác định từ PRNG có hạt giống
 
-    This is explicitly a test/development tool and makes no attempt to
-    appear as real hardware.
+    Đây rõ ràng là công cụ kiểm thử/phát triển và không cố gắng
+    giả dạng phần cứng thực.
 
     Parameters
     ----------
     seed : int
-        Random seed for deterministic output.
+        Hạt giống ngẫu nhiên cho đầu ra xác định.
     sample_rate_hz : float
-        Target sampling rate in Hz (default 10).
+        Tốc độ lấy mẫu mục tiêu tính bằng Hz (mặc định 10).
     buffer_seconds : int
-        Ring buffer capacity in seconds (default 120).
+        Dung lượng bộ đệm vòng tính bằng giây (mặc định 120).
     baseline_dbm : float
-        RSSI baseline in dBm (default -50).
+        Đường cơ sở RSSI tính bằng dBm (mặc định -50).
     sine_freq_hz : float
-        Frequency of the sinusoidal RSSI component (default 0.3 Hz, breathing band).
+        Tần số thành phần hình sin RSSI (mặc định 0.3 Hz, băng hô hấp).
     sine_amplitude_dbm : float
-        Amplitude of the sinusoidal component (default 2.0 dBm).
+        Biên độ thành phần hình sin (mặc định 2.0 dBm).
     noise_std_dbm : float
-        Standard deviation of additive Gaussian noise (default 0.5 dBm).
-    step_change_at : float or None
-        If set, inject a step change of ``step_change_dbm`` at this time offset
-        (seconds from start).
+        Độ lệch chuẩn nhiễu Gaussian cộng (mặc định 0.5 dBm).
+    step_change_at : float hoặc None
+        Nếu đặt, tiêm thay đổi bước ``step_change_dbm`` tại độ lệch thời gian
+        này (giây từ khi bắt đầu).
     step_change_dbm : float
-        Magnitude of the step change (default -10 dBm).
+        Độ lớn thay đổi bước (mặc định -10 dBm).
     """
 
     def __init__(
@@ -372,7 +372,7 @@ class SimulatedCollector:
         self._start_time: float = 0.0
         self._sample_index: int = 0
 
-    # -- public API ----------------------------------------------------------
+    # -- API công khai -------------------------------------------------------
 
     @property
     def sample_rate_hz(self) -> float:
@@ -388,7 +388,7 @@ class SimulatedCollector:
             target=self._sample_loop, daemon=True, name="sim-rssi-collector"
         )
         self._thread.start()
-        logger.info("SimulatedCollector started at %.1f Hz (seed reused from init)", self._rate)
+        logger.info("SimulatedCollector đã khởi động ở %.1f Hz (hạt giống tái sử dụng từ khởi tạo)", self._rate)
 
     def stop(self) -> None:
         self._running = False
@@ -403,18 +403,18 @@ class SimulatedCollector:
 
     def generate_samples(self, duration_seconds: float) -> List[WifiSample]:
         """
-        Generate a batch of samples without the background thread.
+        Tạo một loạt mẫu mà không cần luồng nền.
 
-        Useful for unit tests that need a known signal without timing jitter.
+        Hữu ích cho kiểm thử đơn vị cần tín hiệu đã biết mà không có jitter thời gian.
 
         Parameters
         ----------
         duration_seconds : float
-            How many seconds of signal to produce.
+            Số giây tín hiệu cần tạo.
 
         Returns
         -------
-        list of WifiSample
+        danh sách WifiSample
         """
         n_samples = int(duration_seconds * self._rate)
         samples: List[WifiSample] = []
@@ -425,7 +425,7 @@ class SimulatedCollector:
             samples.append(sample)
         return samples
 
-    # -- internals -----------------------------------------------------------
+    # -- nội bộ --------------------------------------------------------------
 
     def _sample_loop(self) -> None:
         interval = 1.0 / self._rate
@@ -442,14 +442,14 @@ class SimulatedCollector:
                 time.sleep(sleep_time)
 
     def _make_sample(self, timestamp: float, t_offset: float, index: int) -> WifiSample:
-        """Build one deterministic sample."""
-        # Sinusoidal component
+        """Xây dựng một mẫu xác định."""
+        # Thành phần hình sin
         sine = self._sine_amp * math.sin(2.0 * math.pi * self._sine_freq * t_offset)
 
-        # Deterministic Gaussian noise (uses the seeded RNG)
+        # Nhiễu Gaussian xác định (sử dụng RNG có hạt giống)
         noise = self._rng.normal(0.0, self._noise_std)
 
-        # Step change
+        # Thay đổi bước
         step = 0.0
         if self._step_at is not None and t_offset >= self._step_at:
             step = self._step_dbm
@@ -469,26 +469,26 @@ class SimulatedCollector:
 
 
 # ---------------------------------------------------------------------------
-# Windows WiFi collector (real hardware via netsh)
+# Bộ thu thập WiFi Windows (phần cứng thực qua netsh)
 # ---------------------------------------------------------------------------
 
 class WindowsWifiCollector:
     """
-    Collects real RSSI data from a Windows WiFi interface.
+    Thu thập dữ liệu RSSI thực từ giao diện WiFi Windows.
 
-    Data source: ``netsh wlan show interfaces`` which provides RSSI in dBm,
-    signal quality percentage, channel, band, and connection state.
+    Nguồn dữ liệu: ``netsh wlan show interfaces`` cung cấp RSSI tính bằng dBm,
+    phần trăm chất lượng tín hiệu, kênh, băng tần, và trạng thái kết nối.
 
     Parameters
     ----------
     interface : str
-        WiFi interface name (default ``"Wi-Fi"``).  Must match the ``Name``
-        field shown by ``netsh wlan show interfaces``.
+        Tên giao diện WiFi (mặc định ``"Wi-Fi"``). Phải khớp với trường ``Name``
+        hiển thị bởi ``netsh wlan show interfaces``.
     sample_rate_hz : float
-        Target sampling rate in Hz (default 2.0).  Windows ``netsh`` is slow
-        (~200-400ms per call) so rates above 2 Hz may not be achievable.
+        Tốc độ lấy mẫu mục tiêu tính bằng Hz (mặc định 2.0). ``netsh`` Windows chậm
+        (~200-400ms mỗi lần gọi) nên tốc độ trên 2 Hz có thể không đạt được.
     buffer_seconds : int
-        Ring buffer capacity in seconds (default 120).
+        Dung lượng bộ đệm vòng tính bằng giây (mặc định 120).
     """
 
     def __init__(
@@ -505,7 +505,7 @@ class WindowsWifiCollector:
         self._cumulative_tx: int = 0
         self._cumulative_rx: int = 0
 
-    # -- public API ----------------------------------------------------------
+    # -- API công khai -------------------------------------------------------
 
     @property
     def sample_rate_hz(self) -> float:
@@ -521,7 +521,7 @@ class WindowsWifiCollector:
         )
         self._thread.start()
         logger.info(
-            "WindowsWifiCollector started on '%s' at %.1f Hz",
+            "WindowsWifiCollector đã khởi động trên '%s' ở %.1f Hz",
             self._interface,
             self._rate,
         )
@@ -531,7 +531,7 @@ class WindowsWifiCollector:
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
-        logger.info("WindowsWifiCollector stopped")
+        logger.info("WindowsWifiCollector đã dừng")
 
     def get_samples(self, n: Optional[int] = None) -> List[WifiSample]:
         if n is not None:
@@ -541,7 +541,7 @@ class WindowsWifiCollector:
     def collect_once(self) -> WifiSample:
         return self._read_sample()
 
-    # -- internals -----------------------------------------------------------
+    # -- nội bộ --------------------------------------------------------------
 
     def _validate_interface(self) -> None:
         try:
@@ -551,17 +551,17 @@ class WindowsWifiCollector:
             )
             if self._interface not in result.stdout:
                 raise RuntimeError(
-                    f"WiFi interface '{self._interface}' not found. "
-                    f"Check 'netsh wlan show interfaces' for the correct name."
+                    f"Không tìm thấy giao diện WiFi '{self._interface}'. "
+                    f"Kiểm tra 'netsh wlan show interfaces' để biết tên chính xác."
                 )
             if "disconnected" in result.stdout.lower().split(self._interface.lower())[1][:200]:
                 raise RuntimeError(
-                    f"WiFi interface '{self._interface}' is disconnected. "
-                    f"Connect to a WiFi network first."
+                    f"Giao diện WiFi '{self._interface}' đã ngắt kết nối. "
+                    f"Hãy kết nối với mạng WiFi trước."
                 )
         except FileNotFoundError:
             raise RuntimeError(
-                "netsh not found. This collector requires Windows."
+                "Không tìm thấy netsh. Bộ thu thập này yêu cầu Windows."
             )
 
     def _sample_loop(self) -> None:
@@ -572,7 +572,7 @@ class WindowsWifiCollector:
                 sample = self._read_sample()
                 self._buffer.append(sample)
             except Exception:
-                logger.exception("Error reading WiFi sample")
+                logger.exception("Lỗi khi đọc mẫu WiFi")
             elapsed = time.monotonic() - t0
             sleep_time = max(0.0, interval - elapsed)
             if sleep_time > 0:
@@ -588,29 +588,29 @@ class WindowsWifiCollector:
 
         for line in result.stdout.splitlines():
             stripped = line.strip()
-            # "Rssi" line contains the raw dBm value (available on Win10+)
+            # Dòng "Rssi" chứa giá trị dBm thô (khả dụng trên Win10+)
             if stripped.lower().startswith("rssi"):
                 try:
                     rssi = float(stripped.split(":")[1].strip())
                 except (IndexError, ValueError):
                     pass
-            # "Signal" line contains percentage (always available)
+            # Dòng "Signal" chứa phần trăm (luôn khả dụng)
             elif stripped.lower().startswith("signal"):
                 try:
                     pct_str = stripped.split(":")[1].strip().rstrip("%")
                     signal_pct = float(pct_str)
-                    # If RSSI line was missing, estimate from percentage
-                    # Signal% roughly maps: 100% ≈ -30 dBm, 0% ≈ -90 dBm
+                    # Nếu dòng RSSI bị thiếu, ước lượng từ phần trăm
+                    # Signal% ánh xạ xấp xỉ: 100% ≈ -30 dBm, 0% ≈ -90 dBm
                 except (IndexError, ValueError):
                     pass
 
-        # Normalise link quality from signal percentage
+        # Chuẩn hóa chất lượng liên kết từ phần trăm tín hiệu
         link_quality = signal_pct / 100.0
 
-        # Estimate noise floor (Windows doesn't expose it directly)
+        # Ước lượng sàn nhiễu (Windows không công khai trực tiếp)
         noise_dbm = -95.0
 
-        # Track cumulative bytes (not available from netsh; increment synthetic counter)
+        # Theo dõi byte tích lũy (không khả dụng từ netsh; tăng bộ đếm tổng hợp)
         self._cumulative_tx += 1500
         self._cumulative_rx += 3000
 
@@ -627,15 +627,15 @@ class WindowsWifiCollector:
 
 
 # ---------------------------------------------------------------------------
-# macOS WiFi collector (real hardware via Swift CoreWLAN utility)
+# Bộ thu thập WiFi macOS (phần cứng thực qua tiện ích Swift CoreWLAN)
 # ---------------------------------------------------------------------------
 
 class MacosWifiCollector:
     """
-    Collects real RSSI data from a macOS WiFi interface using a Swift utility.
+    Thu thập dữ liệu RSSI thực từ giao diện WiFi macOS bằng tiện ích Swift.
 
-    Data source: A small compiled Swift binary (`mac_wifi`) that polls the
-    CoreWLAN `CWWiFiClient.shared().interface()` at a high rate.
+    Nguồn dữ liệu: Một tệp nhị phân Swift nhỏ đã biên dịch (`mac_wifi`) thăm dò
+    CoreWLAN `CWWiFiClient.shared().interface()` ở tốc độ cao.
     """
 
     def __init__(
@@ -648,15 +648,15 @@ class MacosWifiCollector:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._process: Optional[subprocess.Popen] = None
-        self._interface = "en0"  # CoreWLAN automatically targets the active Wi-Fi interface
+        self._interface = "en0"  # CoreWLAN tự động nhắm vào giao diện Wi-Fi đang hoạt động
 
-        # Compile the Swift utility if the binary doesn't exist
+        # Biên dịch tiện ích Swift nếu tệp nhị phân chưa tồn tại
         import os
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.swift_src = os.path.join(base_dir, "mac_wifi.swift")
         self.swift_bin = os.path.join(base_dir, "mac_wifi")
 
-    # -- public API ----------------------------------------------------------
+    # -- API công khai -------------------------------------------------------
 
     @property
     def sample_rate_hz(self) -> float:
@@ -665,24 +665,24 @@ class MacosWifiCollector:
     def start(self) -> None:
         if self._running:
             return
-        
-        # Ensure binary exists
+
+        # Đảm bảo tệp nhị phân tồn tại
         import os
         if not os.path.exists(self.swift_bin):
-            logger.info("Compiling mac_wifi.swift to %s", self.swift_bin)
+            logger.info("Đang biên dịch mac_wifi.swift sang %s", self.swift_bin)
             try:
                 subprocess.run(["swiftc", "-O", "-o", self.swift_bin, self.swift_src], check=True, capture_output=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Failed to compile macOS WiFi utility: {e.stderr.decode('utf-8')}")
+                raise RuntimeError(f"Biên dịch tiện ích WiFi macOS thất bại: {e.stderr.decode('utf-8')}")
             except FileNotFoundError:
-                raise RuntimeError("swiftc is not installed. Please install Xcode Command Line Tools to use native macOS WiFi sensing.")
+                raise RuntimeError("swiftc chưa được cài đặt. Hãy cài Xcode Command Line Tools để sử dụng cảm biến WiFi macOS gốc.")
 
         self._running = True
         self._thread = threading.Thread(
             target=self._sample_loop, daemon=True, name="mac-rssi-collector"
         )
         self._thread.start()
-        logger.info("MacosWifiCollector started at %.1f Hz", self._rate)
+        logger.info("MacosWifiCollector đã khởi động ở %.1f Hz", self._rate)
 
     def stop(self) -> None:
         self._running = False
@@ -697,25 +697,25 @@ class MacosWifiCollector:
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
-        logger.info("MacosWifiCollector stopped")
+        logger.info("MacosWifiCollector đã dừng")
 
     def get_samples(self, n: Optional[int] = None) -> List[WifiSample]:
         if n is not None:
             return self._buffer.get_last_n(n)
         return self._buffer.get_all()
 
-    # -- internals -----------------------------------------------------------
+    # -- nội bộ --------------------------------------------------------------
 
     def _sample_loop(self) -> None:
         import json
-        
-        # Start the Swift binary
+
+        # Khởi động tệp nhị phân Swift
         self._process = subprocess.Popen(
             [self.swift_bin],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1  # Line buffered
+            bufsize=1  # Đệm theo dòng
         )
 
         while self._running and self._process and self._process.poll() is None:
@@ -731,7 +731,7 @@ class MacosWifiCollector:
                 if line.startswith("{"):
                     data = json.loads(line)
                     if "error" in data:
-                        logger.error("macOS WiFi utility error: %s", data["error"])
+                        logger.error("Lỗi tiện ích WiFi macOS: %s", data["error"])
                         continue
 
                     rssi = float(data.get("rssi", -80.0))
@@ -751,17 +751,17 @@ class MacosWifiCollector:
                     )
                     self._buffer.append(sample)
             except Exception as e:
-                logger.error("Error reading macOS WiFi stream: %s", e)
+                logger.error("Lỗi khi đọc luồng WiFi macOS: %s", e)
                 time.sleep(1.0)
 
-        # Process exited unexpectedly
+        # Tiến trình thoát bất ngờ
         if self._running:
-            logger.error("macOS WiFi utility exited unexpectedly. Collector stopped.")
+            logger.error("Tiện ích WiFi macOS đã thoát bất ngờ. Bộ thu thập đã dừng.")
             self._running = False
 
 
 # ---------------------------------------------------------------------------
-# Collector factory (ADR-049)
+# Nhà máy bộ thu thập (ADR-049)
 # ---------------------------------------------------------------------------
 
 CollectorType = Union[LinuxWifiCollector, WindowsWifiCollector, MacosWifiCollector, SimulatedCollector]
@@ -772,32 +772,32 @@ def create_collector(
     interface: str = "wlan0",
     sample_rate_hz: float = 10.0,
 ) -> CollectorType:
-    """Create the best available WiFi collector for the current platform.
+    """Tạo bộ thu thập WiFi tốt nhất khả dụng cho nền tảng hiện tại.
 
-    Resolution order (when ``preferred="auto"``):
-      1. Platform-native WiFi:
-         - Linux: LinuxWifiCollector (requires /proc/net/wireless + active interface)
+    Thứ tự giải quyết (khi ``preferred="auto"``):
+      1. WiFi gốc nền tảng:
+         - Linux: LinuxWifiCollector (yêu cầu /proc/net/wireless + giao diện hoạt động)
          - Windows: WindowsWifiCollector (netsh wlan)
          - macOS: MacosWifiCollector (CoreWLAN)
-      2. SimulatedCollector (always available)
+      2. SimulatedCollector (luôn khả dụng)
 
-    This function never raises -- it always returns a usable collector.
+    Hàm này không bao giờ ném lỗi -- luôn trả về bộ thu thập khả dụng.
 
     Parameters
     ----------
     preferred : str
-        ``"auto"`` for platform detection, or one of ``"linux"``,
-        ``"windows"``, ``"macos"``, ``"simulated"`` to force a specific
-        collector.
+        ``"auto"`` cho phát hiện nền tảng, hoặc một trong ``"linux"``,
+        ``"windows"``, ``"macos"``, ``"simulated"`` để ép buộc bộ thu thập
+        cụ thể.
     interface : str
-        WiFi interface name (Linux/Windows only).
+        Tên giao diện WiFi (chỉ Linux/Windows).
     sample_rate_hz : float
-        Target sampling rate.
+        Tốc độ lấy mẫu mục tiêu.
     """
     _VALID_PREFERRED = {"auto", "linux", "windows", "macos", "simulated"}
     if preferred not in _VALID_PREFERRED:
         logger.warning(
-            "WiFi collector: unknown preferred=%r (valid: %s). Falling back to auto.",
+            "Bộ thu thập WiFi: preferred=%r không xác định (hợp lệ: %s). Chuyển về auto.",
             preferred, ", ".join(sorted(_VALID_PREFERRED)),
         )
         preferred = "auto"
@@ -808,25 +808,25 @@ def create_collector(
         if system == "Linux":
             available, reason = LinuxWifiCollector.is_available(interface)
             if available:
-                logger.info("WiFi collector: using LinuxWifiCollector on %s", interface)
+                logger.info("Bộ thu thập WiFi: sử dụng LinuxWifiCollector trên %s", interface)
                 return LinuxWifiCollector(interface=interface, sample_rate_hz=sample_rate_hz)
-            logger.warning("WiFi collector: LinuxWifiCollector unavailable (%s).", reason)
+            logger.warning("Bộ thu thập WiFi: LinuxWifiCollector không khả dụng (%s).", reason)
         elif system == "Windows":
             try:
                 win_iface = interface if interface != "wlan0" else "Wi-Fi"
                 collector = WindowsWifiCollector(interface=win_iface, sample_rate_hz=min(sample_rate_hz, 2.0))
                 collector.collect_once()
-                logger.info("WiFi collector: using WindowsWifiCollector on '%s'", interface)
+                logger.info("Bộ thu thập WiFi: sử dụng WindowsWifiCollector trên '%s'", interface)
                 return collector
             except Exception as exc:
-                logger.warning("WiFi collector: WindowsWifiCollector unavailable (%s).", exc)
+                logger.warning("Bộ thu thập WiFi: WindowsWifiCollector không khả dụng (%s).", exc)
         elif system == "Darwin":
             try:
                 collector = MacosWifiCollector(sample_rate_hz=sample_rate_hz)
-                logger.info("WiFi collector: using MacosWifiCollector")
+                logger.info("Bộ thu thập WiFi: sử dụng MacosWifiCollector")
                 return collector
             except Exception as exc:
-                logger.warning("WiFi collector: MacosWifiCollector unavailable (%s).", exc)
+                logger.warning("Bộ thu thập WiFi: MacosWifiCollector không khả dụng (%s).", exc)
     elif preferred == "linux":
         return LinuxWifiCollector(interface=interface, sample_rate_hz=sample_rate_hz)
     elif preferred == "windows":
@@ -837,7 +837,7 @@ def create_collector(
         return SimulatedCollector(seed=42, sample_rate_hz=sample_rate_hz)
 
     logger.info(
-        "WiFi collector: falling back to SimulatedCollector. "
-        "For real sensing, connect ESP32 nodes via UDP:5005 or install platform WiFi drivers."
+        "Bộ thu thập WiFi: chuyển về SimulatedCollector. "
+        "Để cảm biến thực, kết nối nút ESP32 qua UDP:5005 hoặc cài driver WiFi nền tảng."
     )
     return SimulatedCollector(seed=42, sample_rate_hz=sample_rate_hz)
