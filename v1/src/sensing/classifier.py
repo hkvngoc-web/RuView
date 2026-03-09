@@ -1,14 +1,14 @@
 """
-Presence and motion classification from RSSI features.
+Phân loại hiện diện và chuyển động từ đặc trưng RSSI.
 
-Uses rule-based logic with configurable thresholds to classify the current
-sensing state into one of three motion levels:
-    ABSENT        -- no person detected
-    PRESENT_STILL -- person present but stationary
-    ACTIVE        -- person present and moving
+Sử dụng logic dựa trên quy tắc với ngưỡng có thể cấu hình để phân loại
+trạng thái cảm biến hiện tại thành một trong ba mức chuyển động:
+    ABSENT        -- không phát hiện người
+    PRESENT_STILL -- có người nhưng đứng yên
+    ACTIVE        -- có người và đang di chuyển
 
-Confidence is derived from spectral feature strength and optional
-cross-receiver agreement.
+Độ tin cậy được tính từ cường độ đặc trưng phổ và sự đồng thuận
+chéo bộ thu tùy chọn.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class MotionLevel(Enum):
-    """Classified motion state."""
+    """Trạng thái chuyển động đã phân loại."""
 
     ABSENT = "absent"
     PRESENT_STILL = "present_still"
@@ -33,10 +33,10 @@ class MotionLevel(Enum):
 
 @dataclass
 class SensingResult:
-    """Output of the presence/motion classifier."""
+    """Đầu ra của bộ phân loại hiện diện/chuyển động."""
 
     motion_level: MotionLevel
-    confidence: float                 # 0.0 to 1.0
+    confidence: float                 # 0.0 đến 1.0
     presence_detected: bool
     rssi_variance: float
     motion_band_energy: float
@@ -47,31 +47,31 @@ class SensingResult:
 
 class PresenceClassifier:
     """
-    Rule-based presence and motion classifier.
+    Bộ phân loại hiện diện và chuyển động dựa trên quy tắc.
 
-    Classification rules
-    --------------------
-    1. **Presence**: RSSI variance exceeds ``presence_variance_threshold``.
-    2. **Motion level**:
-       - ABSENT  if variance < presence threshold
-       - ACTIVE  if variance >= presence threshold AND motion band energy
-         exceeds ``motion_energy_threshold``
-       - PRESENT_STILL otherwise (variance above threshold but low motion energy)
+    Quy tắc phân loại
+    ------------------
+    1. **Hiện diện**: Phương sai RSSI vượt ``presence_variance_threshold``.
+    2. **Mức chuyển động**:
+       - ABSENT  nếu phương sai < ngưỡng hiện diện
+       - ACTIVE  nếu phương sai >= ngưỡng hiện diện VÀ năng lượng băng chuyển động
+         vượt ``motion_energy_threshold``
+       - PRESENT_STILL trong các trường hợp còn lại (phương sai trên ngưỡng nhưng năng lượng chuyển động thấp)
 
-    Confidence model
-    ----------------
-    Base confidence comes from how far the measured variance / energy exceeds
-    the respective thresholds.  Cross-receiver agreement (when multiple
-    receivers report results) can boost confidence further.
+    Mô hình độ tin cậy
+    -------------------
+    Độ tin cậy cơ sở đến từ mức độ phương sai / năng lượng đo được vượt qua
+    các ngưỡng tương ứng. Sự đồng thuận chéo bộ thu (khi nhiều bộ thu
+    báo cáo kết quả) có thể tăng thêm độ tin cậy.
 
     Parameters
     ----------
     presence_variance_threshold : float
-        Minimum RSSI variance (dBm^2) to declare presence (default 0.5).
+        Phương sai RSSI tối thiểu (dBm^2) để tuyên bố hiện diện (mặc định 0.5).
     motion_energy_threshold : float
-        Minimum motion-band spectral energy to classify as ACTIVE (default 0.1).
+        Năng lượng phổ băng chuyển động tối thiểu để phân loại là ACTIVE (mặc định 0.1).
     max_receivers : int
-        Maximum number of receivers for cross-receiver agreement (default 1).
+        Số lượng bộ thu tối đa cho sự đồng thuận chéo bộ thu (mặc định 1).
     """
 
     def __init__(
@@ -98,14 +98,14 @@ class PresenceClassifier:
         other_receiver_results: Optional[List[SensingResult]] = None,
     ) -> SensingResult:
         """
-        Classify presence and motion from extracted RSSI features.
+        Phân loại hiện diện và chuyển động từ đặc trưng RSSI đã trích xuất.
 
         Parameters
         ----------
         features : RssiFeatures
-            Features extracted from the RSSI time series of one receiver.
-        other_receiver_results : list of SensingResult, optional
-            Results from other receivers for cross-receiver agreement.
+            Đặc trưng trích xuất từ chuỗi thời gian RSSI của một bộ thu.
+        other_receiver_results : danh sách SensingResult, tùy chọn
+            Kết quả từ các bộ thu khác cho sự đồng thuận chéo bộ thu.
 
         Returns
         -------
@@ -115,10 +115,10 @@ class PresenceClassifier:
         motion_energy = features.motion_band_power
         breathing_energy = features.breathing_band_power
 
-        # -- presence decision ------------------------------------------------
+        # -- quyết định hiện diện ------------------------------------------------
         presence = variance >= self._var_thresh
 
-        # -- motion level -----------------------------------------------------
+        # -- mức chuyển động -----------------------------------------------------
         if not presence:
             level = MotionLevel.ABSENT
         elif motion_energy >= self._motion_thresh:
@@ -126,12 +126,12 @@ class PresenceClassifier:
         else:
             level = MotionLevel.PRESENT_STILL
 
-        # -- confidence -------------------------------------------------------
+        # -- độ tin cậy -----------------------------------------------------------
         confidence = self._compute_confidence(
             variance, motion_energy, breathing_energy, level, other_receiver_results
         )
 
-        # -- detail string ----------------------------------------------------
+        # -- chuỗi chi tiết -------------------------------------------------------
         details = (
             f"var={variance:.4f} (thresh={self._var_thresh}), "
             f"motion_energy={motion_energy:.4f} (thresh={self._motion_thresh}), "
@@ -159,43 +159,43 @@ class PresenceClassifier:
         other_results: Optional[List[SensingResult]],
     ) -> float:
         """
-        Compute a confidence score in [0, 1].
+        Tính điểm tin cậy trong [0, 1].
 
-        The score is composed of:
-            - Base (60%): how clearly the variance exceeds (or falls below) the
-              presence threshold.
-            - Spectral (20%): strength of the relevant spectral band.
-            - Agreement (20%): cross-receiver consensus (if available).
+        Điểm số bao gồm:
+            - Cơ sở (60%): mức độ phương sai rõ ràng vượt qua (hoặc dưới)
+              ngưỡng hiện diện.
+            - Phổ (20%): cường độ của băng phổ liên quan.
+            - Đồng thuận (20%): sự nhất quán chéo bộ thu (nếu có).
         """
-        # -- base confidence (0..1) ------------------------------------------
+        # -- độ tin cậy cơ sở (0..1) ------------------------------------------
         if level == MotionLevel.ABSENT:
-            # Confidence in absence increases as variance shrinks relative to threshold
+            # Độ tin cậy vắng mặt tăng khi phương sai giảm so với ngưỡng
             if self._var_thresh > 0:
                 base = max(0.0, 1.0 - variance / self._var_thresh)
             else:
                 base = 1.0
         else:
-            # Confidence in presence increases as variance exceeds threshold
+            # Độ tin cậy hiện diện tăng khi phương sai vượt ngưỡng
             ratio = variance / self._var_thresh if self._var_thresh > 0 else 10.0
             base = min(1.0, ratio)
 
-        # -- spectral confidence (0..1) --------------------------------------
+        # -- độ tin cậy phổ (0..1) --------------------------------------
         if level == MotionLevel.ACTIVE:
             spectral = min(1.0, motion_energy / max(self._motion_thresh, 1e-12))
         elif level == MotionLevel.PRESENT_STILL:
-            # For still, breathing band energy is more relevant
+            # Đối với đứng yên, năng lượng băng hô hấp liên quan hơn
             spectral = min(1.0, breathing_energy / max(self._motion_thresh, 1e-12))
         else:
-            spectral = 1.0  # No spectral requirement for absence
+            spectral = 1.0  # Không yêu cầu phổ cho vắng mặt
 
-        # -- cross-receiver agreement (0..1) ---------------------------------
-        agreement = 1.0  # default: single receiver
+        # -- đồng thuận chéo bộ thu (0..1) ---------------------------------
+        agreement = 1.0  # mặc định: một bộ thu
         if other_results:
             same_level = sum(
                 1 for r in other_results if r.motion_level == level
             )
             agreement = (same_level + 1) / (len(other_results) + 1)
 
-        # Weighted combination
+        # Kết hợp có trọng số
         confidence = 0.6 * base + 0.2 * spectral + 0.2 * agreement
         return max(0.0, min(1.0, confidence))

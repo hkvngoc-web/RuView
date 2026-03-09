@@ -1,13 +1,13 @@
 /**
- * Demo Data Generator — RuView Observatory
+ * Bộ Tạo Dữ Liệu Mẫu — RuView Observatory
  *
- * Generates synthetic CSI data matching the SensingUpdate contract.
- * 12 scenarios covering all edge module categories.
- * Each person includes pose, facing, and scenario-specific motion data.
- * Auto-cycles with cosine crossfade transitions.
+ * Tạo dữ liệu CSI tổng hợp khớp hợp đồng SensingUpdate.
+ * 12 kịch bản bao phủ mọi danh mục mô-đun biên.
+ * Mỗi người gồm tư thế, hướng nhìn, và dữ liệu chuyển động theo kịch bản.
+ * Tự động xoay vòng với hiệu ứng chuyển tiếp cosine mờ dần.
  *
- * V2: Enhanced with temporally-correlated noise, spatially-coherent fields,
- * physiologically accurate vital signs, and realistic behavioral patterns.
+ * V2: Nâng cấp với nhiễu tương quan thời gian, trường không gian mạch lạc,
+ * dấu hiệu sinh tồn chính xác sinh lý, và mẫu hành vi thực tế.
  */
 
 const SCENARIOS = [
@@ -25,13 +25,13 @@ const SCENARIOS = [
   'security_patrol',
 ];
 
-const CROSSFADE_DURATION = 2; // seconds
+const CROSSFADE_DURATION = 2; // giây
 
 // ---------------------------------------------------------------------------
-// Noise & utility functions (module-private)
+// Hàm nhiễu & tiện ích (riêng tư mô-đun)
 // ---------------------------------------------------------------------------
 
-/** Seeded PRNG for deterministic per-scenario noise. */
+/** PRNG có hạt giống cho nhiễu xác định theo kịch bản. */
 function _mulberry32(seed) {
   return function () {
     let t = (seed += 0x6d2b79f5);
@@ -42,17 +42,17 @@ function _mulberry32(seed) {
 }
 
 /**
- * Temporally-correlated noise (1st-order IIR low-pass filtered white noise).
- * Returns a function noise(t) that produces smooth, non-teleporting values
- * in approximately [-amplitude, +amplitude].
- * `smoothing` controls correlation: higher = smoother (0.9-0.99 typical).
+ * Nhiễu tương quan thời gian (bộ lọc thông thấp IIR bậc 1 trên nhiễu trắng).
+ * Trả về hàm noise(t) tạo giá trị mượt, không nhảy đột ngột
+ * trong khoảng xấp xỉ [-amplitude, +amplitude].
+ * `smoothing` điều khiển tương quan: cao hơn = mượt hơn (thường 0.9-0.99).
  */
 function _makeCorrelatedNoise(seed, smoothing = 0.95, amplitude = 1) {
   const rng = _mulberry32(seed);
   let state = 0;
   let lastT = -1;
   return function (t) {
-    // Step the filter forward for each new time tick
+    // Tiến bộ lọc cho mỗi tick thời gian mới
     const steps = Math.max(1, Math.round((t - lastT) * 60)); // ~60 Hz internal
     for (let i = 0; i < Math.min(steps, 120); i++) {
       state = smoothing * state + (1 - smoothing) * (rng() * 2 - 1);
@@ -63,8 +63,8 @@ function _makeCorrelatedNoise(seed, smoothing = 0.95, amplitude = 1) {
 }
 
 /**
- * Perlin-like 1D noise via sine harmonics.
- * Deterministic, smooth, and cheap.
+ * Nhiễu 1D dạng Perlin qua hài sine.
+ * Xác định, mượt, và nhẹ.
  */
 function _harmonicNoise(t, seed, octaves = 3) {
   let v = 0, amp = 1, freq = 1;
@@ -76,26 +76,26 @@ function _harmonicNoise(t, seed, octaves = 3) {
   return v;
 }
 
-/** Smooth step (hermite interpolation) */
+/** Bước mượt (nội suy hermite) */
 function _smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
 }
 
-/** Clamp */
+/** Kẹp giá trị */
 function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-/** Lerp */
+/** Nội suy tuyến tính */
 function _lerp(a, b, t) { return a + (b - a) * t; }
 
-/** Gaussian blob value at distance d with given sigma */
+/** Giá trị đốm Gauss tại khoảng cách d với sigma cho trước */
 function _gaussian(d, sigma) {
   return Math.exp(-(d * d) / (2 * sigma * sigma));
 }
 
 // ---------------------------------------------------------------------------
-// Noise bank — pre-allocated correlated noise channels per scenario
-// Each scenario gets its own set of noise functions so they don't interfere.
+// Ngân hàng nhiễu — kênh nhiễu tương quan được cấp phát trước theo kịch bản
+// Mỗi kịch bản có bộ hàm nhiễu riêng để không giao thoa.
 // ---------------------------------------------------------------------------
 const _noiseBanks = {};
 function _getNoiseBank(scenario) {
@@ -156,7 +156,7 @@ export class DemoDataGenerator {
     this._cycleDuration = Math.max(5, seconds);
   }
 
-  /** Call each frame; returns blended SensingUpdate object */
+  /** Gọi mỗi khung hình; trả về đối tượng SensingUpdate đã pha trộn */
   update(dt) {
     if (this._paused) {
       return this._currFrame || this._generate(this._scenarioIndex, this._elapsed);
@@ -164,7 +164,7 @@ export class DemoDataGenerator {
 
     this._elapsed += dt;
 
-    // Auto-cycle
+    // Tự xoay vòng
     if (this._autoMode && this._elapsed >= this._cycleDuration) {
       this._elapsed -= this._cycleDuration;
       this._scenarioIndex = (this._scenarioIndex + 1) % SCENARIOS.length;
@@ -173,7 +173,7 @@ export class DemoDataGenerator {
     const t = this._elapsed;
     const frame = this._generate(this._scenarioIndex, t);
 
-    // Crossfade near transition boundaries
+    // Mờ chuyển tiếp gần ranh giới chuyển đổi
     if (this._autoMode && t < CROSSFADE_DURATION) {
       const prevIdx = (this._scenarioIndex - 1 + SCENARIOS.length) % SCENARIOS.length;
       const prevFrame = this._generate(prevIdx, this._cycleDuration - CROSSFADE_DURATION + t);
@@ -186,7 +186,7 @@ export class DemoDataGenerator {
     return this._currFrame;
   }
 
-  // ---- Scenario generators ----
+  // ---- Bộ tạo kịch bản ----
 
   _generate(scenarioIdx, t) {
     const name = SCENARIOS[scenarioIdx];
@@ -207,7 +207,7 @@ export class DemoDataGenerator {
     }
   }
 
-  // ---- Base template ----
+  // ---- Mẫu cơ sở ----
 
   _baseFrame(overrides) {
     return {
@@ -229,32 +229,32 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 1. Empty Room — environmental noise, interference spikes, day/night drift
+  // 1. Phòng Trống — nhiễu môi trường, xung nhiễu, trôi ngày/đêm
   // ========================================================================
 
   _emptyRoom(t) {
     const n = _getNoiseBank('empty_room');
 
-    // Day/night RSSI drift: slow sinusoidal cycle over the scenario duration
+    // Trôi RSSI ngày/đêm: chu kỳ sine chậm trong thời lượng kịch bản
     const dayNightDrift = Math.sin(t * 0.08) * 3;
-    // Occasional microwave/device interference spike
+    // Xung nhiễu thiết bị lò vi sóng thỉnh thoảng
     const spikeRaw = n.spike(t);
     const interferenceSpike = spikeRaw > 0.7 ? (spikeRaw - 0.7) * 15 : 0;
-    // Subtle HVAC cycling
+    // Chu kỳ HVAC nhẹ
     const hvacCycle = Math.sin(t * 0.4) * 0.5 + Math.sin(t * 1.1) * 0.2;
 
     const baseRssi = -45 + dayNightDrift + n.rssi(t) + interferenceSpike;
 
     const amplitude = new Float32Array(64);
     for (let i = 0; i < 64; i++) {
-      // Base floor with harmonic variation per subcarrier
+      // Nền cơ sở với biến thiên hài theo sóng mang con
       const subNoise = _harmonicNoise(t, i * 0.37, 2) * 0.02;
-      // Interference affects specific subcarrier bands (like a microwave in 2.4GHz)
+      // Nhiễu ảnh hưởng các dải sóng mang cụ thể (như lò vi sóng ở 2.4GHz)
       const microBand = (i >= 20 && i <= 35) ? interferenceSpike * 0.03 : 0;
       amplitude[i] = 0.1 + subNoise + microBand + Math.abs(hvacCycle) * 0.01;
     }
 
-    // Signal field with subtle ripple patterns (standing waves in empty room)
+    // Trường tín hiệu với mẫu gợn sóng nhẹ (sóng dừng trong phòng trống)
     const vals = [];
     for (let iz = 0; iz < 20; iz++) {
       for (let ix = 0; ix < 20; ix++) {
@@ -290,27 +290,27 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 2. Single Breathing — HRV, respiratory sinus arrhythmia, natural irregularity
+  // 2. Thở Đơn — HRV, loạn nhịp xoang hô hấp, bất thường tự nhiên
   // ========================================================================
 
   _singleBreathing(t) {
     const n = _getNoiseBank('single_breathing');
 
-    // Natural breathing: ~16 BPM but with irregularity
-    // Breathing rate varies slightly over time (14.5-17.5)
+    // Thở tự nhiên: ~16 nhịp/phút nhưng có bất thường
+    // Nhịp thở thay đổi nhẹ theo thời gian (14.5-17.5)
     const breathRateBase = 16 + _harmonicNoise(t, 1.23, 2) * 1.5;
     const breathFreq = breathRateBase / 60;
-    // Accumulate phase for non-uniform period
+    // Tích luỹ pha cho chu kỳ không đều
     const breathPhase = Math.sin(2 * Math.PI * breathFreq * t + n.breath(t) * 0.4);
-    // Inhale is slightly shorter than exhale (1:1.5 ratio via asymmetric wave)
+    // Hít vào hơi ngắn hơn thở ra (tỷ lệ 1:1.5 qua sóng bất đối xứng)
     const breathSignal = breathPhase > 0
       ? Math.sin(Math.asin(breathPhase) * 1.3)
       : breathPhase * 0.85;
 
-    // Heart Rate Variability (HRV): base 72 BPM, varies 68-76
-    // Respiratory Sinus Arrhythmia: HR increases on inhale, decreases on exhale
-    const rsaEffect = breathSignal * 3.0; // +/-3 BPM with breathing
-    const hrvWander = _harmonicNoise(t, 7.77, 3) * 2.0; // slow HRV drift
+    // Biến thiên nhịp tim (HRV): cơ sở 72 nhịp/phút, thay đổi 68-76
+    // Loạn nhịp xoang hô hấp: nhịp tim tăng khi hít vào, giảm khi thở ra
+    const rsaEffect = breathSignal * 3.0; // +/-3 nhịp/phút theo hơi thở
+    const hrvWander = _harmonicNoise(t, 7.77, 3) * 2.0; // trôi HRV chậm
     const instantHR = 72 + rsaEffect + hrvWander + n.hr(t) * 0.5;
     const hrFreq = instantHR / 60;
     const hrPhase = Math.sin(2 * Math.PI * hrFreq * t);
@@ -318,7 +318,7 @@ export class DemoDataGenerator {
     const amplitude = new Float32Array(64);
     for (let i = 0; i < 64; i++) {
       const subBase = 0.4 + 0.2 * Math.sin(t * 0.5 + i * 0.15);
-      const breathMod = breathSignal * 0.08 * (1 + 0.3 * Math.sin(i * 0.4)); // subcarrier-dependent
+      const breathMod = breathSignal * 0.08 * (1 + 0.3 * Math.sin(i * 0.4)); // phụ thuộc theo sóng mang con
       const hrMod = hrPhase * 0.015 * (i > 20 && i < 45 ? 1.5 : 0.5); // HR stronger in mid-band
       amplitude[i] = subBase + breathMod + hrMod + _harmonicNoise(t, i * 0.13, 2) * 0.01;
     }
@@ -343,7 +343,7 @@ export class DemoDataGenerator {
         heart_rate_bpm: instantHR,
         breathing_confidence: 0.85 + breathSignal * 0.05,
         heart_rate_confidence: 0.75 + hrPhase * 0.05,
-        hrv_ms: 35 + _harmonicNoise(t, 3.14, 2) * 15, // RMSSD-like HRV metric
+        hrv_ms: 35 + _harmonicNoise(t, 3.14, 2) * 15, // Chỉ số HRV dạng RMSSD
         rsa_active: true,
       },
       persons: [{ id: 'p0', position: [0 + n.pos1(t) * 0.05, 0, 0 + n.pos2(t) * 0.05], motion_score: 15, pose: 'standing', facing: 0 }],
@@ -356,27 +356,27 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 3. Two Walking — collision avoidance, phone pause, confidence dip at crossing
+  // 3. Hai Người Đi Bộ — tránh va chạm, dừng xem điện thoại, giảm độ tin cậy khi giao nhau
   // ========================================================================
 
   _twoWalking(t) {
     const n = _getNoiseBank('two_walking');
 
-    // Person 1: walks a figure-8 with speed variation
-    const p1speed = 0.5 + _harmonicNoise(t, 1.1, 2) * 0.1; // natural speed var
+    // Người 1: đi hình số 8 với biến thiên tốc độ
+    const p1speed = 0.5 + _harmonicNoise(t, 1.1, 2) * 0.1; // biến thiên tốc độ tự nhiên
     const p1phase = t * p1speed;
     let p1x = Math.sin(p1phase) * 2.5;
     let p1z = Math.sin(p1phase * 0.7) * Math.cos(p1phase * 0.35) * 1.8;
 
-    // Person 2: walks an ellipse, pauses at t~10-12 (checking phone)
+    // Người 2: đi elip, dừng tại t~10-12 (xem điện thoại)
     const phonePause = (t >= 10 && t < 12);
-    const p2speedMod = phonePause ? 0.05 : 1.0; // nearly stopped during phone check
+    const p2speedMod = phonePause ? 0.05 : 1.0; // gần như dừng khi xem điện thoại
     const p2speed = (0.4 + _harmonicNoise(t, 2.2, 2) * 0.08) * p2speedMod;
     const p2phase = t * 0.4 + 1 + (phonePause ? 0 : _harmonicNoise(t, 3.3, 2) * 0.1);
     let p2x = -Math.sin(p2phase) * 2;
     let p2z = Math.cos(p2phase * 0.75 + 2) * 1.5;
 
-    // Collision avoidance: repulsion when persons are close
+    // Tránh va chạm: lực đẩy khi người gần nhau
     const dx = p1x - p2x;
     const dz = p1z - p2z;
     const dist = Math.sqrt(dx * dx + dz * dz);
@@ -390,7 +390,7 @@ export class DemoDataGenerator {
       p2z -= nz * repulsion;
     }
 
-    // Confidence dip when persons are close (tracking confusion)
+    // Giảm độ tin cậy khi người gần (nhầm lẫn theo dõi)
     const proxConfidence = dist < 1.5 ? 0.65 + dist * 0.1 : 0.82;
     const matchConfidence = dist < 1.2 ? 0.6 + dist * 0.2 : 0.91;
 
@@ -399,7 +399,7 @@ export class DemoDataGenerator {
       Math.cos(p1phase * 0.7) * 0.7 * Math.cos(p1phase * 0.35) * 1.8
     );
     const p2facing = phonePause
-      ? Math.PI * 0.8 // looking down at phone
+      ? Math.PI * 0.8 // nhìn xuống điện thoại
       : Math.atan2(-Math.cos(p2phase) * p2speed * 2, -Math.sin(p2phase * 0.75 + 2) * 0.75 * 1.5);
 
     const p1ms = 160 + _harmonicNoise(t, 4.4, 2) * 20;
@@ -438,13 +438,13 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 4. Fall Event — pre-fall stumble, impact spike, micro-movements, shock HR
+  // 4. Sự Kiện Ngã — loạng choạng trước ngã, xung va chạm, vi chuyển động, nhịp tim sốc
   // ========================================================================
 
   _fallEvent(t) {
     const n = _getNoiseBank('fall_event');
 
-    // Timeline: 0-3 normal walk, 3-5 stumble, 5-5.8 fall, 5.8-8 micro-movement, 8+ still
+    // Dòng thời gian: 0-3 đi bình thường, 3-5 loạng choạng, 5-5.8 ngã, 5.8-8 vi chuyển động, 8+ bất động
     const stumbleStart = 3, fallStart = 5, fallEnd = 5.8;
     const microEnd = 8, stillPhase = t >= microEnd;
 
@@ -454,15 +454,15 @@ export class DemoDataGenerator {
     const microMovement = t >= fallEnd && t < microEnd;
     const postFall = t >= fallEnd;
 
-    // Pre-fall stumble: unsteady gait (asymmetric, wobbly)
+    // Loạng choạng trước ngã: dáng đi không vững (bất đối xứng, lảo đảo)
     const stumbleIntensity = stumbling ? _smoothstep(stumbleStart, fallStart, t) : 0;
     const wobble = stumbling ? Math.sin(t * 8) * stumbleIntensity * 0.4 : 0;
 
-    // Fall impact spike: sharp gaussian at moment of impact
+    // Xung va chạm ngã: đỉnh gauss sắc tại thời điểm va đập
     const impactT = (fallStart + fallEnd) / 2;
     const impactSpike = Math.exp(-((t - impactT) ** 2) / 0.04) * 1.0;
 
-    // Post-fall micro-movements (trying to get up)
+    // Vi chuyển động sau ngã (cố gắng đứng dậy)
     const microIntensity = microMovement
       ? (1 - _smoothstep(fallEnd, microEnd, t)) * 0.3
       : 0;
@@ -470,19 +470,19 @@ export class DemoDataGenerator {
       ? Math.sin(t * 3) * microIntensity + Math.sin(t * 5.5) * microIntensity * 0.4
       : 0;
 
-    // Heart rate: normal 72, elevated post-fall shock response 100-110 BPM
+    // Nhịp tim: bình thường 72, tăng phản ứng sốc sau ngã 100-110 nhịp/phút
     let hrRate = 72;
-    if (stumbling) hrRate = 72 + stumbleIntensity * 15; // anxiety rising
+    if (stumbling) hrRate = 72 + stumbleIntensity * 15; // lo lắng tăng
     else if (inFall) hrRate = 90 + impactSpike * 30;
-    else if (postFall) hrRate = 108 - _smoothstep(fallEnd, fallEnd + 20, t) * 30; // slowly comes down
+    else if (postFall) hrRate = 108 - _smoothstep(fallEnd, fallEnd + 20, t) * 30; // giảm dần
     hrRate += n.hr(t) * 1.5;
 
-    // Breathing: elevated post-fall
+    // Hơi thở: tăng sau ngã
     let breathRate = 16;
     if (postFall) breathRate = 24 - _smoothstep(fallEnd, fallEnd + 15, t) * 8;
     breathRate += n.breath(t) * 0.5;
 
-    // Position: walking -> stumble -> fall -> ground
+    // Vị trí: đi bộ -> loạng choạng -> ngã -> nằm sàn
     let px = 0.3, pz = 0.2, py = 0, pose = 'standing', ms = 20;
     if (preStumble) {
       px = Math.sin(t * 0.4) * 1.5;
@@ -493,7 +493,7 @@ export class DemoDataGenerator {
       const st = (t - stumbleStart) / (fallStart - stumbleStart);
       px = Math.sin(stumbleStart * 0.4) * 1.5 + wobble + st * 0.5;
       pz = (stumbleStart * 0.3 - 1) + st * 0.3;
-      pose = 'walking'; // stumbling but still upright
+      pose = 'walking'; // loạng choạng nhưng vẫn đứng
       ms = 120 + stumbleIntensity * 80;
     } else if (inFall) {
       pose = 'falling';
@@ -565,21 +565,21 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 5. Sleep Monitoring — sleep stages, REM, position changes, apnea buildup
+  // 5. Theo Dõi Giấc Ngủ — giai đoạn ngủ, REM, đổi tư thế, tiền ngưng thở
   // ========================================================================
 
   _sleepMonitoring(t) {
     const n = _getNoiseBank('sleep_monitoring');
 
-    // Sleep stages timeline (30s cycle compressed):
-    // 0-4: light sleep (stage 1-2)
-    // 4-10: deep sleep (stage 3-4)
-    // 10-14: REM sleep
-    // 14-16: position change
-    // 16-18: light sleep again
-    // 18-22: apnea warning signs (breathing gets irregular)
-    // 22-26: apnea event
-    // 26-30: recovery
+    // Dòng thời gian giai đoạn ngủ (chu kỳ 30 giây nén):
+    // 0-4: ngủ nông (giai đoạn 1-2)
+    // 4-10: ngủ sâu (giai đoạn 3-4)
+    // 10-14: giấc ngủ REM
+    // 14-16: đổi tư thế
+    // 16-18: ngủ nông trở lại
+    // 18-22: dấu hiệu tiền ngưng thở (hơi thở trở nên bất thường)
+    // 22-26: sự kiện ngưng thở
+    // 26-30: hồi phục
     const cycleT = t % 30;
 
     let sleepStage = 'light';
@@ -590,28 +590,28 @@ export class DemoDataGenerator {
     let positionChangeActive = false;
 
     if (cycleT < 4) {
-      // Light sleep: more body movement, higher breath rate
+      // Ngủ nông: cử động cơ thể nhiều hơn, nhịp thở cao hơn
       sleepStage = 'light';
       breathRateBase = 14 + _harmonicNoise(t, 1.1, 2) * 1.5;
       movementLevel = 0.06 + Math.abs(n.motion(t)) * 0.03;
       hrBase = 64 + _harmonicNoise(t, 2.2, 2) * 3;
     } else if (cycleT < 10) {
-      // Deep sleep: minimal movement, slow breathing, low HR
+      // Ngủ sâu: cử động tối thiểu, thở chậm, nhịp tim thấp
       sleepStage = 'deep';
       breathRateBase = 10 + _harmonicNoise(t, 1.3, 2) * 0.5;
       movementLevel = 0.01;
       hrBase = 56 + _harmonicNoise(t, 2.4, 2) * 1;
     } else if (cycleT < 14) {
-      // REM: rapid eye movement creates signal artifacts, HR more variable
+      // REM: chuyển động mắt nhanh tạo nhiễu tín hiệu, nhịp tim biến thiên hơn
       sleepStage = 'REM';
       breathRateBase = 16 + _harmonicNoise(t, 1.5, 2) * 2;
       movementLevel = 0.02;
-      hrBase = 68 + _harmonicNoise(t, 2.6, 3) * 5; // more variable in REM
-      // Eye movement artifact: high-frequency bursts
+      hrBase = 68 + _harmonicNoise(t, 2.6, 3) * 5; // biến thiên nhiều hơn trong REM
+      // Nhiễu chuyển động mắt: bùng phát tần số cao
       const remBurst = Math.sin(t * 12) * Math.sin(t * 7.3) * 0.5;
       eyeMovementArtifact = Math.max(0, remBurst) * 0.08;
     } else if (cycleT < 16) {
-      // Position change: brief movement spike
+      // Đổi tư thế: đỉnh cử động ngắn
       sleepStage = 'light';
       positionChangeActive = true;
       const changeProgress = (cycleT - 14) / 2;
@@ -626,27 +626,27 @@ export class DemoDataGenerator {
       movementLevel = 0.04;
       hrBase = 62;
     } else if (cycleT < 22) {
-      // Pre-apnea: breathing becomes irregular
+      // Tiền ngưng thở: hơi thở trở nên bất thường
       sleepStage = 'light';
       const irregularity = _smoothstep(18, 22, cycleT);
-      breathRateBase = 12 - irregularity * 6; // slowing down
-      // Breathing becomes chaotic before stopping
+      breathRateBase = 12 - irregularity * 6; // chậm dần
+      // Hơi thở trở nên hỗn loạn trước khi ngừng
       const chaotic = irregularity * Math.sin(t * 3 + Math.sin(t * 1.7) * 2) * 0.4;
       breathRateBase = Math.max(3, breathRateBase + chaotic * 5);
       movementLevel = 0.02;
       hrBase = 60 - irregularity * 4;
     } else if (cycleT < 26) {
-      // Full apnea
+      // Ngưng thở hoàn toàn
       sleepStage = 'apnea';
-      breathRateBase = 0 + Math.abs(n.breath(t)) * 0.5; // near-zero
+      breathRateBase = 0 + Math.abs(n.breath(t)) * 0.5; // gần bằng không
       movementLevel = 0.01;
-      hrBase = 54 + _smoothstep(22, 26, cycleT) * 8; // HR rises during apnea (stress)
+      hrBase = 54 + _smoothstep(22, 26, cycleT) * 8; // Nhịp tim tăng khi ngưng thở (căng thẳng)
     } else {
-      // Recovery: gasp, then return to normal
+      // Hồi phục: thở hổn hển, rồi trở lại bình thường
       sleepStage = 'light';
       const recovery = _smoothstep(26, 28, cycleT);
-      breathRateBase = 6 + recovery * 10; // gasping then normalizing
-      movementLevel = cycleT < 27 ? 0.15 : 0.04; // body startles
+      breathRateBase = 6 + recovery * 10; // thở hổn hển rồi bình thường hóa
+      movementLevel = cycleT < 27 ? 0.15 : 0.04; // cơ thể giật mình
       hrBase = 70 - recovery * 6;
     }
 
@@ -655,7 +655,7 @@ export class DemoDataGenerator {
     const breathPhase = Math.sin(2 * Math.PI * breathFreq * t + n.breath(t) * 0.3);
     const breathSignal = inApnea ? n.breath(t) * 0.05 : breathPhase;
 
-    // Lying position: slight shifts over time, bigger shift during position change
+    // Tư thế nằm: dịch nhẹ theo thời gian, dịch lớn khi đổi tư thế
     const posAngle = positionChangeActive
       ? Math.PI / 2 + _smoothstep(14, 16, cycleT) * Math.PI * 0.3
       : Math.PI / 2 + Math.sin(t * 0.02) * 0.1;
@@ -664,7 +664,7 @@ export class DemoDataGenerator {
     const amplitude = new Float32Array(64);
     for (let i = 0; i < 64; i++) {
       const base = 0.25 + breathSignal * 0.04 * (1 - (inApnea ? 0.9 : 0));
-      const rem = eyeMovementArtifact * (i > 30 && i < 50 ? 1.5 : 0.3); // REM artifact in upper band
+      const rem = eyeMovementArtifact * (i > 30 && i < 50 ? 1.5 : 0.3); // Nhiễu REM ở dải tần trên
       amplitude[i] = base + rem + movementLevel * Math.sin(t * 0.8 + i * 0.1)
         + _harmonicNoise(t, i * 0.11, 2) * 0.005;
     }
@@ -709,20 +709,20 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 6. Intrusion Detection — door pressure, cautious movement, drawer search
+  // 6. Phát Hiện Xâm Nhập — áp suất cửa, di chuyển thận trọng, lục ngăn kéo
   // ========================================================================
 
   _intrusionDetect(t) {
     const n = _getNoiseBank('intrusion_detect');
 
-    // Timeline:
-    // 0-2: baseline (quiet room)
-    // 2-3: door opens (pressure change, environmental shift)
-    // 3-6: cautious entry (pause-move-pause)
-    // 6-10: checking corners
-    // 10-14: checks room, pauses
-    // 14-22: searches drawers near desk (oscillating position)
-    // 22+: settles, loiters
+    // Dòng thời gian:
+    // 0-2: đường cơ sở (phòng yên tĩnh)
+    // 2-3: cửa mở (thay đổi áp suất, biến động môi trường)
+    // 3-6: xâm nhập thận trọng (dừng-đi-dừng)
+    // 6-10: kiểm tra các góc
+    // 10-14: kiểm tra phòng, tạm dừng
+    // 14-22: lục ngăn kéo gần bàn (vị trí dao động)
+    // 22+: ổn định, lảng vảng
 
     const doorOpen = t >= 2 && t < 3;
     const entered = t >= 3;
@@ -731,32 +731,32 @@ export class DemoDataGenerator {
     const settledSearch = t >= 14 && t < 22;
     const loitering = t >= 22;
 
-    // Environmental baseline shift when door opens
+    // Dịch chuyển đường cơ sở môi trường khi cửa mở
     const doorPressure = doorOpen ? Math.sin((t - 2) * Math.PI) * 0.4 : 0;
 
-    // Cautious movement: pause-move-pause pattern
+    // Di chuyển thận trọng: mẫu dừng-đi-dừng
     let px, pz, facing, ms, pose;
     if (!entered) {
       px = -5.5; pz = -2; facing = 0; ms = 0; pose = 'absent';
     } else if (cautiousEntry) {
-      // Pause-move-pause pattern
+      // Mẫu dừng-đi-dừng
       const entryT = t - 3;
       const movePhase = entryT % 1.5;
-      const isMoving = movePhase > 0.6 && movePhase < 1.3; // move for 0.7s, pause for 0.8s
+      const isMoving = movePhase > 0.6 && movePhase < 1.3; // đi 0.7 giây, dừng 0.8 giây
       const progress = Math.min(1, entryT / 3);
       px = -4.5 + progress * 3;
       pz = -1 + progress * 0.8;
-      // Slight position jitter during pauses (looking around)
+      // Rung nhẹ vị trí khi dừng (nhìn xung quanh)
       if (!isMoving) {
         px += Math.sin(t * 4) * 0.05;
-        facing = Math.sin(t * 2) * 0.5 + 0.8; // head scanning
+        facing = Math.sin(t * 2) * 0.5 + 0.8; // quét đầu quan sát
       } else {
-        facing = Math.atan2(3, 0.8); // heading into room
+        facing = Math.atan2(3, 0.8); // hướng vào phòng
       }
       ms = isMoving ? 100 : 8;
       pose = 'crouching';
     } else if (checkingCorners) {
-      // Move to corners, pause at each
+      // Di chuyển đến các góc, dừng ở mỗi góc
       const cornerT = (t - 6) / 4;
       const cornerIdx = Math.floor(cornerT * 3) % 3;
       const corners = [[-2, -0.5], [0, 1], [2, 0]];
@@ -764,16 +764,16 @@ export class DemoDataGenerator {
       const inTransit = (cornerT * 3) % 1 < 0.6;
       px = _lerp(corner[0], corners[(cornerIdx + 1) % 3][0], inTransit ? (cornerT * 3 % 1) / 0.6 : 0);
       pz = _lerp(corner[1], corners[(cornerIdx + 1) % 3][1], inTransit ? (cornerT * 3 % 1) / 0.6 : 0);
-      facing = inTransit ? Math.atan2(corners[(cornerIdx + 1) % 3][0] - corner[0], corners[(cornerIdx + 1) % 3][1] - corner[1]) : Math.sin(t * 3) * Math.PI; // scanning while paused
+      facing = inTransit ? Math.atan2(corners[(cornerIdx + 1) % 3][0] - corner[0], corners[(cornerIdx + 1) % 3][1] - corner[1]) : Math.sin(t * 3) * Math.PI; // quét khi dừng
       ms = inTransit ? 120 : 10;
       pose = 'crouching';
     } else if (settledSearch) {
-      // Oscillating near desk area, opening drawers
+      // Dao động gần khu bàn, mở ngăn kéo
       const searchT = t - 14;
       const deskX = 1.5, deskZ = -0.5;
-      px = deskX + Math.sin(searchT * 1.2) * 0.6; // back and forth along desk
+      px = deskX + Math.sin(searchT * 1.2) * 0.6; // đi đi lại lại dọc bàn
       pz = deskZ + Math.cos(searchT * 0.8) * 0.3;
-      // Periodic reaching motion (drawer open/close every ~2s)
+      // Cử động với tay định kỳ (mở/đóng ngăn kéo mỗi ~2 giây)
       const reaching = Math.sin(searchT * Math.PI) > 0.7;
       facing = reaching ? 0 : Math.PI * 0.5;
       ms = reaching ? 80 : 30;
@@ -785,7 +785,7 @@ export class DemoDataGenerator {
       ms = 12 + Math.abs(n.motion(t)) * 8;
       pose = 'standing';
     } else {
-      // 10-14: general room check
+      // 10-14: kiểm tra tổng quát phòng
       const checkT = (t - 10) / 4;
       px = -1 + Math.sin(checkT * Math.PI * 2) * 2;
       pz = Math.cos(checkT * Math.PI * 2) * 1.5;
@@ -826,7 +826,7 @@ export class DemoDataGenerator {
       signal_field: { grid_size: [20, 1, 20], values: entered ? this._presenceField(10 + px, 10 + pz, 2, t) : this._flatField(0.04 + Math.abs(doorPressure) * 0.06) },
       vital_signs: {
         breathing_rate_bpm: entered && !isMovingNow ? 20 + n.breath(t) : 0,
-        heart_rate_bpm: entered ? 90 + _harmonicNoise(t, 4.4, 2) * 5 : 0, // elevated from adrenaline
+        heart_rate_bpm: entered ? 90 + _harmonicNoise(t, 4.4, 2) * 5 : 0, // tăng cao do adrenaline
         breathing_confidence: entered && !isMovingNow ? 0.6 : 0,
         heart_rate_confidence: entered && !isMovingNow ? 0.4 : 0,
       },
@@ -846,13 +846,13 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 7. Gesture Control — distinct gesture signatures, recognition feedback
+  // 7. Điều Khiển Cử Chỉ — chữ ký cử chỉ riêng biệt, phản hồi nhận dạng
   // ========================================================================
 
   _gestureControl(t) {
     const n = _getNoiseBank('gesture_control');
 
-    const gestureCycle = 7; // seconds per gesture
+    const gestureCycle = 7; // giây mỗi cử chỉ
     const gesturePhase = Math.floor(t / gestureCycle) % 4;
     const gestures = ['wave', 'swipe_left', 'circle', 'point'];
     const gestureT = t % gestureCycle;
@@ -860,11 +860,11 @@ export class DemoDataGenerator {
     const gestureProgress = isGesturing ? (gestureT - 1.5) / 3.5 : 0;
     const gestureEnvelope = isGesturing ? Math.sin(gestureProgress * Math.PI) : 0;
 
-    // Recognition feedback: brief confidence spike when gesture completes (at ~80% progress)
+    // Phản hồi nhận dạng: đỉnh độ tin cậy ngắn khi cử chỉ hoàn thành (ở ~80% tiến trình)
     const recognitionMoment = isGesturing && gestureProgress > 0.75 && gestureProgress < 0.85;
     const recognitionBoost = recognitionMoment ? 0.15 : 0;
 
-    // Gesture-specific signal characteristics
+    // Đặc tính tín hiệu riêng theo từng cử chỉ
     let gestureSignal = 0;
     let dominantFreq = 0.2;
     let motionScore = 10;
@@ -874,23 +874,23 @@ export class DemoDataGenerator {
     if (isGesturing) {
       switch (g) {
         case 'wave':
-          // Fast oscillation (hand waving back and forth)
+          // Dao động nhanh (tay vẫy qua lại)
           gestureSignal = Math.sin(t * 14) * gestureEnvelope * 0.5
-            + Math.sin(t * 21) * gestureEnvelope * 0.2; // harmonics
+            + Math.sin(t * 21) * gestureEnvelope * 0.2; // sóng hài
           dominantFreq = 4.0 + _harmonicNoise(t, 6.6, 2) * 0.3;
           motionScore = 150 * gestureEnvelope;
           gestureDetail = { oscillation_hz: 7, amplitude: gestureEnvelope.toFixed(2) };
           break;
         case 'swipe_left':
-          // Clear directional shift: signal ramps in one direction
+          // Dịch chuyển hướng rõ ràng: tín hiệu tăng theo một hướng
           gestureSignal = (gestureProgress - 0.5) * 2 * gestureEnvelope * 0.6;
           dominantFreq = 2.0;
           motionScore = 180 * gestureEnvelope;
           gestureDetail = { direction: 'left', displacement: gestureSignal.toFixed(3) };
           break;
         case 'circle':
-          // Rotating phase pattern
-          const circleAngle = gestureProgress * Math.PI * 2 * 1.5; // 1.5 rotations
+          // Mẫu pha xoay
+          const circleAngle = gestureProgress * Math.PI * 2 * 1.5; // 1.5 vòng quay
           gestureSignal = Math.sin(circleAngle) * gestureEnvelope * 0.4;
           const phaseRotation = Math.cos(circleAngle) * gestureEnvelope * 0.4;
           dominantFreq = 3.0;
@@ -898,12 +898,12 @@ export class DemoDataGenerator {
           gestureDetail = { rotation_angle: (circleAngle * 180 / Math.PI).toFixed(0), phase_i: gestureSignal.toFixed(3), phase_q: phaseRotation.toFixed(3) };
           break;
         case 'point':
-          // Quick, decisive: sharp onset, brief hold, sharp offset
+          // Nhanh, dứt khoát: bắt đầu sắc, giữ ngắn, kết thúc sắc
           const pointEnvelope = gestureProgress < 0.2
-            ? _smoothstep(0, 0.2, gestureProgress) // fast rise
-            : (gestureProgress < 0.6 ? 1.0 : _smoothstep(1, 0.6, gestureProgress)); // hold then drop
+            ? _smoothstep(0, 0.2, gestureProgress) // tăng nhanh
+            : (gestureProgress < 0.6 ? 1.0 : _smoothstep(1, 0.6, gestureProgress)); // giữ rồi giảm
           gestureSignal = pointEnvelope * 0.55;
-          dominantFreq = 1.5; // lower freq, more impulse-like
+          dominantFreq = 1.5; // tần số thấp hơn, dạng xung nhiều hơn
           motionScore = 200 * pointEnvelope;
           gestureDetail = { sharpness: pointEnvelope > 0.9 ? 'locked' : 'transitioning' };
           break;
@@ -913,11 +913,11 @@ export class DemoDataGenerator {
     const amplitude = new Float32Array(64);
     for (let i = 0; i < 64; i++) {
       const base = 0.3 + _harmonicNoise(t, i * 0.13, 2) * 0.01;
-      // Each gesture affects subcarriers differently
+      // Mỗi cử chỉ ảnh hưởng sóng mang con khác nhau
       let gestMod = 0;
       if (isGesturing) {
         if (g === 'wave') gestMod = Math.sin(t * 14 + i * 0.5) * gestureEnvelope * 0.15;
-        else if (g === 'swipe_left') gestMod = gestureSignal * (i / 64) * 0.2; // gradient across band
+        else if (g === 'swipe_left') gestMod = gestureSignal * (i / 64) * 0.2; // gradient qua dải tần
         else if (g === 'circle') gestMod = Math.sin(t * 8 + i * 0.3) * gestureEnvelope * 0.12;
         else if (g === 'point') gestMod = gestureSignal * 0.2 * (i > 25 && i < 40 ? 1.5 : 0.5);
       }
@@ -963,31 +963,31 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 8. Crowd Occupancy — clustering, stationary person, rushing, entry/exit
+  // 8. Mật Độ Đám Đông — phân cụm, người đứng yên, lao nhanh, ra/vào
   // ========================================================================
 
   _crowdOccupancy(t) {
     const n = _getNoiseBank('crowd_occupancy');
 
-    // Points of interest for clustering
+    // Điểm quan tâm để phân cụm
     const poi = [
-      { x: -2, z: -1.5, label: 'display' },  // display/kiosk
-      { x: 2, z: 1, label: 'counter' },       // service counter
-      { x: 0, z: 0, label: 'center' },        // open area
+      { x: -2, z: -1.5, label: 'display' },  // quầy trưng bày/ki-ốt
+      { x: 2, z: 1, label: 'counter' },       // quầy phục vụ
+      { x: 0, z: 0, label: 'center' },        // khu vực trống
     ];
 
-    // 5 people with distinct behaviors
+    // 5 người với hành vi riêng biệt
     const persons = [];
     const count = 5;
 
-    // Person 0: sits stationary at desk
+    // Người 0: ngồi yên tại bàn
     {
       const px = -1.5 + n.pos1(t) * 0.02;
       const pz = 1.5 + n.pos2(t) * 0.02;
       persons.push({ id: 'p0', position: [px, 0, pz], motion_score: 3, pose: 'sitting', facing: Math.PI * 0.5 + _harmonicNoise(t, 11.1, 2) * 0.1 });
     }
 
-    // Person 1: browses near display (clusters near POI 0)
+    // Người 1: xem hàng gần quầy trưng bày (tụ quanh POI 0)
     {
       const browseT = t * 0.3;
       const px = poi[0].x + Math.sin(browseT) * 0.8 + _harmonicNoise(t, 12.1, 2) * 0.1;
@@ -996,7 +996,7 @@ export class DemoDataGenerator {
       persons.push({ id: 'p1', position: [px, 0, pz], motion_score: 40 + Math.abs(_harmonicNoise(t, 13.1, 2)) * 20, pose: 'walking', facing });
     }
 
-    // Person 2: rushes through (faster speed, enters and exits)
+    // Người 2: lao nhanh qua (tốc độ cao, vào rồi ra)
     {
       const rushCycle = 20;
       const rushT = t % rushCycle;
@@ -1010,7 +1010,7 @@ export class DemoDataGenerator {
       }
     }
 
-    // Person 3: walks between display and counter (clusters near POIs)
+    // Người 3: đi giữa quầy trưng bày và quầy phục vụ (tụ quanh các POI)
     {
       const walkT = t * 0.15;
       const poiIdx = Math.floor(walkT) % 2;
@@ -1026,7 +1026,7 @@ export class DemoDataGenerator {
       persons.push({ id: 'p3', position: [px, 0, pz], motion_score: nearPoi ? 15 : 100, pose: nearPoi ? 'standing' : 'walking', facing });
     }
 
-    // Person 4: enters/exits periodically
+    // Người 4: ra vào định kỳ
     {
       const cycleLen = 25;
       const ct = t % cycleLen;
@@ -1058,7 +1058,7 @@ export class DemoDataGenerator {
         + _harmonicNoise(t, i * 0.16, 2) * 0.015;
     }
 
-    // Signal field with congestion patterns around POIs
+    // Trường tín hiệu với mẫu tắc nghẽn quanh các POI
     const vals = [];
     for (let iz = 0; iz < 20; iz++) {
       for (let ix = 0; ix < 20; ix++) {
@@ -1068,7 +1068,7 @@ export class DemoDataGenerator {
           const dz = (iz - 10) / 3 - p.position[2];
           v += _gaussian(Math.sqrt(dx * dx + dz * dz), 0.9) * 0.4;
         }
-        // POI congestion haze
+        // Sương mù tắc nghẽn tại POI
         for (const p of poi) {
           const dx = (ix - 10) / 3 - p.x;
           const dz = (iz - 10) / 3 - p.z;
@@ -1102,7 +1102,7 @@ export class DemoDataGenerator {
             counter: persons.filter(p => Math.sqrt((p.position[0] - poi[1].x) ** 2 + (p.position[2] - poi[1].z) ** 2) < 2).length,
             center: persons.filter(p => Math.sqrt((p.position[0] - poi[2].x) ** 2 + (p.position[2] - poi[2].z) ** 2) < 2).length,
           },
-          density: (actualCount / 20).toFixed(2), // per sq meter
+          density: (actualCount / 20).toFixed(2), // trên mỗi mét vuông
           congestion_zones: actualCount > 3 ? ['display'] : [],
         },
         customer_flow: {
@@ -1115,19 +1115,19 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 9. Search & Rescue — scanning, false positives, triangulation, gradual lock-on
+  // 9. Tìm Kiếm Cứu Nạn — quét dò, dương tính giả, tam giác đạc, khóa dần
   // ========================================================================
 
   _searchRescue(t) {
     const n = _getNoiseBank('search_rescue');
 
-    // Timeline:
-    // 0-4: scanning phase (signal sweeps, no detection)
-    // 4-7: first false positive (ghost echo)
-    // 7-10: second scan, another brief false positive
-    // 10-14: genuine signal detected, gradual lock-on
-    // 14-20: confirmed detection, vital extraction (confidence building)
-    // 20+: stable monitoring
+    // Dòng thời gian:
+    // 0-4: giai đoạn quét dò (tín hiệu quét, chưa phát hiện)
+    // 4-7: dương tính giả đầu tiên (phản xạ ma)
+    // 7-10: quét lần hai, dương tính giả ngắn khác
+    // 10-14: phát hiện tín hiệu thật, khóa mục tiêu dần
+    // 14-20: xác nhận phát hiện, trích xuất dấu hiệu sinh tồn (độ tin cậy tăng dần)
+    // 20+: giám sát ổn định
 
     const scanning = t < 4;
     const falsePos1 = t >= 4 && t < 7;
@@ -1138,10 +1138,10 @@ export class DemoDataGenerator {
     const confirmed = t >= 14;
     const stableMonitor = t >= 20;
 
-    // Scan sweep effect (nodes cycle through angles)
+    // Hiệu ứng quét dò (các nút cảm biến xoay qua các góc)
     const scanAngle = t * 0.8;
 
-    // Triangulation: 3 sensor nodes with different signal strengths
+    // Tam giác đạc: 3 nút cảm biến với cường độ tín hiệu khác nhau
     const targetPos = [3.5, 0, 0];
     const nodePositions = [[2, 0, 1.5], [-2, 0, 1.5], [0, 0, -2]];
     const nodes = [];
@@ -1149,7 +1149,7 @@ export class DemoDataGenerator {
     for (let ni = 0; ni < 3; ni++) {
       const npos = nodePositions[ni];
       const dist = Math.sqrt((npos[0] - targetPos[0]) ** 2 + (npos[2] - targetPos[2]) ** 2);
-      const baseSignal = -62 - dist * 3; // signal attenuation with distance
+      const baseSignal = -62 - dist * 3; // suy hao tín hiệu theo khoảng cách
       const scanMod = scanning ? Math.sin(scanAngle + ni * 2.1) * 4 : 0;
       const falseSignal = (falsePos1 && ni === 0) ? Math.sin((t - 4) * 3) * 3 : 0;
       const genuineSignal = genuineDetect ? _smoothstep(10, 14, t) * 5 : 0;
@@ -1171,22 +1171,22 @@ export class DemoDataGenerator {
       });
     }
 
-    // Confidence builds gradually during lock-on
+    // Độ tin cậy tăng dần trong quá trình khóa mục tiêu
     let confidence;
     if (scanning) confidence = 0.08 + Math.abs(n.motion(t)) * 0.05;
-    else if (falsePos1) confidence = 0.25 + Math.sin((t - 4) * 2) * 0.15; // fluctuating
+    else if (falsePos1) confidence = 0.25 + Math.sin((t - 4) * 2) * 0.15; // dao động
     else if (scan2 && !falsePos2) confidence = 0.1;
     else if (falsePos2) confidence = 0.2 + Math.sin((t - 7) * 3) * 0.1;
     else if (lockingOn) confidence = 0.2 + _smoothstep(10, 14, t) * 0.3;
     else if (confirmed && !stableMonitor) confidence = 0.5 + _smoothstep(14, 20, t) * 0.2;
     else confidence = 0.7 + n.env(t) * 0.03;
 
-    // Vital sign extraction: gradual confidence over 10+ seconds after detection
+    // Trích xuất dấu hiệu sinh tồn: độ tin cậy tăng dần sau 10+ giây phát hiện
     const vitalConfidence = confirmed ? _smoothstep(14, 25, t) : 0;
     const breathRate = genuineDetect ? 10 + _harmonicNoise(t, 3.3, 2) * 0.5 : 0;
     const breathPhase = Math.sin(2 * Math.PI * (breathRate / 60) * t);
 
-    // Detected persons
+    // Người được phát hiện
     let detected = false;
     let triageColor = 'unknown';
     if (falsePos1) { detected = true; triageColor = 'unknown'; }
@@ -1241,19 +1241,19 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 10. Elderly Care — gait asymmetry, gradual transitions, rest & recover
+  // 10. Chăm Sóc Người Già — bất đối xứng dáng đi, chuyển tiếp dần, nghỉ & hồi phục
   // ========================================================================
 
   _elderlyCare(t) {
     const n = _getNoiseBank('elderly_care');
 
-    // Timeline:
-    // 0-12: walking with gait analysis
-    // 12-14: slowing down
-    // 14-16: reaching for chair (transitional)
-    // 16-18: sitting transition
-    // 18-24: resting (HR comes down)
-    // 24+: light activity while seated
+    // Dòng thời gian:
+    // 0-12: đi bộ với phân tích dáng đi
+    // 12-14: chậm dần
+    // 14-16: với tay lấy ghế (chuyển tiếp)
+    // 16-18: chuyển tiếp ngồi xuống
+    // 18-24: nghỉ ngơi (nhịp tim giảm dần)
+    // 24+: hoạt động nhẹ khi ngồi
 
     const walkPhase = t < 12;
     const slowingDown = t >= 12 && t < 14;
@@ -1262,16 +1262,16 @@ export class DemoDataGenerator {
     const resting = t >= 18 && t < 24;
     const seated = t >= 18;
 
-    // Walking speed decreases gradually
+    // Tốc độ đi giảm dần
     const walkSpeed = walkPhase ? 0.6 - _smoothstep(8, 12, t) * 0.2 : (slowingDown ? 0.3 * (1 - _smoothstep(12, 14, t)) : 0);
 
-    // Gait analysis: slight asymmetry in step timing (right step ~5% longer)
+    // Phân tích dáng đi: bất đối xứng nhẹ trong nhịp bước (chân phải dài hơn ~5%)
     const stepFreq = walkPhase ? 1.4 + _harmonicNoise(t, 1.1, 2) * 0.05 : 0;
     const stepPhaseR = Math.sin(2 * Math.PI * stepFreq * t);
-    const stepPhaseL = Math.sin(2 * Math.PI * stepFreq * t + Math.PI + 0.15); // asymmetry
+    const stepPhaseL = Math.sin(2 * Math.PI * stepFreq * t + Math.PI + 0.15); // bất đối xứng
     const stepAsymmetry = Math.abs(stepPhaseR) - Math.abs(stepPhaseL);
 
-    // Position
+    // Vị trí
     let px, pz, facing, ms, pose;
     if (walkPhase) {
       const wp = t * walkSpeed;
@@ -1289,7 +1289,7 @@ export class DemoDataGenerator {
       pose = 'walking';
     } else if (reachingChair) {
       const rp = _smoothstep(14, 16, t);
-      px = 1 + Math.sin(t * 2) * 0.05 * (1 - rp); // slight unsteadiness reaching
+      px = 1 + Math.sin(t * 2) * 0.05 * (1 - rp); // hơi loạng choạng khi với tay
       pz = -1.5;
       facing = Math.PI * 0.25;
       ms = 20 * (1 - rp);
@@ -1309,23 +1309,23 @@ export class DemoDataGenerator {
       pose = 'sitting';
     }
 
-    // Heart rate: walking ~82, elevated slightly from walking exertion,
-    // then gradually comes down during rest (physiological recovery)
+    // Nhịp tim: đi bộ ~82, tăng nhẹ do gắng sức khi đi,
+    // rồi giảm dần khi nghỉ (hồi phục sinh lý)
     let hrBase;
     if (walkPhase) hrBase = 82 + walkSpeed * 5;
     else if (slowingDown || reachingChair) hrBase = 78 - _smoothstep(12, 16, t) * 5;
-    else if (resting) hrBase = 73 - _smoothstep(18, 24, t) * 5; // slow recovery
+    else if (resting) hrBase = 73 - _smoothstep(18, 24, t) * 5; // hồi phục chậm
     else hrBase = 68;
     hrBase += n.hr(t) * 1.5;
 
-    // Breathing: correlated with HR
+    // Hơi thở: tương quan với nhịp tim
     let breathRate;
     if (walkPhase) breathRate = 18 + walkSpeed * 3;
     else if (seated) breathRate = 14 - _smoothstep(18, 24, t) * 2;
     else breathRate = 16;
     breathRate += n.breath(t) * 0.5;
 
-    // Blood pressure proxy: HR/breathing correlation
+    // Chỉ số gián tiếp huyết áp: tỷ lệ nhịp tim/hơi thở
     const hrBreathRatio = hrBase / breathRate;
 
     const amplitude = new Float32Array(64);
@@ -1381,83 +1381,83 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 11. Fitness Tracking — warm-up, intensity ramp, rest intervals, HR lag
+  // 11. Theo Dõi Thể Dục — khởi động, tăng cường độ, nghỉ giữa hiệp, trễ nhịp tim
   // ========================================================================
 
   _fitnessTracking(t) {
     const n = _getNoiseBank('fitness_tracking');
 
-    // Timeline:
-    // 0-3: warm-up (slow movements, gradually increasing)
-    // 3-9: jumping jacks (high intensity)
-    // 9-12: rest interval
-    // 12-18: squats (medium intensity)
-    // 18-21: rest interval
-    // 21-27: jumping jacks again (peak intensity)
-    // 27-30: cool-down
+    // Dòng thời gian:
+    // 0-3: khởi động (cử động chậm, tăng dần)
+    // 3-9: nhảy tại chỗ (cường độ cao)
+    // 9-12: nghỉ giữa hiệp
+    // 12-18: squat (cường độ trung bình)
+    // 18-21: nghỉ giữa hiệp
+    // 21-27: nhảy tại chỗ lần nữa (cường độ đỉnh)
+    // 27-30: hạ nhiệt
 
     const block = t % 30;
     let exerciseType = 'rest';
-    let targetIntensity = 0; // 0-1 target exertion
+    let targetIntensity = 0; // cường độ gắng sức mục tiêu 0-1
     let actualMotion = 0;
 
     if (block < 3) {
-      // Warm-up: ramp from 0 to 0.4
+      // Khởi động: tăng từ 0 đến 0.4
       exerciseType = 'warmup';
       targetIntensity = _smoothstep(0, 3, block) * 0.4;
       actualMotion = targetIntensity * 0.8;
     } else if (block < 9) {
-      // Jumping jacks
+      // Nhảy tại chỗ
       exerciseType = 'jumping_jacks';
       targetIntensity = 0.7 + _smoothstep(3, 5, block) * 0.2;
-      // Rhythmic motion with 2 Hz cadence
+      // Cử động nhịp nhàng với nhịp 2 Hz
       actualMotion = targetIntensity * (0.7 + 0.3 * Math.abs(Math.sin(t * Math.PI * 2)));
     } else if (block < 12) {
-      // Rest
+      // Nghỉ
       exerciseType = 'rest';
       targetIntensity = 0.1 * (1 - _smoothstep(9, 11, block));
-      actualMotion = 0.05 + Math.abs(n.motion(t)) * 0.03; // slight fidgeting
+      actualMotion = 0.05 + Math.abs(n.motion(t)) * 0.03; // nhúc nhích nhẹ
     } else if (block < 18) {
-      // Squats: slower, deeper movement
+      // Squat: chậm hơn, cử động sâu hơn
       exerciseType = 'squats';
       targetIntensity = 0.6 + _smoothstep(12, 14, block) * 0.15;
-      // Slower cadence (~0.5 Hz), smooth up/down
+      // Nhịp chậm hơn (~0.5 Hz), lên xuống mượt
       const squatPhase = Math.sin(t * Math.PI * 0.5);
       actualMotion = targetIntensity * (0.5 + 0.5 * Math.abs(squatPhase));
     } else if (block < 21) {
-      // Rest
+      // Nghỉ
       exerciseType = 'rest';
       targetIntensity = 0.1 * (1 - _smoothstep(18, 20, block));
       actualMotion = 0.05;
     } else if (block < 27) {
-      // Jumping jacks peak
+      // Nhảy tại chỗ đỉnh điểm
       exerciseType = 'jumping_jacks';
       targetIntensity = 0.85 + _smoothstep(21, 23, block) * 0.15;
       actualMotion = targetIntensity * (0.7 + 0.3 * Math.abs(Math.sin(t * Math.PI * 2.2)));
     } else {
-      // Cool-down
+      // Hạ nhiệt
       exerciseType = 'cooldown';
       targetIntensity = 0.3 * (1 - _smoothstep(27, 30, block));
       actualMotion = targetIntensity * 0.5;
     }
 
-    // HR lags behind exertion by ~5-8 seconds (physiological delay)
-    // Simulate with a slow-tracking variable
-    const hrTarget = 70 + targetIntensity * 90; // 70 rest -> 160 max
-    // IIR-filtered HR that follows target with delay
-    const hrLagFactor = 0.92; // higher = more lag
+    // Nhịp tim trễ sau gắng sức ~5-8 giây (trễ sinh lý)
+    // Mô phỏng với biến theo dõi chậm
+    const hrTarget = 70 + targetIntensity * 90; // 70 nghỉ -> 160 tối đa
+    // Nhịp tim lọc IIR theo dõi mục tiêu với trễ
+    const hrLagFactor = 0.92; // cao hơn = trễ nhiều hơn
     const hrDelayed = hrTarget + (70 - hrTarget) * Math.exp(-t * 0.15) * (exerciseType === 'rest' ? 0.5 : 0.2);
-    // Use harmonic noise to approximate the lag behavior in a stateless way
+    // Dùng nhiễu hài để xấp xỉ hành vi trễ một cách phi trạng thái
     const hrSmooth = hrTarget - _harmonicNoise(t - 3, 8.8, 2) * 5 * targetIntensity;
     const hrRate = _clamp(hrSmooth + n.hr(t) * 2, 60, 185);
 
-    // Breathing also lags but less
+    // Hơi thở cũng trễ nhưng ít hơn
     const breathTarget = 14 + targetIntensity * 20;
     const breathRate = _clamp(breathTarget + n.breath(t) * 1.5 - _harmonicNoise(t - 1, 9.9, 2) * 2, 12, 40);
 
     const repCount = Math.floor(t * (exerciseType === 'jumping_jacks' ? 1.0 : (exerciseType === 'squats' ? 0.25 : 0)));
 
-    // Vertical motion for exercises
+    // Cử động dọc cho bài tập
     const verticalPos = exerciseType === 'jumping_jacks'
       ? Math.abs(Math.sin(t * Math.PI * 2)) * 0.15
       : (exerciseType === 'squats' ? -Math.abs(Math.sin(t * Math.PI * 0.5)) * 0.3 : 0);
@@ -1515,19 +1515,19 @@ export class DemoDataGenerator {
   }
 
   // ========================================================================
-  // 12. Security Patrol — checkpoint pauses, speed variation, anomaly buildup
+  // 12. Tuần Tra An Ninh — dừng trạm kiểm tra, biến đổi tốc độ, tích lũy bất thường
   // ========================================================================
 
   _securityPatrol(t) {
     const n = _getNoiseBank('security_patrol');
 
-    // Patrol route: rectangular with checkpoint pauses at corners
-    const patrolSpeed = 0.18; // slightly slower for realism
-    const rawPatrolT = (t * patrolSpeed) % 1; // 0..1 around route
+    // Lộ trình tuần tra: hình chữ nhật với dừng kiểm tra tại các góc
+    const patrolSpeed = 0.18; // chậm hơn một chút cho thực tế
+    const rawPatrolT = (t * patrolSpeed) % 1; // 0..1 quanh lộ trình
 
-    // Checkpoint pauses: guard slows/pauses at each corner (0.25, 0.5, 0.75, 1.0)
-    // Remap rawPatrolT to account for pauses
-    const cornerDuration = 0.04; // proportion of circuit spent pausing at each corner
+    // Dừng trạm kiểm tra: lính canh chậm/dừng ở mỗi góc (0.25, 0.5, 0.75, 1.0)
+    // Ánh xạ lại rawPatrolT để tính đến các lần dừng
+    const cornerDuration = 0.04; // tỷ lệ vòng tuần dành cho dừng ở mỗi góc
     let patrolT = rawPatrolT;
     let atCheckpoint = false;
     let checkpointCorner = -1;
@@ -1543,7 +1543,7 @@ export class DemoDataGenerator {
       }
     }
 
-    // Speed variation: faster on long stretches, slower near corners
+    // Biến đổi tốc độ: nhanh hơn ở đoạn dài, chậm hơn gần các góc
     let px, pz, facing;
     if (patrolT < 0.25) {
       const p = patrolT / 0.25;
@@ -1559,23 +1559,23 @@ export class DemoDataGenerator {
       px = -3; pz = 2 - p * 4; facing = Math.PI * 1.5;
     }
 
-    // At checkpoint: guard looks around (facing oscillates)
+    // Tại trạm kiểm tra: lính canh nhìn xung quanh (hướng nhìn dao động)
     if (atCheckpoint) {
-      facing += Math.sin(t * 3) * 0.8; // scanning left-right
+      facing += Math.sin(t * 3) * 0.8; // quét trái-phải
     }
 
-    // Add natural movement noise
+    // Thêm nhiễu cử động tự nhiên
     px += n.pos1(t) * 0.05;
     pz += n.pos2(t) * 0.05;
 
     const guardSpeed = atCheckpoint ? 5 : (80 + _harmonicNoise(t, 10.1, 2) * 20);
     const zone = px > 0 ? (pz > 0 ? 'NE' : 'SE') : (pz > 0 ? 'NW' : 'SW');
 
-    // Anomaly: starts as faint signal, builds confidence, guard responds
+    // Bất thường: bắt đầu là tín hiệu mờ nhạt, tăng độ tin cậy, lính canh phản ứng
     const anomalyCycle = t % 25;
-    const anomalyFaint = anomalyCycle >= 14 && anomalyCycle < 17; // first hints
-    const anomalyBuilding = anomalyCycle >= 17 && anomalyCycle < 19; // confidence builds
-    const anomalyConfirmed = anomalyCycle >= 19 && anomalyCycle < 22; // confirmed, guard responds
+    const anomalyFaint = anomalyCycle >= 14 && anomalyCycle < 17; // dấu hiệu đầu tiên
+    const anomalyBuilding = anomalyCycle >= 17 && anomalyCycle < 19; // độ tin cậy tăng
+    const anomalyConfirmed = anomalyCycle >= 19 && anomalyCycle < 22; // xác nhận, lính canh phản ứng
     const anomalyActive = anomalyFaint || anomalyBuilding || anomalyConfirmed;
 
     let anomalyScore = 0;
@@ -1583,11 +1583,11 @@ export class DemoDataGenerator {
     else if (anomalyBuilding) anomalyScore = 0.35 + _smoothstep(17, 19, anomalyCycle) * 0.35;
     else if (anomalyConfirmed) anomalyScore = 0.7 + _smoothstep(19, 20, anomalyCycle) * 0.15;
 
-    // Anomaly position (opposite quadrant)
+    // Vị trí bất thường (góc phần tư đối diện)
     const ax = -px * 0.5 + Math.sin(t * 0.3) * 0.3;
     const az = -pz * 0.4 + Math.cos(t * 0.25) * 0.2;
 
-    // Guard changes path toward anomaly when confirmed
+    // Lính canh đổi hướng về phía bất thường khi xác nhận
     if (anomalyConfirmed) {
       const redirectStrength = _smoothstep(19, 20, anomalyCycle);
       px = _lerp(px, ax, redirectStrength * 0.4);
@@ -1674,11 +1674,11 @@ export class DemoDataGenerator {
     });
   }
 
-  // ---- Helpers ----
+  // ---- Trợ giúp ----
 
   _flatField(base) {
     const vals = [];
-    // Spatially coherent noise: smooth gradient + gentle ripple
+    // Nhiễu liên kết không gian: gradient mượt + gợn sóng nhẹ
     for (let iz = 0; iz < 20; iz++) {
       for (let ix = 0; ix < 20; ix++) {
         const gradient = Math.sin(ix * 0.3) * Math.sin(iz * 0.25) * 0.01;
@@ -1695,7 +1695,7 @@ export class DemoDataGenerator {
       for (let ix = 0; ix < 20; ix++) {
         const dx = ix - cx, dz = iz - cz;
         const d = Math.sqrt(dx * dx + dz * dz);
-        // Spatially coherent noise (smooth, not random per cell)
+        // Nhiễu liên kết không gian (mượt, không ngẫu nhiên từng ô)
         const noise = _harmonicNoise(t * 0.5 + ix * 0.4 + iz * 0.3, ix + iz * 20, 2) * 0.015;
         const v = _gaussian(d, radius) * 0.7 + noise;
         vals.push(_clamp(v, 0, 1));
@@ -1719,26 +1719,26 @@ export class DemoDataGenerator {
     return vals;
   }
 
-  /** Search & rescue field with scanning sweep and gradual target lock */
+  /** Trường tìm kiếm cứu nạn với quét xoay và khóa mục tiêu dần */
   _searchRescueField(t, scanning, detected, confidence) {
     const vals = [];
     const targetCx = 14, targetCz = 10;
     for (let iz = 0; iz < 20; iz++) {
       for (let ix = 0; ix < 20; ix++) {
         let v = 0;
-        // Scan sweep (rotating beam)
+        // Quét dò (chùm tia xoay)
         if (scanning) {
           const scanAngle = t * 0.8;
           const cellAngle = Math.atan2(iz - 10, ix - 10);
           const angleDiff = Math.abs(((cellAngle - scanAngle + Math.PI) % (2 * Math.PI)) - Math.PI);
           v += _gaussian(angleDiff, 0.5) * 0.15;
         }
-        // Target presence (gradually intensifying)
+        // Hiện diện mục tiêu (tăng cường dần)
         if (detected) {
           const d = Math.sqrt((ix - targetCx) ** 2 + (iz - targetCz) ** 2);
           v += _gaussian(d, 3.5 - confidence * 2) * confidence * 0.7;
         }
-        // Background noise
+        // Nhiễu nền
         v += _harmonicNoise(t * 0.3 + ix * 0.5 + iz * 0.6, ix + iz * 20, 2) * 0.01;
         vals.push(_clamp(v, 0, 1));
       }

@@ -1,4 +1,4 @@
-// PoseDetectionCanvas Component for WiFi-DensePose UI
+// Thành phần PoseDetectionCanvas cho WiFi-DensePose UI
 
 import { PoseRenderer } from '../utils/pose-renderer.js';
 import { poseService } from '../services/pose.service.js';
@@ -10,7 +10,7 @@ export class PoseDetectionCanvas {
     this.container = document.getElementById(containerId);
     
     if (!this.container) {
-      throw new Error(`Container with ID '${containerId}' not found`);
+      throw new Error(`Không tìm thấy container với ID '${containerId}'`);
     }
 
     this.config = {
@@ -43,15 +43,15 @@ export class PoseDetectionCanvas {
     this.logger = this.createLogger();
     this.unsubscribeFunctions = [];
     
-    // Initialize settings panel
+    // Khởi tạo bảng cài đặt
     this.settingsPanel = null;
 
-    // Pose trail state
+    // Trạng thái vệt tư thế
     this.poseTrail = [];
     this.showTrail = false;
     this.maxTrailLength = 10;
 
-    // Initialize component
+    // Khởi tạo thành phần
     this.initializeComponent();
   }
 
@@ -65,21 +65,21 @@ export class PoseDetectionCanvas {
   }
 
   initializeComponent() {
-    this.logger.info('Initializing PoseDetectionCanvas component', { containerId: this.containerId });
-    
-    // Create DOM structure
+    this.logger.info('Đang khởi tạo thành phần PoseDetectionCanvas', { containerId: this.containerId });
+
+    // Tạo cấu trúc DOM
     this.createDOMStructure();
-    
-    // Initialize canvas and renderer
+
+    // Khởi tạo canvas và bộ kết xuất
     this.initializeCanvas();
-    
-    // Set up event handlers
+
+    // Thiết lập bộ xử lý sự kiện
     this.setupEventHandlers();
-    
-    // Set up pose service subscription
+
+    // Thiết lập đăng ký dịch vụ tư thế
     this.setupPoseServiceSubscription();
 
-    this.logger.info('PoseDetectionCanvas component initialized successfully');
+    this.logger.info('Thành phần PoseDetectionCanvas đã khởi tạo thành công');
   }
 
   createDOMStructure() {
@@ -87,25 +87,25 @@ export class PoseDetectionCanvas {
       <div class="pose-detection-canvas-wrapper">
         <div class="pose-canvas-header">
           <div class="pose-canvas-title">
-            <h3>Human Pose Detection</h3>
+            <h3>Phát hiện Tư thế Con người</h3>
             <div class="connection-status">
               <span class="status-indicator" id="status-indicator-${this.containerId}"></span>
-              <span class="status-text" id="status-text-${this.containerId}">Disconnected</span>
+              <span class="status-text" id="status-text-${this.containerId}">Ngắt kết nối</span>
             </div>
           </div>
           <div class="pose-canvas-controls" id="controls-${this.containerId}" ${!this.config.enableControls ? 'style="display:none"' : ''}>
-            <button class="btn btn-start" id="start-btn-${this.containerId}">&#9654; Start</button>
-            <button class="btn btn-stop" id="stop-btn-${this.containerId}" disabled>&#9632; Stop</button>
-            <button class="btn btn-reconnect" id="reconnect-btn-${this.containerId}" disabled>&#8635; Reconnect</button>
+            <button class="btn btn-start" id="start-btn-${this.containerId}">&#9654; Bắt đầu</button>
+            <button class="btn btn-stop" id="stop-btn-${this.containerId}" disabled>&#9632; Dừng</button>
+            <button class="btn btn-reconnect" id="reconnect-btn-${this.containerId}" disabled>&#8635; Kết nối lại</button>
             <button class="btn btn-demo" id="demo-btn-${this.containerId}">&#9881; Demo</button>
             <select class="mode-select" id="mode-select-${this.containerId}">
-              <option value="skeleton">Skeleton</option>
-              <option value="keypoints">Keypoints</option>
-              <option value="heatmap">Heatmap</option>
-              <option value="dense">Dense</option>
+              <option value="skeleton">Bộ xương</option>
+              <option value="keypoints">Điểm khớp</option>
+              <option value="heatmap">Bản đồ nhiệt</option>
+              <option value="dense">Dày đặc</option>
             </select>
-            <button class="btn btn-trail" id="trail-btn-${this.containerId}">&#9676; Trail</button>
-            <button class="btn btn-settings" id="settings-btn-${this.containerId}">&#9881; Settings</button>
+            <button class="btn btn-trail" id="trail-btn-${this.containerId}">&#9676; Vệt</button>
+            <button class="btn btn-settings" id="settings-btn-${this.containerId}">&#9881; Cài đặt</button>
           </div>
         </div>
         <div class="pose-canvas-container">
@@ -118,7 +118,7 @@ export class PoseDetectionCanvas {
       </div>
     `;
 
-    // Add CSS styles
+    // Thêm kiểu CSS
     this.addComponentStyles();
   }
 
@@ -393,18 +393,18 @@ export class PoseDetectionCanvas {
     this.canvas.width = this.config.width;
     this.canvas.height = this.config.height;
 
-    // Initialize renderer
+    // Khởi tạo bộ kết xuất
     this.renderer = new PoseRenderer(this.canvas, {
       showDebugInfo: this.config.enableStats,
       mode: 'skeleton'
     });
 
-    this.logger.debug('Canvas and renderer initialized', { 
+    this.logger.debug('Canvas và bộ kết xuất đã khởi tạo', { 
       width: this.config.width, 
       height: this.config.height 
     });
 
-    // Handle auto-resize
+    // Xử lý tự động thay đổi kích thước
     if (this.config.autoResize) {
       this.setupAutoResize();
     }
@@ -417,7 +417,7 @@ export class PoseDetectionCanvas {
       const height = Math.round(width * 0.75); // 4:3 aspect ratio
       
       this.renderer.resize(width, height);
-      this.logger.debug('Canvas auto-resized', { width, height });
+      this.logger.debug('Canvas đã tự động thay đổi kích thước', { width, height });
     });
 
     resizeObserver.observe(this.container);
@@ -425,47 +425,47 @@ export class PoseDetectionCanvas {
   }
 
   setupEventHandlers() {
-    // Start button
+    // Nút bắt đầu
     const startBtn = document.getElementById(`start-btn-${this.containerId}`);
     startBtn.addEventListener('click', () => this.start());
 
-    // Stop button
+    // Nút dừng
     const stopBtn = document.getElementById(`stop-btn-${this.containerId}`);
     stopBtn.addEventListener('click', () => this.stop());
 
-    // Reconnect button
+    // Nút kết nối lại
     const reconnectBtn = document.getElementById(`reconnect-btn-${this.containerId}`);
     reconnectBtn.addEventListener('click', () => this.reconnect());
 
-    // Demo button
+    // Nút demo
     const demoBtn = document.getElementById(`demo-btn-${this.containerId}`);
     demoBtn.addEventListener('click', () => this.toggleDemo());
 
-    // Trail toggle button
+    // Nút bật/tắt vệt
     const trailBtn = document.getElementById(`trail-btn-${this.containerId}`);
     trailBtn.addEventListener('click', () => this.toggleTrail());
 
-    // Settings button
+    // Nút cài đặt
     const settingsBtn = document.getElementById(`settings-btn-${this.containerId}`);
     settingsBtn.addEventListener('click', () => this.showSettings());
 
-    // Mode selector
+    // Bộ chọn chế độ
     const modeSelect = document.getElementById(`mode-select-${this.containerId}`);
     modeSelect.addEventListener('change', (event) => {
       this.setRenderMode(event.target.value);
     });
 
-    this.logger.debug('Event handlers set up');
+    this.logger.debug('Đã thiết lập bộ xử lý sự kiện');
   }
 
   setupPoseServiceSubscription() {
-    // Subscribe to pose updates
+    // Đăng ký cập nhật tư thế
     const unsubscribePose = poseService.subscribeToPoseUpdates((update) => {
       this.handlePoseUpdate(update);
     });
 
     this.unsubscribeFunctions.push(unsubscribePose);
-    this.logger.debug('Pose service subscription set up');
+    this.logger.debug('Đã thiết lập đăng ký dịch vụ tư thế');
   }
 
   handlePoseUpdate(update) {
@@ -499,16 +499,16 @@ export class PoseDetectionCanvas {
 
         case 'error':
           this.setConnectionState('error');
-          this.showError(update.error?.message || 'Connection error');
+          this.showError(update.error?.message || 'Lỗi kết nối');
           this.notifyCallback('onError', update.error);
           break;
 
         default:
-          this.logger.debug('Unhandled pose update type', { type: update.type });
+          this.logger.debug('Loại cập nhật tư thế chưa xử lý', { type: update.type });
       }
     } catch (error) {
-      this.logger.error('Error handling pose update', { error: error.message, update });
-      this.showError(`Update error: ${error.message}`);
+      this.logger.error('Lỗi xử lý cập nhật tư thế', { error: error.message, update });
+      this.showError(`Lỗi cập nhật: ${error.message}`);
     }
   }
 
@@ -518,14 +518,14 @@ export class PoseDetectionCanvas {
     }
 
     try {
-      // Render trail before the current frame if enabled
+      // Kết xuất vệt trước khung hình hiện tại nếu được bật
       if (this.showTrail && this.poseTrail.length > 1) {
-        // The renderer.render() clears the canvas, so we render trail
-        // by hooking into the renderer's canvas context after clear.
-        // We override the render flow: clear, trail, then current.
+        // Bộ kết xuất renderer.render() xóa canvas, nên chúng ta kết xuất vệt
+        // bằng cách can thiệp vào ngữ cảnh canvas của bộ kết xuất sau khi xóa.
+        // Chúng ta ghi đè luồng kết xuất: xóa, vệt, rồi hiện tại.
         this.renderer.clearCanvas();
         this.renderTrail(this.renderer.ctx);
-        // Now render current frame without clearing again
+        // Bây giờ kết xuất khung hình hiện tại mà không xóa lại
         this.renderCurrentFrameNoClean(poseData);
       } else {
         this.renderer.render(poseData, {
@@ -534,14 +534,14 @@ export class PoseDetectionCanvas {
         });
       }
     } catch (error) {
-      this.logger.error('Render error', { error: error.message });
-      this.showError(`Render error: ${error.message}`);
+      this.logger.error('Lỗi kết xuất', { error: error.message });
+      this.showError(`Lỗi kết xuất: ${error.message}`);
     }
   }
 
   renderCurrentFrameNoClean(poseData) {
-    // Call the renderer's render logic without clearing the canvas.
-    // We temporarily stub clearCanvas, render, then restore.
+    // Gọi logic kết xuất của bộ kết xuất mà không xóa canvas.
+    // Chúng ta tạm thời thay thế clearCanvas, kết xuất, rồi khôi phục.
     const origClear = this.renderer.clearCanvas.bind(this.renderer);
     this.renderer.clearCanvas = () => {}; // no-op
     try {
@@ -556,7 +556,7 @@ export class PoseDetectionCanvas {
 
   setConnectionState(state) {
     if (this.state.connectionState !== state) {
-      this.logger.debug('Connection state changed', { from: this.state.connectionState, to: state });
+      this.logger.debug('Trạng thái kết nối đã thay đổi', { from: this.state.connectionState, to: state });
       this.state.connectionState = state;
       this.updateConnectionIndicator();
       this.updateControls();
@@ -601,15 +601,15 @@ export class PoseDetectionCanvas {
     const persons = this.state.lastPoseData?.persons?.length || 0;
     const zones = Object.keys(this.state.lastPoseData?.zone_summary || {}).length;
 
-    // Use textContent instead of innerHTML to prevent XSS
+    // Dùng textContent thay vì innerHTML để ngăn XSS
     statsEl.textContent = '';
     const lines = [
-      `Connection: ${this.state.connectionState}`,
-      `Frames: ${this.state.frameCount}`,
+      `Kết nối: ${this.state.connectionState}`,
+      `Khung hình: ${this.state.frameCount}`,
       `FPS: ${fps.toFixed(1)}`,
-      `Persons: ${persons}`,
-      `Zones: ${zones}`,
-      `Uptime: ${uptime}s`
+      `Số người: ${persons}`,
+      `Vùng: ${zones}`,
+      `Thời gian: ${uptime}s`
     ];
     lines.forEach((line, index) => {
       if (index > 0) {
@@ -627,7 +627,7 @@ export class PoseDetectionCanvas {
       errorEl.textContent = message;
       errorEl.style.display = 'block';
     }
-    this.logger.error('Component error', { message });
+    this.logger.error('Lỗi thành phần', { message });
   }
 
   clearError() {
@@ -638,10 +638,10 @@ export class PoseDetectionCanvas {
     }
   }
 
-  // Public API methods
+  // Các phương thức API công khai
   async start() {
     try {
-      this.logger.info('Starting pose detection');
+      this.logger.info('Bắt đầu phát hiện tư thế');
       this.state.isActive = true;
       this.state.frameCount = 0;
       this.state.startTime = Date.now();
@@ -656,19 +656,19 @@ export class PoseDetectionCanvas {
       });
 
       this.notifyCallback('onStateChange', { isActive: true });
-      this.logger.info('Pose detection started successfully');
+      this.logger.info('Phát hiện tư thế đã bắt đầu thành công');
     } catch (error) {
-      this.logger.error('Failed to start pose detection', { error: error.message });
+      this.logger.error('Bắt đầu phát hiện tư thế thất bại', { error: error.message });
       this.state.isActive = false;
       this.updateControls();
-      this.showError(`Failed to start: ${error.message}`);
+      this.showError(`Bắt đầu thất bại: ${error.message}`);
       this.notifyCallback('onError', error);
     }
   }
 
   stop() {
     try {
-      this.logger.info('Stopping pose detection');
+      this.logger.info('Dừng phát hiện tư thế');
       this.state.isActive = false;
       
       poseService.stopPoseStream();
@@ -676,56 +676,56 @@ export class PoseDetectionCanvas {
       this.clearError();
       this.updateControls();
 
-      // Clear canvas
+      // Xóa canvas
       if (this.renderer) {
         this.renderer.clearCanvas();
       }
 
       this.notifyCallback('onStateChange', { isActive: false });
-      this.logger.info('Pose detection stopped');
+      this.logger.info('Đã dừng phát hiện tư thế');
     } catch (error) {
-      this.logger.error('Error stopping pose detection', { error: error.message });
-      this.showError(`Stop error: ${error.message}`);
+      this.logger.error('Lỗi khi dừng phát hiện tư thế', { error: error.message });
+      this.showError(`Lỗi dừng: ${error.message}`);
     }
   }
 
   async reconnect() {
     try {
-      this.logger.info('Reconnecting pose stream');
+      this.logger.info('Đang kết nối lại luồng tư thế');
       await poseService.reconnectStream();
     } catch (error) {
-      this.logger.error('Reconnection failed', { error: error.message });
-      this.showError(`Reconnection failed: ${error.message}`);
+      this.logger.error('Kết nối lại thất bại', { error: error.message });
+      this.showError(`Kết nối lại thất bại: ${error.message}`);
     }
   }
 
   setRenderMode(mode) {
     if (this.renderer) {
       this.renderer.setMode(mode);
-      this.logger.info('Render mode changed', { mode });
+      this.logger.info('Chế độ kết xuất đã thay đổi', { mode });
     }
   }
 
-  // --- Pose Trail Methods ---
+  // --- Phương thức Vệt Tư thế ---
 
   toggleTrail() {
     this.showTrail = !this.showTrail;
     const trailBtn = document.getElementById(`trail-btn-${this.containerId}`);
     if (trailBtn) {
       trailBtn.classList.toggle('active', this.showTrail);
-      trailBtn.textContent = this.showTrail ? '\u25CB Trail On' : '\u25CB Trail';
+      trailBtn.textContent = this.showTrail ? '\u25CB Vệt Bật' : '\u25CB Vệt';
     }
     if (!this.showTrail) {
       this.poseTrail = [];
     }
-    this.logger.info('Trail toggled', { showTrail: this.showTrail });
+    this.logger.info('Đã bật/tắt vệt', { showTrail: this.showTrail });
   }
 
   updateTrail(poseData) {
     if (!this.showTrail) return;
     if (!poseData || !poseData.persons || poseData.persons.length === 0) return;
 
-    // Deep clone the keypoints from all persons for this frame
+    // Nhân bản sâu các điểm khớp từ tất cả người cho khung hình này
     const frameKeypoints = poseData.persons.map(person => {
       if (!person.keypoints) return null;
       return person.keypoints.map(kp => ({
@@ -748,7 +748,7 @@ export class PoseDetectionCanvas {
 
     const totalFrames = this.poseTrail.length;
 
-    // Keypoint color palette (same as renderer's body part colors)
+    // Bảng màu điểm khớp (giống màu bộ phận cơ thể của bộ kết xuất)
     const kpColors = [
       '#ff0000', '#ff4500', '#ffa500', '#ffff00', '#adff2f',
       '#00ff00', '#00ff7f', '#00ffff', '#0080ff', '#0000ff',
@@ -756,8 +756,8 @@ export class PoseDetectionCanvas {
       '#ff8080', '#ffb380'
     ];
 
-    // Render ghosted keypoints and trajectory lines for each frame in the trail
-    // (skip the last frame since it's the current one rendered by the normal pipeline)
+    // Kết xuất điểm khớp mờ và đường quỹ đạo cho mỗi khung hình trong vệt
+    // (bỏ qua khung hình cuối vì nó được kết xuất bởi pipeline bình thường)
     for (let frameIdx = 0; frameIdx < totalFrames - 1; frameIdx++) {
       const alpha = 0.1 + (frameIdx / totalFrames) * 0.7;
       const framePersons = this.poseTrail[frameIdx];
@@ -773,14 +773,14 @@ export class PoseDetectionCanvas {
           const y = this.renderer.scaleY(kp.y);
           const color = kpColors[kpIdx % kpColors.length];
 
-          // Draw ghosted keypoint dot
+          // Vẽ chấm điểm khớp mờ
           ctx.globalAlpha = alpha * 0.6;
           ctx.fillStyle = color;
           ctx.beginPath();
           ctx.arc(x, y, 2.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Draw trajectory line to same keypoint in next frame
+          // Vẽ đường quỹ đạo tới cùng điểm khớp trong khung hình tiếp theo
           if (nextFramePersons && nextFramePersons[personIdx]) {
             const nextKp = nextFramePersons[personIdx][kpIdx];
             if (nextKp && nextKp.confidence > 0.1) {
@@ -800,11 +800,11 @@ export class PoseDetectionCanvas {
       });
     }
 
-    // Reset alpha
+    // Đặt lại alpha
     ctx.globalAlpha = 1.0;
   }
 
-  // Toggle demo mode
+  // Bật/tắt chế độ demo
   toggleDemo() {
     if (this.demoState && this.demoState.isRunning) {
       this.stopDemo();
@@ -815,14 +815,14 @@ export class PoseDetectionCanvas {
     }
   }
 
-  // Demo mode - renders animated test pose data
+  // Chế độ demo - kết xuất dữ liệu tư thế thử nghiệm hoạt hình
   runDemo() {
-    this.logger.info('Running animated demo mode');
-    
-    // Stop any existing demo animation
+    this.logger.info('Chạy chế độ demo hoạt hình');
+
+    // Dừng hoạt hình demo hiện có
     this.stopDemo();
     
-    // Force enable all visual elements for demo
+    // Buộc bật tất cả phần tử trực quan cho demo
     this.originalConfig = { ...this.renderer.config };
     this.renderer.updateConfig({
       showKeypoints: true,
@@ -833,7 +833,7 @@ export class PoseDetectionCanvas {
       keypointConfidenceThreshold: 0.1
     });
 
-    // Initialize animation state
+    // Khởi tạo trạng thái hoạt hình
     this.demoState = {
       isRunning: true,
       frameCount: 0,
@@ -845,11 +845,11 @@ export class PoseDetectionCanvas {
       }
     };
     
-    // Start animation loop
+    // Bắt đầu vòng lặp hoạt hình
     this.startDemoAnimation();
-    
-    // Show demo notification
-    this.showDemoNotification('🎭 Animated Demo Active - Walking, Waving & Dancing');
+
+    // Hiện thông báo demo
+    this.showDemoNotification('🎭 Demo Hoạt hình Đang chạy - Đi bộ, Vẫy tay & Nhảy');
   }
 
   stopDemo() {
@@ -861,18 +861,18 @@ export class PoseDetectionCanvas {
       if (this.originalConfig) {
         this.renderer.updateConfig(this.originalConfig);
       }
-      // Clear canvas
+      // Xóa canvas
       if (this.renderer) {
         this.renderer.clearCanvas();
       }
-      this.logger.info('Demo stopped');
+      this.logger.info('Đã dừng demo');
     }
   }
 
   updateDemoButton(isRunning) {
     const demoBtn = document.getElementById(`demo-btn-${this.containerId}`);
     if (demoBtn) {
-      demoBtn.textContent = isRunning ? 'Stop Demo' : 'Demo';
+      demoBtn.textContent = isRunning ? 'Dừng Demo' : 'Demo';
       demoBtn.style.background = isRunning ? '#dc3545' : '#6f42c1';
       demoBtn.style.borderColor = isRunning ? '#dc3545' : '#6f42c1';
     }
@@ -884,20 +884,20 @@ export class PoseDetectionCanvas {
     this.demoState.frameCount++;
     const elapsed = (Date.now() - this.demoState.startTime) / 1000;
     
-    // Generate animated pose data
+    // Tạo dữ liệu tư thế hoạt hình
     const animatedPoseData = this.generateAnimatedPoseData(elapsed);
     
-    // Render the animated data
+    // Kết xuất dữ liệu hoạt hình
     this.renderPoseData(animatedPoseData);
     
-    // Continue animation
+    // Tiếp tục hoạt hình
     this.demoAnimationFrame = requestAnimationFrame(() => this.startDemoAnimation());
   }
 
   generateAnimatedPoseData(time) {
     const persons = [];
     
-    // Person 1: Walking animation
+    // Người 1: Hoạt hình đi bộ
     const person1 = this.generateWalkingPerson(
       this.demoState.animations.person1.centerX,
       this.demoState.animations.person1.centerY,
@@ -905,7 +905,7 @@ export class PoseDetectionCanvas {
     );
     persons.push(person1);
     
-    // Person 2: Waving animation
+    // Người 2: Hoạt hình vẫy tay
     const person2 = this.generateWavingPerson(
       this.demoState.animations.person2.centerX,
       this.demoState.animations.person2.centerY,
@@ -913,7 +913,7 @@ export class PoseDetectionCanvas {
     );
     persons.push(person2);
     
-    // Person 3: Dancing animation
+    // Người 3: Hoạt hình nhảy
     const person3 = this.generateDancingPerson(
       this.demoState.animations.person3.centerX,
       this.demoState.animations.person3.centerY,
@@ -938,40 +938,40 @@ export class PoseDetectionCanvas {
   }
 
   generateWalkingPerson(centerX, centerY, time) {
-    // Walking cycle parameters
+    // Thông số chu kỳ đi bộ
     const walkCycle = Math.sin(time) * 0.3;
     const stepPhase = Math.sin(time * 2) * 0.2;
     
-    // Base keypoint positions for walking
+    // Vị trí điểm khớp cơ bản cho đi bộ
     const keypoints = [
-      // Head (nose, eyes, ears) - slight bob
+      // Đầu (mũi, mắt, tai) - lắc nhẹ
       { x: centerX, y: centerY - 80 + Math.sin(time * 4) * 2, confidence: 0.95 },
       { x: centerX - 8, y: centerY - 85 + Math.sin(time * 4) * 2, confidence: 0.92 },
       { x: centerX + 8, y: centerY - 85 + Math.sin(time * 4) * 2, confidence: 0.93 },
       { x: centerX - 15, y: centerY - 82 + Math.sin(time * 4) * 2, confidence: 0.88 },
       { x: centerX + 15, y: centerY - 82 + Math.sin(time * 4) * 2, confidence: 0.89 },
       
-      // Shoulders - subtle movement
+      // Vai - chuyển động nhẹ
       { x: centerX - 35 + walkCycle * 5, y: centerY - 40 + Math.sin(time * 4) * 1, confidence: 0.94 },
       { x: centerX + 35 - walkCycle * 5, y: centerY - 40 + Math.sin(time * 4) * 1, confidence: 0.95 },
       
-      // Elbows - arm swing
+      // Khuỷu tay - vung tay
       { x: centerX - 25 + walkCycle * 20, y: centerY + 10 + walkCycle * 10, confidence: 0.91 },
       { x: centerX + 25 - walkCycle * 20, y: centerY + 10 - walkCycle * 10, confidence: 0.92 },
       
-      // Wrists - follow elbows
+      // Cổ tay - theo khuỷu tay
       { x: centerX - 15 + walkCycle * 25, y: centerY + 55 + walkCycle * 15, confidence: 0.87 },
       { x: centerX + 15 - walkCycle * 25, y: centerY + 55 - walkCycle * 15, confidence: 0.88 },
       
-      // Hips - slight movement
+      // Hông - chuyển động nhẹ
       { x: centerX - 18 + walkCycle * 3, y: centerY + 60, confidence: 0.96 },
       { x: centerX + 18 - walkCycle * 3, y: centerY + 60, confidence: 0.96 },
       
-      // Knees - walking motion
+      // Đầu gối - chuyển động đi bộ
       { x: centerX - 20 + stepPhase * 15, y: centerY + 120 - Math.abs(stepPhase) * 10, confidence: 0.93 },
       { x: centerX + 20 - stepPhase * 15, y: centerY + 120 - Math.abs(-stepPhase) * 10, confidence: 0.94 },
       
-      // Ankles - foot placement
+      // Mắt cá chân - vị trí đặt chân
       { x: centerX - 22 + stepPhase * 20, y: centerY + 180, confidence: 0.90 },
       { x: centerX + 22 - stepPhase * 20, y: centerY + 180, confidence: 0.91 }
     ];
@@ -987,39 +987,39 @@ export class PoseDetectionCanvas {
   }
 
   generateWavingPerson(centerX, centerY, time) {
-    // Waving parameters
+    // Tham số vẫy tay
     const wavePhase = Math.sin(time) * 0.8;
     const armWave = Math.sin(time * 1.5) * 30;
     
     const keypoints = [
-      // Head - stable
+      // Đầu - ổn định
       { x: centerX, y: centerY - 80, confidence: 0.96 },
       { x: centerX - 8, y: centerY - 85, confidence: 0.94 },
       { x: centerX + 8, y: centerY - 85, confidence: 0.94 },
       { x: centerX - 15, y: centerY - 82, confidence: 0.90 },
       { x: centerX + 15, y: centerY - 82, confidence: 0.91 },
       
-      // Shoulders
+      // Vai
       { x: centerX - 35, y: centerY - 40, confidence: 0.95 },
       { x: centerX + 35, y: centerY - 40, confidence: 0.95 },
-      
-      // Elbows - left arm stable, right arm waving
+
+      // Khuỷu tay - tay trái ổn định, tay phải vẫy
       { x: centerX - 55, y: centerY + 10, confidence: 0.92 },
       { x: centerX + 65 + armWave * 0.3, y: centerY - 10 - Math.abs(armWave) * 0.5, confidence: 0.93 },
       
-      // Wrists - dramatic wave motion
+      // Cổ tay - chuyển động vẫy mạnh
       { x: centerX - 60, y: centerY + 60, confidence: 0.88 },
       { x: centerX + 45 + armWave, y: centerY - 30 - Math.abs(armWave) * 0.8, confidence: 0.89 },
       
-      // Hips - stable
+      // Hông - ổn định
       { x: centerX - 18, y: centerY + 60, confidence: 0.97 },
       { x: centerX + 18, y: centerY + 60, confidence: 0.97 },
       
-      // Knees - slight movement
+      // Đầu gối - chuyển động nhẹ
       { x: centerX - 20, y: centerY + 120 + Math.sin(time * 0.5) * 5, confidence: 0.94 },
       { x: centerX + 20, y: centerY + 120 + Math.sin(time * 0.5) * 5, confidence: 0.95 },
       
-      // Ankles - stable
+      // Mắt cá chân - ổn định
       { x: centerX - 22, y: centerY + 180, confidence: 0.92 },
       { x: centerX + 22, y: centerY + 180, confidence: 0.93 }
     ];
@@ -1035,41 +1035,41 @@ export class PoseDetectionCanvas {
   }
 
   generateDancingPerson(centerX, centerY, time) {
-    // Dancing parameters - more complex movement
+    // Tham số nhảy - chuyển động phức tạp hơn
     const dancePhase1 = Math.sin(time * 1.2) * 0.6;
     const dancePhase2 = Math.cos(time * 1.8) * 0.4;
     const bodyBob = Math.sin(time * 3) * 8;
     const hipSway = Math.sin(time * 1.5) * 15;
     
     const keypoints = [
-      // Head - dancing bob
+      // Đầu - lắc nhảy
       { x: centerX + dancePhase1 * 5, y: centerY - 80 + bodyBob, confidence: 0.96 },
       { x: centerX - 8 + dancePhase1 * 5, y: centerY - 85 + bodyBob, confidence: 0.94 },
       { x: centerX + 8 + dancePhase1 * 5, y: centerY - 85 + bodyBob, confidence: 0.94 },
       { x: centerX - 15 + dancePhase1 * 5, y: centerY - 82 + bodyBob, confidence: 0.90 },
       { x: centerX + 15 + dancePhase1 * 5, y: centerY - 82 + bodyBob, confidence: 0.91 },
       
-      // Shoulders - dance movement
+      // Vai - chuyển động nhảy
       { x: centerX - 35 + dancePhase1 * 10, y: centerY - 40 + bodyBob * 0.5, confidence: 0.95 },
       { x: centerX + 35 + dancePhase2 * 10, y: centerY - 40 + bodyBob * 0.5, confidence: 0.95 },
       
-      // Elbows - both arms dancing
+      // Khuỷu tay - cả hai tay nhảy
       { x: centerX - 45 + dancePhase1 * 25, y: centerY + 0 + dancePhase1 * 20, confidence: 0.92 },
       { x: centerX + 45 + dancePhase2 * 25, y: centerY + 0 + dancePhase2 * 20, confidence: 0.93 },
       
-      // Wrists - expressive arm movements
+      // Cổ tay - chuyển động tay biểu cảm
       { x: centerX - 40 + dancePhase1 * 35, y: centerY + 50 + dancePhase1 * 30, confidence: 0.88 },
       { x: centerX + 40 + dancePhase2 * 35, y: centerY + 50 + dancePhase2 * 30, confidence: 0.89 },
       
-      // Hips - dancing sway
+      // Hông - lắc nhảy
       { x: centerX - 18 + hipSway * 0.3, y: centerY + 60 + bodyBob * 0.3, confidence: 0.97 },
       { x: centerX + 18 + hipSway * 0.3, y: centerY + 60 + bodyBob * 0.3, confidence: 0.97 },
       
-      // Knees - dancing steps
+      // Đầu gối - bước nhảy
       { x: centerX - 20 + hipSway * 0.5 + Math.sin(time * 2.5) * 10, y: centerY + 120 + Math.abs(Math.sin(time * 2.5)) * 15, confidence: 0.94 },
       { x: centerX + 20 + hipSway * 0.5 + Math.cos(time * 2.5) * 10, y: centerY + 120 + Math.abs(Math.cos(time * 2.5)) * 15, confidence: 0.95 },
       
-      // Ankles - feet positioning
+      // Mắt cá chân - vị trí bàn chân
       { x: centerX - 22 + hipSway * 0.6 + Math.sin(time * 2.5) * 12, y: centerY + 180, confidence: 0.92 },
       { x: centerX + 22 + hipSway * 0.6 + Math.cos(time * 2.5) * 12, y: centerY + 180, confidence: 0.93 }
     ];
@@ -1105,27 +1105,27 @@ export class PoseDetectionCanvas {
   }
 
   generateDemoKeypoints(centerX, centerY) {
-    // COCO keypoint order: nose, left_eye, right_eye, left_ear, right_ear,
-    // left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist,
-    // left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle
+    // Thứ tự điểm khớp COCO: mũi, mắt_trái, mắt_phải, tai_trái, tai_phải,
+    // vai_trái, vai_phải, khuỷu_tay_trái, khuỷu_tay_phải, cổ_tay_trái, cổ_tay_phải,
+    // hông_trái, hông_phải, đầu_gối_trái, đầu_gối_phải, mắt_cá_chân_trái, mắt_cá_chân_phải
     const offsets = [
-      [0, -80],     // nose
-      [-10, -90],   // left_eye
-      [10, -90],    // right_eye
-      [-20, -85],   // left_ear
-      [20, -85],    // right_ear
-      [-40, -40],   // left_shoulder
-      [40, -40],    // right_shoulder
-      [-60, 10],    // left_elbow
-      [60, 10],     // right_elbow
-      [-65, 60],    // left_wrist
-      [65, 60],     // right_wrist
-      [-20, 60],    // left_hip
-      [20, 60],     // right_hip
-      [-25, 120],   // left_knee
-      [25, 120],    // right_knee
-      [-25, 180],   // left_ankle
-      [25, 180]     // right_ankle
+      [0, -80],     // mũi
+      [-10, -90],   // mắt_trái
+      [10, -90],    // mắt_phải
+      [-20, -85],   // tai_trái
+      [20, -85],    // tai_phải
+      [-40, -40],   // vai_trái
+      [40, -40],    // vai_phải
+      [-60, 10],    // khuỷu_tay_trái
+      [60, 10],     // khuỷu_tay_phải
+      [-65, 60],    // cổ_tay_trái
+      [65, 60],     // cổ_tay_phải
+      [-20, 60],    // hông_trái
+      [20, 60],     // hông_phải
+      [-25, 120],   // đầu_gối_trái
+      [25, 120],    // đầu_gối_phải
+      [-25, 180],   // mắt_cá_chân_trái
+      [25, 180]     // mắt_cá_chân_phải
     ];
     
     return offsets.map(([dx, dy]) => ({
@@ -1135,7 +1135,7 @@ export class PoseDetectionCanvas {
     }));
   }
 
-  showDemoNotification(message = '🎭 Demo Mode Active') {
+  showDemoNotification(message = '🎭 Chế độ Demo Đang hoạt động') {
     const notification = document.createElement('div');
     notification.style.cssText = `
       position: absolute;
@@ -1154,13 +1154,13 @@ export class PoseDetectionCanvas {
     
     const overlay = document.getElementById(`overlay-${this.containerId}`);
     
-    // Remove any existing notifications
+    // Xóa thông báo hiện có
     const existingNotifications = overlay.querySelectorAll('div[style*="background: rgba(111, 66, 193"]');
     existingNotifications.forEach(n => n.remove());
     
     overlay.appendChild(notification);
     
-    // Remove notification after 3 seconds
+    // Xóa thông báo sau 3 giây
     setTimeout(() => {
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
@@ -1168,7 +1168,7 @@ export class PoseDetectionCanvas {
     }, 3000);
   }
 
-  // Configuration methods
+  // Các phương thức cấu hình
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
     
@@ -1176,10 +1176,10 @@ export class PoseDetectionCanvas {
       this.renderer.updateConfig(newConfig);
     }
     
-    this.logger.debug('Component configuration updated', { config: this.config });
+    this.logger.debug('Đã cập nhật cấu hình thành phần', { config: this.config });
   }
 
-  // Callback management
+  // Quản lý callback
   setCallback(eventName, callback) {
     if (eventName in this.callbacks) {
       this.callbacks[eventName] = callback;
@@ -1191,12 +1191,12 @@ export class PoseDetectionCanvas {
       try {
         this.callbacks[eventName](data);
       } catch (error) {
-        this.logger.error('Callback error', { eventName, error: error.message });
+        this.logger.error('Lỗi callback', { eventName, error: error.message });
       }
     }
   }
 
-  // Utility methods
+  // Các phương thức tiện ích
   getState() {
     return { ...this.state };
   }
@@ -1209,16 +1209,16 @@ export class PoseDetectionCanvas {
     return this.renderer ? this.renderer.exportFrame(format) : null;
   }
 
-  // Test method for debugging
+  // Phương thức kiểm tra để gỡ lỗi
   renderTestShape() {
     if (this.renderer) {
       this.renderer.renderTestShape();
     }
   }
 
-  // Show settings modal
+  // Hiển thị modal cài đặt
   showSettings() {
-    this.logger.info('Opening settings modal');
+    this.logger.info('Đang mở modal cài đặt');
     
     if (!this.settingsPanel) {
       this.createSettingsModal();
@@ -1228,7 +1228,7 @@ export class PoseDetectionCanvas {
   }
 
   createSettingsModal() {
-    // Create a temporary container for the settings panel
+    // Tạo container tạm thời cho bảng cài đặt
     const modalContainer = document.createElement('div');
     modalContainer.id = `settings-modal-${this.containerId}`;
     modalContainer.className = 'settings-modal-wrapper';
@@ -1236,11 +1236,11 @@ export class PoseDetectionCanvas {
       <div class="settings-modal-overlay">
         <div class="settings-modal-dialog">
           <div class="settings-modal-header">
-            <h2>⚙️ Pose Detection Settings</h2>
+            <h2>⚙️ Cài đặt Phát hiện Tư thế</h2>
             <button class="settings-modal-close" type="button">×</button>
           </div>
           <div class="settings-modal-body" id="settings-container-${this.containerId}">
-            <!-- Settings panel will be inserted here -->
+            <!-- Bảng cài đặt sẽ được chèn vào đây -->
           </div>
         </div>
       </div>
@@ -1248,7 +1248,7 @@ export class PoseDetectionCanvas {
     
     document.body.appendChild(modalContainer);
     
-    // Create the settings panel inside the modal
+    // Tạo bảng cài đặt bên trong modal
     this.settingsPanel = new SettingsPanel(`settings-container-${this.containerId}`, {
       enableAdvancedSettings: true,
       enableDebugControls: true,
@@ -1257,7 +1257,7 @@ export class PoseDetectionCanvas {
       initialSettings: this.getInitialSettings()
     });
     
-    // Set up settings panel callbacks
+    // Thiết lập callback cho bảng cài đặt
     this.settingsPanel.setCallback('onSettingsChange', (data) => {
       this.handleSettingsChange(data);
     });
@@ -1266,13 +1266,13 @@ export class PoseDetectionCanvas {
       this.setRenderMode(mode);
     });
     
-    // Set up modal event handlers
+    // Thiết lập xử lý sự kiện modal
     this.setupModalEventHandlers(modalContainer);
     
-    // Add modal styles
+    // Thêm kiểu dáng modal
     this.addModalStyles();
     
-    // Add show/hide methods to the modal
+    // Thêm phương thức hiện/ẩn cho modal
     modalContainer.show = () => {
       modalContainer.style.display = 'flex';
       modalContainer.classList.add('active');
@@ -1288,17 +1288,17 @@ export class PoseDetectionCanvas {
     this.settingsPanel.show = () => modalContainer.show();
     this.settingsPanel.hide = () => modalContainer.hide();
     
-    this.logger.debug('Settings modal created');
+    this.logger.debug('Đã tạo modal cài đặt');
   }
 
   setupModalEventHandlers(modalContainer) {
-    // Close button
+    // Nút đóng
     const closeBtn = modalContainer.querySelector('.settings-modal-close');
     closeBtn.addEventListener('click', () => {
       this.settingsPanel.hide();
     });
     
-    // Overlay click to close
+    // Nhấp lớp phủ để đóng
     const overlay = modalContainer.querySelector('.settings-modal-overlay');
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
@@ -1306,7 +1306,7 @@ export class PoseDetectionCanvas {
       }
     });
     
-    // Escape key to close
+    // Phím Escape để đóng
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && modalContainer.classList.contains('active')) {
         this.settingsPanel.hide();
@@ -1412,7 +1412,7 @@ export class PoseDetectionCanvas {
         padding: 0;
       }
 
-      /* Override settings panel styles for modal */
+      /* Ghi đè kiểu dáng bảng cài đặt cho modal */
       .settings-modal-body .settings-panel {
         border: none;
         border-radius: 0;
@@ -1428,7 +1428,7 @@ export class PoseDetectionCanvas {
         padding: 24px;
       }
 
-      /* Custom scrollbar for modal */
+      /* Thanh cuộn tuỳ chỉnh cho modal */
       .settings-modal-body::-webkit-scrollbar {
         width: 8px;
       }
@@ -1447,7 +1447,7 @@ export class PoseDetectionCanvas {
         background: #a8a8a8;
       }
 
-      /* Mobile responsive */
+      /* Tương thích di động */
       @media (max-width: 768px) {
         .settings-modal-overlay {
           padding: 10px;
@@ -1473,9 +1473,9 @@ export class PoseDetectionCanvas {
 
   getInitialSettings() {
     return {
-      // Get current renderer config
+      // Lấy cấu hình renderer hiện tại
       ...(this.renderer ? this.renderer.getConfig() : {}),
-      // Add other relevant settings
+      // Thêm các cài đặt liên quan khác
       currentZone: this.config.zoneId || 'zone_1',
       maxFps: 30,
       autoReconnect: true,
@@ -1484,10 +1484,10 @@ export class PoseDetectionCanvas {
   }
 
   handleSettingsChange(data) {
-    this.logger.debug('Settings changed', data);
+    this.logger.debug('Cài đặt đã thay đổi', data);
     
     if (data.settings && this.renderer) {
-      // Apply render settings
+      // Áp dụng cài đặt kết xuất
       const renderConfig = {
         mode: data.settings.renderMode,
         showKeypoints: data.settings.showKeypoints,
@@ -1505,24 +1505,24 @@ export class PoseDetectionCanvas {
       };
       
       this.renderer.updateConfig(renderConfig);
-      this.logger.info('Renderer config updated from settings');
+      this.logger.info('Đã cập nhật cấu hình renderer từ cài đặt');
     }
   }
 
-  // Cleanup
+  // Dọn dẹp
   dispose() {
-    this.logger.info('Disposing PoseDetectionCanvas component');
+    this.logger.info('Đang huỷ thành phần PoseDetectionCanvas');
     
     try {
-      // Stop pose detection
+      // Dừng phát hiện tư thế
       if (this.state.isActive) {
         this.stop();
       }
 
-      // Stop demo animation
+      // Dừng hoạt hình demo
       this.stopDemo();
 
-      // Dispose settings panel
+      // Huỷ bảng cài đặt
       if (this.settingsPanel) {
         this.settingsPanel.dispose();
         const modalContainer = document.getElementById(`settings-modal-${this.containerId}`);
@@ -1531,23 +1531,23 @@ export class PoseDetectionCanvas {
         }
       }
 
-      // Unsubscribe from pose service
+      // Huỷ đăng ký dịch vụ tư thế
       this.unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
       this.unsubscribeFunctions = [];
 
-      // Clean up resize observer
+      // Dọn dẹp trình quan sát thay đổi kích thước
       if (this.resizeObserver) {
         this.resizeObserver.disconnect();
       }
 
-      // Clear DOM
+      // Xóa DOM
       if (this.container) {
         this.container.innerHTML = '';
       }
 
-      this.logger.info('PoseDetectionCanvas component disposed successfully');
+      this.logger.info('Đã huỷ thành phần PoseDetectionCanvas thành công');
     } catch (error) {
-      this.logger.error('Error during disposal', { error: error.message });
+      this.logger.error('Lỗi khi huỷ', { error: error.message });
     }
   }
 }

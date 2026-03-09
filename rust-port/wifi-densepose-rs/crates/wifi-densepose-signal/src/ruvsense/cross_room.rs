@@ -1,68 +1,68 @@
-//! Cross-room identity continuity.
+//! Liên tục danh tính chéo phòng.
 //!
-//! Maintains identity persistence across rooms without optics by
-//! fingerprinting each room's electromagnetic profile, tracking
-//! exit/entry events, and matching person embeddings across transition
-//! boundaries.
+//! Duy trì sự liên tục danh tính giữa các phòng mà không cần quang học bằng
+//! cách tạo dấu vân tay hồ sơ điện từ mỗi phòng, theo dõi
+//! sự kiện ra/vào, và đối chiếu nhúng người qua ranh giới
+//! chuyển đổi.
 //!
-//! # Algorithm
-//! 1. Each room is fingerprinted as a 128-dim AETHER embedding of its
-//!    static CSI profile
-//! 2. When a track is lost near a room boundary, record an exit event
-//!    with the person's current embedding
-//! 3. When a new track appears in an adjacent room within 60s, compare
-//!    its embedding against recent exits
-//! 4. If cosine similarity > 0.80, link the identities
+//! # Thuật Toán
+//! 1. Mỗi phòng được tạo dấu vân tay dưới dạng nhúng AETHER 128 chiều
+//!    của hồ sơ CSI tĩnh
+//! 2. Khi mất dõi gần ranh giới phòng, ghi lại sự kiện rời đi
+//!    với nhúng hiện tại của người
+//! 3. Khi có dõi mới xuất hiện trong phòng liền kề trong 60s, so sánh
+//!    nhúng với các lần rời đi gần đây
+//! 4. Nếu tương tự cosine > 0.80, liên kết các danh tính
 //!
-//! # Invariants
-//! - Cross-room match requires > 0.80 cosine similarity AND < 60s temporal gap
-//! - Transition graph is append-only (immutable audit trail)
-//! - No image data stored — only 128-dim embeddings and structural events
-//! - Maximum 100 rooms per deployment
+//! # Bất Biến
+//! - Đối chiếu chéo phòng yêu cầu tương tự cosine > 0.80 VÀ khoảng thời gian < 60s
+//! - Đồ thị chuyển đổi chỉ thêm (bản ghi kiểm toán bất biến)
+//! - Không lưu trữ dữ liệu hình ảnh — chỉ nhúng 128 chiều và sự kiện cấu trúc
+//! - Tối đa 100 phòng mỗi triển khai
 //!
-//! # References
-//! - ADR-030 Tier 5: Cross-Room Identity Continuity
+//! # Tham Khảo
+//! - ADR-030 Tầng 5: Liên Tục Danh Tính Chéo Phòng
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from cross-room operations.
+/// Các lỗi từ thao tác chéo phòng.
 #[derive(Debug, thiserror::Error)]
 pub enum CrossRoomError {
-    /// Room capacity exceeded.
-    #[error("Maximum rooms exceeded: limit is {max}")]
+    /// Vượt quá dung lượng phòng.
+    #[error("Vượt quá số phòng tối đa: giới hạn là {max}")]
     MaxRoomsExceeded { max: usize },
 
-    /// Room not found.
-    #[error("Unknown room ID: {0}")]
+    /// Không tìm thấy phòng.
+    #[error("ID phòng không xác định: {0}")]
     UnknownRoom(u64),
 
-    /// Embedding dimension mismatch.
-    #[error("Embedding dimension mismatch: expected {expected}, got {got}")]
+    /// Chiều nhúng không khớp.
+    #[error("Chiều nhúng không khớp: kỳ vọng {expected}, nhận được {got}")]
     EmbeddingDimensionMismatch { expected: usize, got: usize },
 
-    /// Invalid temporal gap for matching.
-    #[error("Temporal gap {gap_s:.1}s exceeds maximum {max_s:.1}s")]
+    /// Khoảng thời gian không hợp lệ cho đối chiếu.
+    #[error("Khoảng thời gian {gap_s:.1}s vượt quá tối đa {max_s:.1}s")]
     TemporalGapExceeded { gap_s: f64, max_s: f64 },
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for cross-room identity tracking.
+/// Cấu hình cho theo dõi danh tính chéo phòng.
 #[derive(Debug, Clone)]
 pub struct CrossRoomConfig {
-    /// Embedding dimension (typically 128).
+    /// Chiều nhúng (thường là 128).
     pub embedding_dim: usize,
-    /// Minimum cosine similarity for cross-room match.
+    /// Tương tự cosine tối thiểu cho đối chiếu chéo phòng.
     pub min_similarity: f32,
-    /// Maximum temporal gap (seconds) for cross-room match.
+    /// Khoảng thời gian tối đa (giây) cho đối chiếu chéo phòng.
     pub max_gap_s: f64,
-    /// Maximum rooms in the deployment.
+    /// Số phòng tối đa trong triển khai.
     pub max_rooms: usize,
-    /// Maximum pending exit events to retain.
+    /// Số sự kiện rời đi chờ tối đa được giữ lại.
     pub max_pending_exits: usize,
 }
 
@@ -79,108 +79,108 @@ impl Default for CrossRoomConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Domain types
+// Kiểu miền
 // ---------------------------------------------------------------------------
 
-/// A room's electromagnetic fingerprint.
+/// Dấu vân tay điện từ của phòng.
 #[derive(Debug, Clone)]
 pub struct RoomFingerprint {
-    /// Room identifier.
+    /// Định danh phòng.
     pub room_id: u64,
-    /// Fingerprint embedding vector.
+    /// Vector nhúng dấu vân tay.
     pub embedding: Vec<f32>,
-    /// Timestamp when fingerprint was last computed (microseconds).
+    /// Dấu thời gian khi dấu vân tay được tính lần cuối (micro giây).
     pub computed_at_us: u64,
-    /// Number of nodes contributing to this fingerprint.
+    /// Số node đóng góp vào dấu vân tay này.
     pub node_count: usize,
 }
 
-/// An exit event: a person leaving a room.
+/// Sự kiện rời đi: một người rời khỏi phòng.
 #[derive(Debug, Clone)]
 pub struct ExitEvent {
-    /// Person embedding at exit time.
+    /// Nhúng người tại thời điểm rời đi.
     pub embedding: Vec<f32>,
-    /// Room exited.
+    /// Phòng đã rời.
     pub room_id: u64,
-    /// Person track ID (local to the room).
+    /// ID dõi người (cục bộ trong phòng).
     pub track_id: u64,
-    /// Timestamp of exit (microseconds).
+    /// Dấu thời gian rời đi (micro giây).
     pub timestamp_us: u64,
-    /// Whether this exit has been matched to an entry.
+    /// Sự kiện rời đi này đã được đối chiếu với một lần vào hay chưa.
     pub matched: bool,
 }
 
-/// An entry event: a person appearing in a room.
+/// Sự kiện vào: một người xuất hiện trong phòng.
 #[derive(Debug, Clone)]
 pub struct EntryEvent {
-    /// Person embedding at entry time.
+    /// Nhúng người tại thời điểm vào.
     pub embedding: Vec<f32>,
-    /// Room entered.
+    /// Phòng đã vào.
     pub room_id: u64,
-    /// Person track ID (local to the room).
+    /// ID dõi người (cục bộ trong phòng).
     pub track_id: u64,
-    /// Timestamp of entry (microseconds).
+    /// Dấu thời gian vào (micro giây).
     pub timestamp_us: u64,
 }
 
-/// A cross-room transition record (immutable).
+/// Bản ghi chuyển đổi chéo phòng (bất biến).
 #[derive(Debug, Clone)]
 pub struct TransitionEvent {
-    /// Person who transitioned.
+    /// Người đã chuyển đổi.
     pub person_id: u64,
-    /// Room exited.
+    /// Phòng đã rời.
     pub from_room: u64,
-    /// Room entered.
+    /// Phòng đã vào.
     pub to_room: u64,
-    /// Exit track ID.
+    /// ID dõi lúc rời.
     pub exit_track_id: u64,
-    /// Entry track ID.
+    /// ID dõi lúc vào.
     pub entry_track_id: u64,
-    /// Cosine similarity between exit and entry embeddings.
+    /// Tương tự cosine giữa nhúng rời và vào.
     pub similarity: f32,
-    /// Temporal gap between exit and entry (seconds).
+    /// Khoảng thời gian giữa rời và vào (giây).
     pub gap_s: f64,
-    /// Timestamp of the transition (entry timestamp).
+    /// Dấu thời gian của chuyển đổi (dấu thời gian vào).
     pub timestamp_us: u64,
 }
 
-/// Result of attempting to match an entry against pending exits.
+/// Kết quả thử đối chiếu một lần vào với các lần rời đi chờ.
 #[derive(Debug, Clone)]
 pub struct MatchResult {
-    /// Whether a match was found.
+    /// Có tìm thấy đối chiếu hay không.
     pub matched: bool,
-    /// The transition event, if matched.
+    /// Sự kiện chuyển đổi, nếu đã đối chiếu.
     pub transition: Option<TransitionEvent>,
-    /// Number of candidates checked.
+    /// Số ứng viên đã kiểm tra.
     pub candidates_checked: usize,
-    /// Best similarity found (even if below threshold).
+    /// Tương tự tốt nhất tìm thấy (kể cả nếu dưới ngưỡng).
     pub best_similarity: f32,
 }
 
 // ---------------------------------------------------------------------------
-// Cross-room identity tracker
+// Bộ theo dõi danh tính chéo phòng
 // ---------------------------------------------------------------------------
 
-/// Cross-room identity continuity tracker.
+/// Bộ theo dõi liên tục danh tính chéo phòng.
 ///
-/// Maintains room fingerprints, pending exit events, and an immutable
-/// transition graph. Matches person embeddings across rooms using
-/// cosine similarity with temporal constraints.
+/// Duy trì dấu vân tay phòng, sự kiện rời đi chờ, và đồ thị
+/// chuyển đổi bất biến. Đối chiếu nhúng người giữa các phòng
+/// sử dụng tương tự cosine với ràng buộc thời gian.
 #[derive(Debug)]
 pub struct CrossRoomTracker {
     config: CrossRoomConfig,
-    /// Room fingerprints indexed by room_id.
+    /// Dấu vân tay phòng được đánh chỉ số theo room_id.
     rooms: Vec<RoomFingerprint>,
-    /// Pending (unmatched) exit events.
+    /// Sự kiện rời đi chờ (chưa đối chiếu).
     pending_exits: Vec<ExitEvent>,
-    /// Immutable transition log (append-only).
+    /// Nhật ký chuyển đổi bất biến (chỉ thêm).
     transitions: Vec<TransitionEvent>,
-    /// Next person ID for cross-room identity assignment.
+    /// ID người tiếp theo cho gán danh tính chéo phòng.
     next_person_id: u64,
 }
 
 impl CrossRoomTracker {
-    /// Create a new cross-room tracker.
+    /// Tạo bộ theo dõi chéo phòng mới.
     pub fn new(config: CrossRoomConfig) -> Self {
         Self {
             config,
@@ -191,7 +191,7 @@ impl CrossRoomTracker {
         }
     }
 
-    /// Register a room fingerprint.
+    /// Đăng ký dấu vân tay phòng.
     pub fn register_room(&mut self, fingerprint: RoomFingerprint) -> Result<(), CrossRoomError> {
         if self.rooms.len() >= self.config.max_rooms {
             return Err(CrossRoomError::MaxRoomsExceeded {
@@ -204,7 +204,7 @@ impl CrossRoomTracker {
                 got: fingerprint.embedding.len(),
             });
         }
-        // Replace existing fingerprint if room already registered
+        // Thay thế dấu vân tay hiện có nếu phòng đã được đăng ký
         if let Some(existing) = self
             .rooms
             .iter_mut()
@@ -217,7 +217,7 @@ impl CrossRoomTracker {
         Ok(())
     }
 
-    /// Record a person exiting a room.
+    /// Ghi lại một người rời khỏi phòng.
     pub fn record_exit(&mut self, event: ExitEvent) -> Result<(), CrossRoomError> {
         if event.embedding.len() != self.config.embedding_dim {
             return Err(CrossRoomError::EmbeddingDimensionMismatch {
@@ -225,7 +225,7 @@ impl CrossRoomTracker {
                 got: event.embedding.len(),
             });
         }
-        // Evict oldest if at capacity
+        // Loại bỏ cũ nhất nếu đạt dung lượng
         if self.pending_exits.len() >= self.config.max_pending_exits {
             self.pending_exits.remove(0);
         }
@@ -233,10 +233,10 @@ impl CrossRoomTracker {
         Ok(())
     }
 
-    /// Try to match an entry event against pending exits.
+    /// Thử đối chiếu sự kiện vào với các lần rời đi chờ.
     ///
-    /// If a match is found, creates a TransitionEvent and marks the
-    /// exit as matched. Returns the match result.
+    /// Nếu tìm thấy đối chiếu, tạo TransitionEvent và đánh dấu
+    /// lần rời đi là đã đối chiếu. Trả về kết quả đối chiếu.
     pub fn match_entry(&mut self, entry: &EntryEvent) -> Result<MatchResult, CrossRoomError> {
         if entry.embedding.len() != self.config.embedding_dim {
             return Err(CrossRoomError::EmbeddingDimensionMismatch {
@@ -254,7 +254,7 @@ impl CrossRoomTracker {
                 continue;
             }
 
-            // Temporal constraint
+            // Ràng buộc thời gian
             let gap_us = entry.timestamp_us.saturating_sub(exit.timestamp_us);
             let gap_s = gap_us as f64 / 1_000_000.0;
             if gap_s > self.config.max_gap_s {
@@ -291,10 +291,10 @@ impl CrossRoomTracker {
                 timestamp_us: entry.timestamp_us,
             };
 
-            // Mark exit as matched
+            // Đánh dấu lần rời đi là đã đối chiếu
             self.pending_exits[idx].matched = true;
 
-            // Append to immutable transition log
+            // Thêm vào nhật ký chuyển đổi bất biến
             self.transitions.push(transition.clone());
 
             Ok(MatchResult {
@@ -313,7 +313,7 @@ impl CrossRoomTracker {
         }
     }
 
-    /// Expire old pending exits that exceed the maximum gap time.
+    /// Hết hạn các lần rời đi chờ cũ vượt quá thời gian khoảng cách tối đa.
     pub fn expire_exits(&mut self, current_us: u64) {
         let max_gap_us = (self.config.max_gap_s * 1_000_000.0) as u64;
         self.pending_exits.retain(|exit| {
@@ -321,22 +321,22 @@ impl CrossRoomTracker {
         });
     }
 
-    /// Number of registered rooms.
+    /// Số phòng đã đăng ký.
     pub fn room_count(&self) -> usize {
         self.rooms.len()
     }
 
-    /// Number of pending (unmatched) exit events.
+    /// Số sự kiện rời đi chờ (chưa đối chiếu).
     pub fn pending_exit_count(&self) -> usize {
         self.pending_exits.iter().filter(|e| !e.matched).count()
     }
 
-    /// Number of transitions recorded.
+    /// Số chuyển đổi đã ghi lại.
     pub fn transition_count(&self) -> usize {
         self.transitions.len()
     }
 
-    /// Get all transitions for a person.
+    /// Lấy tất cả chuyển đổi cho một người.
     pub fn transitions_for_person(&self, person_id: u64) -> Vec<&TransitionEvent> {
         self.transitions
             .iter()
@@ -344,7 +344,7 @@ impl CrossRoomTracker {
             .collect()
     }
 
-    /// Get all transitions between two rooms.
+    /// Lấy tất cả chuyển đổi giữa hai phòng.
     pub fn transitions_between(&self, from_room: u64, to_room: u64) -> Vec<&TransitionEvent> {
         self.transitions
             .iter()
@@ -352,13 +352,13 @@ impl CrossRoomTracker {
             .collect()
     }
 
-    /// Get the room fingerprint for a room ID.
+    /// Lấy dấu vân tay phòng cho ID phòng.
     pub fn room_fingerprint(&self, room_id: u64) -> Option<&RoomFingerprint> {
         self.rooms.iter().find(|r| r.room_id == room_id)
     }
 }
 
-/// Cosine similarity between two f32 vectors.
+/// Tương tự cosine giữa hai vector f32.
 fn cosine_similarity_f32(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
@@ -372,7 +372,7 @@ fn cosine_similarity_f32(a: &[f32], b: &[f32]) -> f32 {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -458,13 +458,13 @@ mod tests {
     fn test_successful_cross_room_match() {
         let mut tracker = CrossRoomTracker::new(small_config());
 
-        // Person exits room 1
+        // Người rời phòng 1
         let exit_emb = [0.9, 0.1, 0.0, 0.0];
         tracker
             .record_exit(make_exit(1, 100, exit_emb, 1_000_000))
             .unwrap();
 
-        // Same person enters room 2 (similar embedding, within 60s)
+        // Cùng người vào phòng 2 (nhúng tương tự, trong 60s)
         let entry_emb = [0.88, 0.12, 0.01, 0.0];
         let entry = make_entry(2, 200, entry_emb, 5_000_000);
         let result = tracker.match_entry(&entry).unwrap();
@@ -485,7 +485,7 @@ mod tests {
             .record_exit(make_exit(1, 100, [1.0, 0.0, 0.0, 0.0], 1_000_000))
             .unwrap();
 
-        // Very different embedding
+        // Nhúng rất khác biệt
         let entry = make_entry(2, 200, [0.0, 0.0, 0.0, 1.0], 5_000_000);
         let result = tracker.match_entry(&entry).unwrap();
 
@@ -501,11 +501,11 @@ mod tests {
             .record_exit(make_exit(1, 100, [1.0, 0.0, 0.0, 0.0], 0))
             .unwrap();
 
-        // Same embedding but 120 seconds later
+        // Cùng nhúng nhưng 120 giây sau
         let entry = make_entry(2, 200, [1.0, 0.0, 0.0, 0.0], 120_000_000);
         let result = tracker.match_entry(&entry).unwrap();
 
-        assert!(!result.matched, "Should not match with > 60s gap");
+        assert!(!result.matched, "Không nên đối chiếu với khoảng > 60s");
     }
 
     #[test]
@@ -516,11 +516,11 @@ mod tests {
             .record_exit(make_exit(1, 100, [1.0, 0.0, 0.0, 0.0], 1_000_000))
             .unwrap();
 
-        // Entry in same room should not match
+        // Vào cùng phòng không nên đối chiếu
         let entry = make_entry(1, 200, [1.0, 0.0, 0.0, 0.0], 2_000_000);
         let result = tracker.match_entry(&entry).unwrap();
 
-        assert!(!result.matched, "Same-room entry should not match");
+        assert!(!result.matched, "Vào cùng phòng không nên đối chiếu");
     }
 
     #[test]
@@ -536,7 +536,7 @@ mod tests {
 
         assert_eq!(tracker.pending_exit_count(), 2);
 
-        // Expire at 70s — first exit (at 0) should be expired
+        // Hết hạn ở 70s — lần rời đi đầu (tại 0) phải bị hết hạn
         tracker.expire_exits(70_000_000);
         assert_eq!(tracker.pending_exit_count(), 1);
     }
@@ -554,7 +554,7 @@ mod tests {
 
         assert_eq!(tracker.transition_count(), 1);
 
-        // More transitions should append
+        // Thêm chuyển đổi phải được nối thêm
         tracker
             .record_exit(make_exit(2, 300, [0.0, 1.0, 0.0, 0.0], 3_000_000))
             .unwrap();
@@ -568,14 +568,14 @@ mod tests {
     fn test_transitions_between_rooms() {
         let mut tracker = CrossRoomTracker::new(small_config());
 
-        // Room 1 → Room 2
+        // Phòng 1 → Phòng 2
         tracker
             .record_exit(make_exit(1, 100, [1.0, 0.0, 0.0, 0.0], 1_000_000))
             .unwrap();
         let entry = make_entry(2, 200, [0.98, 0.02, 0.0, 0.0], 2_000_000);
         tracker.match_entry(&entry).unwrap();
 
-        // Room 2 → Room 3
+        // Phòng 2 → Phòng 3
         tracker
             .record_exit(make_exit(2, 300, [0.0, 1.0, 0.0, 0.0], 3_000_000))
             .unwrap();
@@ -597,7 +597,7 @@ mod tests {
         let mut tracker = CrossRoomTracker::new(small_config());
 
         let bad_exit = ExitEvent {
-            embedding: vec![1.0, 0.0], // wrong dim
+            embedding: vec![1.0, 0.0], // chiều sai
             room_id: 1,
             track_id: 1,
             timestamp_us: 0,

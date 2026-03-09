@@ -1,5 +1,5 @@
-// Three.js Scene Setup - WiFi DensePose 3D Visualization
-// Camera, lights, renderer, OrbitControls
+// Thiết lập Cảnh Three.js - Trực quan hoá 3D WiFi DensePose
+// Camera, ánh sáng, renderer, OrbitControls
 
 export class Scene {
   constructor(container) {
@@ -8,7 +8,7 @@ export class Scene {
       : container;
 
     if (!this.container) {
-      throw new Error('Scene container element not found');
+      throw new Error('Không tìm thấy phần tử container cảnh');
     }
 
     this.scene = null;
@@ -27,12 +27,12 @@ export class Scene {
     const width = this.container.clientWidth || 960;
     const height = this.container.clientHeight || 640;
 
-    // Scene
+    // Cảnh
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a1a);
     this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.008);
 
-    // Camera - positioned to see the room from a 3/4 angle
+    // Camera - đặt vị trí nhìn phòng từ góc 3/4
     this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 500);
     this.camera.position.set(8, 7, 10);
     this.camera.lookAt(0, 1.5, 0);
@@ -51,7 +51,7 @@ export class Scene {
     this.renderer.toneMappingExposure = 1.0;
     this.container.appendChild(this.renderer.domElement);
 
-    // OrbitControls
+    // Điều khiển quỹ đạo (OrbitControls)
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
@@ -61,7 +61,7 @@ export class Scene {
     this.controls.target.set(0, 1.2, 0);
     this.controls.update();
 
-    // Lights
+    // Ánh sáng
     this._setupLights();
 
     // Clock for animation delta

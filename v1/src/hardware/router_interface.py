@@ -1,4 +1,4 @@
-"""Router interface for WiFi-DensePose system using TDD approach."""
+"""Giao diện router cho hệ thống WiFi-DensePose sử dụng phương pháp TDD."""
 
 import asyncio
 import logging
@@ -10,34 +10,34 @@ import numpy as np
 try:
     from .csi_extractor import CSIData
 except ImportError:
-    # Handle import for testing
+    # Xử lý import cho kiểm thử
     from src.hardware.csi_extractor import CSIData
 
 
 class RouterConnectionError(Exception):
-    """Exception raised for router connection errors."""
+    """Ngoại lệ phát sinh khi kết nối router gặp lỗi."""
     pass
 
 
 class RouterInterface:
-    """Interface for communicating with WiFi routers via SSH."""
-    
+    """Giao diện để giao tiếp với router WiFi qua SSH."""
+
     def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
-        """Initialize router interface.
-        
+        """Khởi tạo giao diện router.
+
         Args:
-            config: Configuration dictionary with connection parameters
-            logger: Optional logger instance
-            
+            config: Từ điển cấu hình với tham số kết nối
+            logger: Thể hiện logger tùy chọn
+
         Raises:
-            ValueError: If configuration is invalid
+            ValueError: Nếu cấu hình không hợp lệ
         """
         self._validate_config(config)
-        
+
         self.config = config
         self.logger = logger or logging.getLogger(__name__)
-        
-        # Connection parameters
+
+        # Tham số kết nối
         self.host = config['host']
         self.port = config['port']
         self.username = config['username']
@@ -46,34 +46,34 @@ class RouterInterface:
         self.connection_timeout = config.get('connection_timeout', 10)
         self.max_retries = config.get('max_retries', 3)
         self.retry_delay = config.get('retry_delay', 1.0)
-        
-        # Connection state
+
+        # Trạng thái kết nối
         self.is_connected = False
         self.ssh_client = None
-    
+
     def _validate_config(self, config: Dict[str, Any]) -> None:
-        """Validate configuration parameters.
-        
+        """Xác thực tham số cấu hình.
+
         Args:
-            config: Configuration to validate
-            
+            config: Cấu hình cần xác thực
+
         Raises:
-            ValueError: If configuration is invalid
+            ValueError: Nếu cấu hình không hợp lệ
         """
         required_fields = ['host', 'port', 'username', 'password']
         missing_fields = [field for field in required_fields if field not in config]
-        
+
         if missing_fields:
-            raise ValueError(f"Missing required configuration: {missing_fields}")
-        
+            raise ValueError(f"Thiếu cấu hình bắt buộc: {missing_fields}")
+
         if not isinstance(config['port'], int) or config['port'] <= 0:
-            raise ValueError("Port must be a positive integer")
-    
+            raise ValueError("Port phải là số nguyên dương")
+
     async def connect(self) -> bool:
-        """Establish SSH connection to router.
-        
+        """Thiết lập kết nối SSH đến router.
+
         Returns:
-            True if connection successful, False otherwise
+            True nếu kết nối thành công, False nếu không
         """
         try:
             self.ssh_client = await asyncssh.connect(
@@ -84,154 +84,154 @@ class RouterInterface:
                 connect_timeout=self.connection_timeout
             )
             self.is_connected = True
-            self.logger.info(f"Connected to router at {self.host}:{self.port}")
+            self.logger.info(f"Đã kết nối đến router tại {self.host}:{self.port}")
             return True
         except Exception as e:
-            self.logger.error(f"Failed to connect to router: {e}")
+            self.logger.error(f"Kết nối đến router thất bại: {e}")
             self.is_connected = False
             self.ssh_client = None
             return False
-    
+
     async def disconnect(self) -> None:
-        """Disconnect from router."""
+        """Ngắt kết nối khỏi router."""
         if self.is_connected and self.ssh_client:
             self.ssh_client.close()
             self.is_connected = False
             self.ssh_client = None
-            self.logger.info("Disconnected from router")
-    
+            self.logger.info("Đã ngắt kết nối khỏi router")
+
     async def execute_command(self, command: str) -> str:
-        """Execute command on router via SSH.
-        
+        """Thực thi lệnh trên router qua SSH.
+
         Args:
-            command: Command to execute
-            
+            command: Lệnh cần thực thi
+
         Returns:
-            Command output
-            
+            Kết quả đầu ra của lệnh
+
         Raises:
-            RouterConnectionError: If not connected or command fails
+            RouterConnectionError: Nếu chưa kết nối hoặc lệnh thất bại
         """
         if not self.is_connected:
-            raise RouterConnectionError("Not connected to router")
-        
-        # Retry mechanism for temporary failures
+            raise RouterConnectionError("Chưa kết nối đến router")
+
+        # Cơ chế thử lại cho lỗi tạm thời
         for attempt in range(self.max_retries):
             try:
                 result = await self.ssh_client.run(command, timeout=self.command_timeout)
-                
+
                 if result.returncode != 0:
-                    raise RouterConnectionError(f"Command failed: {result.stderr}")
-                
+                    raise RouterConnectionError(f"Lệnh thất bại: {result.stderr}")
+
                 return result.stdout
-                
+
             except ConnectionError as e:
                 if attempt < self.max_retries - 1:
-                    self.logger.warning(f"Command attempt {attempt + 1} failed, retrying: {e}")
+                    self.logger.warning(f"Lần thực thi lệnh {attempt + 1} thất bại, đang thử lại: {e}")
                     await asyncio.sleep(self.retry_delay)
                 else:
-                    raise RouterConnectionError(f"Command execution failed after {self.max_retries} retries: {e}")
+                    raise RouterConnectionError(f"Thực thi lệnh thất bại sau {self.max_retries} lần thử: {e}")
             except Exception as e:
-                raise RouterConnectionError(f"Command execution error: {e}")
-    
+                raise RouterConnectionError(f"Lỗi thực thi lệnh: {e}")
+
     async def get_csi_data(self) -> CSIData:
-        """Retrieve CSI data from router.
-        
+        """Lấy dữ liệu CSI từ router.
+
         Returns:
-            CSI data structure
-            
+            Cấu trúc dữ liệu CSI
+
         Raises:
-            RouterConnectionError: If data retrieval fails
+            RouterConnectionError: Nếu lấy dữ liệu thất bại
         """
         try:
             response = await self.execute_command("iwlist scan | grep CSI")
             return self._parse_csi_response(response)
         except Exception as e:
-            raise RouterConnectionError(f"Failed to retrieve CSI data: {e}")
-    
+            raise RouterConnectionError(f"Lấy dữ liệu CSI thất bại: {e}")
+
     async def get_router_status(self) -> Dict[str, Any]:
-        """Get router system status.
-        
+        """Lấy trạng thái hệ thống router.
+
         Returns:
-            Dictionary containing router status information
-            
+            Từ điển chứa thông tin trạng thái router
+
         Raises:
-            RouterConnectionError: If status retrieval fails
+            RouterConnectionError: Nếu lấy trạng thái thất bại
         """
         try:
             response = await self.execute_command("cat /proc/stat && free && iwconfig")
             return self._parse_status_response(response)
         except Exception as e:
-            raise RouterConnectionError(f"Failed to retrieve router status: {e}")
-    
+            raise RouterConnectionError(f"Lấy trạng thái router thất bại: {e}")
+
     async def configure_csi_monitoring(self, config: Dict[str, Any]) -> bool:
-        """Configure CSI monitoring on router.
-        
+        """Cấu hình giám sát CSI trên router.
+
         Args:
-            config: CSI monitoring configuration
-            
+            config: Cấu hình giám sát CSI
+
         Returns:
-            True if configuration successful, False otherwise
+            True nếu cấu hình thành công, False nếu không
         """
         try:
             channel = config.get('channel', 6)
-            # Validate channel is an integer in a safe range to prevent command injection
+            # Xác thực kênh là số nguyên trong phạm vi an toàn để ngăn chặn chèn lệnh
             if not isinstance(channel, int) or not (1 <= channel <= 196):
-                raise ValueError(f"Invalid WiFi channel: {channel}. Must be an integer between 1 and 196.")
+                raise ValueError(f"Kênh WiFi không hợp lệ: {channel}. Phải là số nguyên từ 1 đến 196.")
             command = f"iwconfig wlan0 channel {channel} && echo 'CSI monitoring configured'"
             await self.execute_command(command)
             return True
         except Exception as e:
-            self.logger.error(f"Failed to configure CSI monitoring: {e}")
+            self.logger.error(f"Cấu hình giám sát CSI thất bại: {e}")
             return False
-    
+
     async def health_check(self) -> bool:
-        """Perform health check on router.
-        
+        """Thực hiện kiểm tra sức khỏe router.
+
         Returns:
-            True if router is healthy, False otherwise
+            True nếu router khỏe mạnh, False nếu không
         """
         try:
             response = await self.execute_command("echo 'ping' && echo 'pong'")
             return "pong" in response
         except Exception as e:
-            self.logger.error(f"Health check failed: {e}")
+            self.logger.error(f"Kiểm tra sức khỏe thất bại: {e}")
             return False
-    
+
     def _parse_csi_response(self, response: str) -> CSIData:
-        """Parse CSI response data.
+        """Phân tích dữ liệu phản hồi CSI.
 
         Args:
-            response: Raw response from router
+            response: Phản hồi thô từ router
 
         Returns:
-            Parsed CSI data
+            Dữ liệu CSI đã phân tích
 
         Raises:
-            RouterConnectionError: Always in current state, because real CSI
-                parsing from router command output requires hardware-specific
-                format knowledge that must be implemented per router model.
+            RouterConnectionError: Luôn luôn ở trạng thái hiện tại, vì phân tích CSI
+                thực từ đầu ra lệnh router yêu cầu kiến thức định dạng
+                phần cứng cụ thể phải được triển khai cho từng mô hình router.
         """
         raise RouterConnectionError(
-            "Real CSI data parsing from router responses is not yet implemented. "
-            "Collecting CSI data from a router requires: "
-            "(1) a router with CSI-capable firmware (e.g., Atheros CSI Tool, Nexmon), "
-            "(2) proper hardware setup and configuration, and "
-            "(3) a parser for the specific binary/text format produced by the firmware. "
-            "See docs/hardware-setup.md for instructions on configuring your router for CSI collection."
+            "Phân tích dữ liệu CSI thực từ phản hồi router chưa được triển khai. "
+            "Thu thập dữ liệu CSI từ router yêu cầu: "
+            "(1) router có firmware hỗ trợ CSI (ví dụ: Atheros CSI Tool, Nexmon), "
+            "(2) thiết lập và cấu hình phần cứng đúng cách, và "
+            "(3) bộ phân tích cho định dạng nhị phân/văn bản cụ thể do firmware tạo ra. "
+            "Xem docs/hardware-setup.md để biết hướng dẫn cấu hình router cho thu thập CSI."
         )
-    
+
     def _parse_status_response(self, response: str) -> Dict[str, Any]:
-        """Parse router status response.
-        
+        """Phân tích phản hồi trạng thái router.
+
         Args:
-            response: Raw response from router
-            
+            response: Phản hồi thô từ router
+
         Returns:
-            Parsed status information
+            Thông tin trạng thái đã phân tích
         """
-        # Mock implementation for testing
-        # In real implementation, this would parse actual system status
+        # Triển khai giả cho kiểm thử
+        # Trong triển khai thực, sẽ phân tích trạng thái hệ thống thực
         return {
             'cpu_usage': 25.5,
             'memory_usage': 60.2,

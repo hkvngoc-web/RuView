@@ -1,8 +1,8 @@
-// 3D Human Body Model - WiFi DensePose Visualization
-// Maps DensePose 24 body parts to 3D positions using simple geometries
+// Mô hình Cơ thể Con người 3D - Trực quan hoá WiFi DensePose
+// Ánh xạ 24 bộ phận cơ thể DensePose sang vị trí 3D sử dụng hình học đơn giản
 
 export class BodyModel {
-  // DensePose body part IDs (1-24)
+  // ID bộ phận cơ thể DensePose (1-24)
   static PARTS = {
     TORSO_BACK: 1,
     TORSO_FRONT: 2,
@@ -30,26 +30,26 @@ export class BodyModel {
     HEAD_LEFT: 24
   };
 
-  // Skeleton connection pairs for drawing bones
+  // Các cặp kết nối bộ xương để vẽ xương
   static BONE_CONNECTIONS = [
-    // Spine
+    // Cột sống
     ['pelvis', 'spine'],
     ['spine', 'chest'],
     ['chest', 'neck'],
     ['neck', 'head'],
-    // Left arm
+    // Tay trái
     ['chest', 'left_shoulder'],
     ['left_shoulder', 'left_elbow'],
     ['left_elbow', 'left_wrist'],
-    // Right arm
+    // Tay phải
     ['chest', 'right_shoulder'],
     ['right_shoulder', 'right_elbow'],
     ['right_elbow', 'right_wrist'],
-    // Left leg
+    // Chân trái
     ['pelvis', 'left_hip'],
     ['left_hip', 'left_knee'],
     ['left_knee', 'left_ankle'],
-    // Right leg
+    // Chân phải
     ['pelvis', 'right_hip'],
     ['right_hip', 'right_knee'],
     ['right_knee', 'right_ankle']
@@ -59,30 +59,30 @@ export class BodyModel {
     this.group = new THREE.Group();
     this.group.name = 'body-model';
 
-    // Store references to body part meshes for updates
+    // Lưu tham chiếu đến mesh bộ phận cơ thể để cập nhật
     this.joints = {};
     this.limbs = {};
     this.bones = [];
     this.partMeshes = {};
 
-    // Current pose state
+    // Trạng thái tư thế hiện tại
     this.confidence = 0;
     this.isVisible = false;
     this.targetPositions = {};
     this.currentPositions = {};
 
-    // Materials
+    // Vật liệu
     this._materials = this._createMaterials();
 
-    // Build the body
+    // Xây dựng cơ thể
     this._buildBody();
 
-    // Initial hidden state
+    // Trạng thái ban đầu ẩn
     this.group.visible = false;
   }
 
   _createMaterials() {
-    // Confidence-driven color: cold blue (low) -> warm orange (high)
+    // Màu dựa trên độ tin cậy: xanh lạnh (thấp) -> cam ấm (cao)
     const jointMat = new THREE.MeshPhongMaterial({
       color: 0x00aaff,
       emissive: 0x003366,

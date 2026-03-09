@@ -1,4 +1,4 @@
-// Live Demo Tab Component - Enhanced Version
+// Thành phần Tab Demo Trực tiếp - Phiên bản Nâng cao
 
 import { PoseDetectionCanvas } from './PoseDetectionCanvas.js';
 import { poseService } from '../services/pose.service.js';
@@ -6,7 +6,7 @@ import { streamService } from '../services/stream.service.js';
 import { wsService } from '../services/websocket.service.js';
 import { sensingService } from '../services/sensing.service.js';
 
-// Optional services - loaded lazily in init() to avoid blocking module graph
+// Dịch vụ tùy chọn - tải lười trong init() để tránh chặn đồ thị module
 let modelService = null;
 let trainingService = null;
 
@@ -20,7 +20,7 @@ export class LiveDemoTab {
       debugMode: false,
       autoReconnect: true,
       renderMode: 'skeleton',
-      // 'unknown' | 'signal_derived' | 'model_inference'
+      // 'unknown' | 'signal_derived' | 'model_inference' — nguồn ước lượng tư thế
       poseSource: 'unknown'
     };
     
@@ -37,7 +37,7 @@ export class LiveDemoTab {
       connectionAttempts: 0
     };
     
-    // Model control state
+    // Trạng thái điều khiển mô hình
     this.modelState = {
       models: [],
       activeModelId: null,
@@ -47,7 +47,7 @@ export class LiveDemoTab {
       loading: false
     };
 
-    // Training state
+    // Trạng thái huấn luyện
     this.trainingState = {
       status: 'idle',       // 'idle' | 'training' | 'recording'
       epoch: 0,
@@ -55,13 +55,13 @@ export class LiveDemoTab {
       showTrainingPanel: false
     };
 
-    // A/B split view state
+    // Trạng thái chế độ xem chia đôi A/B
     this.splitViewActive = false;
 
     this.subscriptions = [];
     this.logger = this.createLogger();
     
-    // Configuration
+    // Cấu hình
     this.config = {
       defaultZone: 'zone_1',
       reconnectDelay: 3000,
@@ -80,94 +80,94 @@ export class LiveDemoTab {
     };
   }
 
-  // Initialize component
+  // Khởi tạo thành phần
   async init() {
     try {
-      this.logger.info('Initializing LiveDemoTab component');
+      this.logger.info('Đang khởi tạo thành phần LiveDemoTab');
 
-      // Load optional services (non-blocking)
+      // Tải dịch vụ tùy chọn (không chặn)
       try {
         const mod = await import('../services/model.service.js');
         modelService = mod.modelService;
-      } catch (e) { /* model features disabled */ }
+      } catch (e) { /* tính năng mô hình bị tắt */ }
       try {
         const mod = await import('../services/training.service.js');
         trainingService = mod.trainingService;
-      } catch (e) { /* training features disabled */ }
+      } catch (e) { /* tính năng huấn luyện bị tắt */ }
 
-      // Create enhanced DOM structure
+      // Tạo cấu trúc DOM nâng cao
       this.createEnhancedStructure();
-      
-      // Initialize pose detection canvas
+
+      // Khởi tạo canvas phát hiện tư thế
       this.initializePoseCanvas();
-      
-      // Set up controls and event handlers
+
+      // Thiết lập điều khiển và bộ xử lý sự kiện
       this.setupEnhancedControls();
-      
-      // Set up monitoring and health checks
+
+      // Thiết lập giám sát và kiểm tra sức khỏe
       this.setupMonitoring();
-      
-      // Fetch available models on init
+
+      // Lấy danh sách mô hình khả dụng khi khởi tạo
       this.fetchModels();
 
-      // Set up model/training event listeners
+      // Thiết lập bộ lắng nghe sự kiện mô hình/huấn luyện
       this.setupServiceListeners();
 
-      // Initialize state
+      // Khởi tạo trạng thái
       this.updateUI();
 
-      // Auto-start pose detection when a backend is reachable.
-      // Check after a brief delay (sensing WS may still be connecting).
+      // Tự động bắt đầu phát hiện tư thế khi backend khả dụng.
+      // Kiểm tra sau một khoảng trễ ngắn (WS cảm biến có thể vẫn đang kết nối).
       this._autoStartOnce = false;
       const tryAutoStart = () => {
         if (this._autoStartOnce || this.state.isActive) return;
         const ds = sensingService.dataSource;
         if (ds === 'live' || ds === 'server-simulated') {
           this._autoStartOnce = true;
-          this.logger.info('Auto-starting pose detection (data source: ' + ds + ')');
+          this.logger.info('Tự động bắt đầu phát hiện tư thế (nguồn dữ liệu: ' + ds + ')');
           this.startDemo();
         }
       };
       setTimeout(tryAutoStart, 2000);
-      // Also listen for sensing state changes in case server connects later
+      // Cũng lắng nghe thay đổi trạng thái cảm biến trong trường hợp máy chủ kết nối sau
       this._autoStartUnsub = sensingService.onStateChange(tryAutoStart);
 
-      this.logger.info('LiveDemoTab component initialized successfully');
+      this.logger.info('Thành phần LiveDemoTab đã khởi tạo thành công');
     } catch (error) {
-      this.logger.error('Failed to initialize LiveDemoTab', { error: error.message });
-      this.showError(`Initialization failed: ${error.message}`);
+      this.logger.error('Khởi tạo LiveDemoTab thất bại', { error: error.message });
+      this.showError(`Khởi tạo thất bại: ${error.message}`);
     }
   }
 
   createEnhancedStructure() {
-    // Check if we need to rebuild the structure
+    // Kiểm tra xem có cần xây dựng lại cấu trúc không
     const existingCanvas = this.container.querySelector('#pose-detection-main');
     if (!existingCanvas) {
-      // Create enhanced structure if it doesn't exist
+      // Tạo cấu trúc nâng cao nếu chưa tồn tại
       const enhancedHTML = `
         <div class="live-demo-enhanced">
-          <!-- Data source banner — prominent indicator for live vs simulated -->
+          <!-- Banner nguồn dữ liệu — chỉ báo nổi bật cho trực tiếp vs mô phỏng -->
           <div id="demo-source-banner" class="demo-source-banner demo-source-unknown" role="status" aria-live="polite">
-            Detecting data source...
+            Đang phát hiện nguồn dữ liệu...
           </div>
 
           <div class="demo-header">
             <div class="demo-title">
-              <h2>Live Human Pose Detection</h2>
+              <h2>Phát hiện Tư thế Con người Trực tiếp</h2>
               <div class="demo-status">
                 <span class="status-indicator" id="demo-status-indicator"></span>
-                <span class="status-text" id="demo-status-text">Ready</span>
+                <span class="status-text" id="demo-status-text">Sẵn sàng</span>
               </div>
             </div>
             <div class="demo-controls">
-              <button class="btn btn--primary" id="start-enhanced-demo">Start Detection</button>
-              <button class="btn btn--secondary" id="stop-enhanced-demo" disabled>Stop Detection</button>
+              <button class="btn btn--primary" id="start-enhanced-demo">Bắt đầu Phát hiện</button>
+              <button class="btn btn--secondary" id="stop-enhanced-demo" disabled>Dừng Phát hiện</button>
               <button class="btn btn--accent" id="run-offline-demo">Demo</button>
-              <button class="btn btn--primary" id="toggle-debug">Debug Mode</button>
+              <button class="btn btn--primary" id="toggle-debug">Chế độ Gỡ lỗi</button>
               <select class="zone-select" id="zone-selector">
-                <option value="zone_1">Zone 1</option>
-                <option value="zone_2">Zone 2</option>
-                <option value="zone_3">Zone 3</option>
+                <option value="zone_1">Vùng 1</option>
+                <option value="zone_2">Vùng 2</option>
+                <option value="zone_3">Vùng 3</option>
               </select>
             </div>
           </div>
@@ -179,45 +179,45 @@ export class LiveDemoTab {
             
             <div class="demo-sidebar">
               <div class="metrics-panel">
-                <h4>Performance Metrics</h4>
+                <h4>Chỉ số Hiệu suất</h4>
                 <div class="metric">
-                  <label>Connection Status:</label>
-                  <span id="connection-status">Disconnected</span>
+                  <label>Trạng thái Kết nối:</label>
+                  <span id="connection-status">Ngắt kết nối</span>
                 </div>
                 <div class="metric">
-                  <label>Frames Processed:</label>
+                  <label>Khung hình Đã xử lý:</label>
                   <span id="frame-count">0</span>
                 </div>
                 <div class="metric">
-                  <label>Uptime:</label>
+                  <label>Thời gian hoạt động:</label>
                   <span id="uptime">0s</span>
                 </div>
                 <div class="metric">
-                  <label>Errors:</label>
+                  <label>Lỗi:</label>
                   <span id="error-count">0</span>
                 </div>
                 <div class="metric">
-                  <label>Last Update:</label>
-                  <span id="last-update">Never</span>
+                  <label>Cập nhật Cuối:</label>
+                  <span id="last-update">Chưa bao giờ</span>
                 </div>
               </div>
               
               <div class="pose-source-panel">
-                <h4>Estimation Mode</h4>
+                <h4>Chế độ Ước lượng</h4>
                 <div class="pose-source-indicator" id="pose-source-indicator">
-                  <span class="pose-source-badge pose-source-unknown" id="pose-source-badge">Unknown</span>
+                  <span class="pose-source-badge pose-source-unknown" id="pose-source-badge">Không xác định</span>
                   <p class="pose-source-description" id="pose-source-description">
-                    Waiting for first frame...
+                    Đang chờ khung hình đầu tiên...
                   </p>
                 </div>
               </div>
 
               <div class="model-control-panel" id="model-control-panel">
-                <h4>Model Control</h4>
+                <h4>Điều khiển Mô hình</h4>
                 <div class="setting-row-ld">
-                  <label class="ld-label">Model:</label>
+                  <label class="ld-label">Mô hình:</label>
                   <select class="ld-select" id="model-selector">
-                    <option value="">Signal-Derived (no model)</option>
+                    <option value="">Trích xuất từ Tín hiệu (không có mô hình)</option>
                   </select>
                 </div>
                 <div class="model-info-row" id="model-active-info" style="display: none;">
@@ -225,90 +225,90 @@ export class LiveDemoTab {
                   <span class="model-pck-badge" id="model-active-pck"></span>
                 </div>
                 <div class="setting-row-ld" id="lora-profile-row" style="display: none;">
-                  <label class="ld-label">LoRA Profile:</label>
+                  <label class="ld-label">Hồ sơ LoRA:</label>
                   <select class="ld-select" id="lora-profile-selector">
-                    <option value="">None</option>
+                    <option value="">Không</option>
                   </select>
                 </div>
                 <div class="model-actions">
-                  <button class="btn-ld btn-ld-accent" id="load-model-btn">Load Model</button>
-                  <button class="btn-ld btn-ld-muted" id="unload-model-btn" disabled>Unload</button>
+                  <button class="btn-ld btn-ld-accent" id="load-model-btn">Tải Mô hình</button>
+                  <button class="btn-ld btn-ld-muted" id="unload-model-btn" disabled>Gỡ tải</button>
                 </div>
-                <div class="model-status-text" id="model-status-text">No model loaded</div>
+                <div class="model-status-text" id="model-status-text">Chưa tải mô hình</div>
               </div>
 
               <div class="split-view-panel">
                 <div class="setting-row-ld">
-                  <label class="ld-label">Compare: Signal vs Model</label>
-                  <button class="btn-ld btn-ld-toggle" id="split-view-toggle" disabled>Off</button>
+                  <label class="ld-label">So sánh: Tín hiệu vs Mô hình</label>
+                  <button class="btn-ld btn-ld-toggle" id="split-view-toggle" disabled>Tắt</button>
                 </div>
               </div>
 
               <div class="training-quick-panel" id="training-quick-panel">
-                <h4>Training</h4>
+                <h4>Huấn luyện</h4>
                 <div class="training-status-row">
-                  <span class="training-status-badge" id="training-status-badge">Idle</span>
+                  <span class="training-status-badge" id="training-status-badge">Chờ</span>
                 </div>
                 <div class="training-actions">
-                  <button class="btn-ld btn-ld-accent" id="open-training-panel-btn">Open Training Panel</button>
-                  <button class="btn-ld btn-ld-muted" id="quick-record-btn">Record 60s</button>
+                  <button class="btn-ld btn-ld-accent" id="open-training-panel-btn">Mở Bảng Huấn luyện</button>
+                  <button class="btn-ld btn-ld-muted" id="quick-record-btn">Thu 60 giây</button>
                 </div>
               </div>
 
               <div class="setup-guide-panel">
-                <h4>Setup Guide</h4>
+                <h4>Hướng dẫn Cài đặt</h4>
                 <div class="setup-levels">
                   <div class="setup-level">
                     <span class="setup-level-icon">1x</span>
                     <div class="setup-level-info">
                       <strong>1 ESP32 + 1 AP</strong>
-                      <p>Presence, breathing, gross motion</p>
+                      <p>Hiện diện, hô hấp, chuyển động thô</p>
                     </div>
                   </div>
                   <div class="setup-level">
                     <span class="setup-level-icon">3x</span>
                     <div class="setup-level-info">
                       <strong>2-3 ESP32s</strong>
-                      <p>Body localization, motion direction</p>
+                      <p>Định vị cơ thể, hướng chuyển động</p>
                     </div>
                   </div>
                   <div class="setup-level">
                     <span class="setup-level-icon">4x+</span>
                     <div class="setup-level-info">
-                      <strong>4+ ESP32s + trained model</strong>
-                      <p>Individual limb tracking, full pose</p>
+                      <strong>4+ ESP32 + mô hình đã huấn luyện</strong>
+                      <p>Theo dõi chi riêng lẻ, tư thế đầy đủ</p>
                     </div>
                   </div>
                 </div>
                 <p class="setup-note">
-                  Signal-Derived mode uses aggregate CSI features.
-                  For per-limb tracking, load a trained <code>.rvf</code> model
-                  with <code>--model path.rvf</code> and use 4+ sensors.
+                  Chế độ Trích xuất Tín hiệu sử dụng đặc trưng CSI tổng hợp.
+                  Để theo dõi từng chi, tải mô hình đã huấn luyện <code>.rvf</code>
+                  với <code>--model path.rvf</code> và sử dụng 4+ cảm biến.
                 </p>
               </div>
 
               <div class="health-panel">
-                <h4>System Health</h4>
+                <h4>Sức khỏe Hệ thống</h4>
                 <div class="health-check">
-                  <label>API Health:</label>
-                  <span id="api-health">Unknown</span>
+                  <label>Sức khỏe API:</label>
+                  <span id="api-health">Không xác định</span>
                 </div>
                 <div class="health-check">
                   <label>WebSocket:</label>
-                  <span id="websocket-health">Unknown</span>
+                  <span id="websocket-health">Không xác định</span>
                 </div>
                 <div class="health-check">
-                  <label>Pose Service:</label>
-                  <span id="pose-service-health">Unknown</span>
+                  <label>Dịch vụ Tư thế:</label>
+                  <span id="pose-service-health">Không xác định</span>
                 </div>
               </div>
               
               <div class="debug-panel" id="debug-panel" style="display: none;">
-                <h4>Debug Information</h4>
+                <h4>Thông tin Gỡ lỗi</h4>
                 <div class="debug-actions">
-                  <button class="btn btn-sm" id="force-reconnect">Force Reconnect</button>
-                  <button class="btn btn-sm" id="clear-errors">Clear Errors</button>
-                  <button class="btn btn-sm" id="export-logs">Export Logs</button>
+                  <button class="btn btn-sm" id="force-reconnect">Buộc Kết nối lại</button>
+                  <button class="btn btn-sm" id="clear-errors">Xóa Lỗi</button>
+                  <button class="btn btn-sm" id="export-logs">Xuất Nhật ký</button>
                 </div>
                 <div class="debug-info">
                   <textarea id="debug-output" readonly rows="8" cols="30"></textarea>
@@ -586,7 +586,7 @@ export class LiveDemoTab {
       .health-poor { color: #ffc107; }
       .health-bad { color: #dc3545; }
 
-      /* Pose estimation mode indicator */
+      /* Chỉ báo chế độ ước lượng tư thế */
       .pose-source-panel {
         background: rgba(17, 24, 39, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -714,7 +714,7 @@ export class LiveDemoTab {
         font-size: 10px;
       }
 
-      /* Model Control Panel */
+      /* Bảng Điều khiển Mô hình */
       .model-control-panel,
       .split-view-panel,
       .training-quick-panel {
@@ -887,7 +887,7 @@ export class LiveDemoTab {
         animation: pulse 1.5s ease-in-out infinite;
       }
 
-      /* A/B Split View Overlay */
+      /* Lớp phủ Chế độ Xem Chia đôi A/B */
       .split-view-divider {
         position: absolute;
         top: 0;
@@ -930,7 +930,7 @@ export class LiveDemoTab {
         color: #8ea4f0;
       }
 
-      /* Training modal overlay */
+      /* Lớp phủ modal huấn luyện */
       .training-panel-overlay {
         position: fixed;
         top: 0;
@@ -992,11 +992,11 @@ export class LiveDemoTab {
         height: 600,
         autoResize: true,
         enableStats: true,
-        enableControls: false, // We'll handle controls in the parent
+        enableControls: false, // Chúng ta sẽ xử lý điều khiển ở thành phần cha
         zoneId: this.state.currentZone
       });
 
-      // Set up canvas callbacks
+      // Thiết lập các callback cho canvas
       this.components.poseCanvas.setCallback('onStateChange', (state) => {
         this.handleCanvasStateChange(state);
       });
@@ -1013,15 +1013,15 @@ export class LiveDemoTab {
         this.handleConnectionStateChange(state);
       });
 
-      this.logger.info('Pose detection canvas initialized');
+      this.logger.info('Đã khởi tạo canvas phát hiện tư thế');
     } catch (error) {
-      this.logger.error('Failed to initialize pose canvas', { error: error.message });
+      this.logger.error('Không thể khởi tạo canvas tư thế', { error: error.message });
       throw error;
     }
   }
 
   setupEnhancedControls() {
-    // Main controls
+    // Điều khiển chính
     const startBtn = this.container.querySelector('#start-enhanced-demo');
     const stopBtn = this.container.querySelector('#stop-enhanced-demo');
     const debugBtn = this.container.querySelector('#toggle-debug');
@@ -1035,7 +1035,7 @@ export class LiveDemoTab {
       stopBtn.addEventListener('click', () => this.stopDemo());
     }
 
-    // Offline demo button — runs client-side animated demo (no server needed)
+    // Nút demo ngoại tuyến — chạy demo hoạt hình phía client (không cần server)
     const offlineDemoBtn = this.container.querySelector('#run-offline-demo');
     if (offlineDemoBtn) {
       offlineDemoBtn.addEventListener('click', () => {
@@ -1054,7 +1054,7 @@ export class LiveDemoTab {
       zoneSelector.value = this.state.currentZone;
     }
 
-    // Debug controls
+    // Điều khiển gỡ lỗi
     const forceReconnectBtn = this.container.querySelector('#force-reconnect');
     const clearErrorsBtn = this.container.querySelector('#clear-errors');
     const exportLogsBtn = this.container.querySelector('#export-logs');
@@ -1071,31 +1071,31 @@ export class LiveDemoTab {
       exportLogsBtn.addEventListener('click', () => this.exportLogs());
     }
 
-    // Model, training, and split-view controls
+    // Điều khiển mô hình, huấn luyện và chế độ xem chia đôi
     this.setupModelTrainingControls();
 
-    this.logger.debug('Enhanced controls set up');
+    this.logger.debug('Đã thiết lập điều khiển nâng cao');
   }
 
   setupMonitoring() {
-    // Set up periodic health checks
+    // Thiết lập kiểm tra sức khỏe định kỳ
     if (this.config.enablePerformanceMonitoring) {
       this.healthCheckInterval = setInterval(() => {
         this.performHealthCheck();
       }, this.config.healthCheckInterval);
     }
 
-    // Set up periodic UI updates
+    // Thiết lập cập nhật giao diện định kỳ
     this.uiUpdateInterval = setInterval(() => {
       this.updateMetricsDisplay();
     }, 1000);
 
-    // Subscribe to sensing service for data-source changes
+    // Đăng ký dịch vụ cảm biến để theo dõi thay đổi nguồn dữ liệu
     this._sensingStateUnsub = sensingService.onStateChange(() => {
       this.updateSourceBanner();
       this.updateStatusIndicator();
     });
-    // Throttle data-based banner updates (frames arrive at 10Hz)
+    // Giới hạn tốc độ cập nhật banner theo dữ liệu (khung hình đến ở 10Hz)
     let lastBannerUpdate = 0;
     this._sensingDataUnsub = sensingService.onData(() => {
       const now = Date.now();
@@ -1104,99 +1104,99 @@ export class LiveDemoTab {
         this.updateSourceBanner();
       }
     });
-    // Initial banner update
+    // Cập nhật banner ban đầu
     this.updateSourceBanner();
 
-    this.logger.debug('Monitoring set up');
+    this.logger.debug('Đã thiết lập giám sát');
   }
 
-  // Event handlers for canvas callbacks
+  // Xử lý sự kiện callback từ canvas
   handleCanvasStateChange(state) {
     this.state.isActive = state.isActive;
     this.updateUI();
-    this.logger.debug('Canvas state changed', { state });
+    this.logger.debug('Trạng thái canvas đã thay đổi', { state });
   }
 
   handlePoseUpdate(data) {
     this.metrics.frameCount++;
     this.metrics.lastUpdate = Date.now();
-    // Update pose source indicator if the backend supplies it
+    // Cập nhật chỉ báo nguồn tư thế nếu backend cung cấp
     if (data.pose_source && data.pose_source !== this.state.poseSource) {
       this.setState({ poseSource: data.pose_source });
     }
-    this.updateDebugOutput(`Pose update: ${data.persons?.length || 0} persons detected (${data.pose_source || 'unknown'})`);
+    this.updateDebugOutput(`Cập nhật tư thế: ${data.persons?.length || 0} người được phát hiện (${data.pose_source || 'không xác định'})`);
   }
 
   handleCanvasError(error) {
     this.metrics.errorCount++;
-    this.logger.error('Canvas error', { error: error.message });
-    this.showError(`Canvas error: ${error.message}`);
+    this.logger.error('Lỗi canvas', { error: error.message });
+    this.showError(`Lỗi canvas: ${error.message}`);
   }
 
   handleConnectionStateChange(state) {
     this.state.connectionState = state;
     this.updateUI();
-    this.logger.debug('Connection state changed', { state });
+    this.logger.debug('Trạng thái kết nối đã thay đổi', { state });
   }
 
-  // Start demo
+  // Bắt đầu demo
   async startDemo() {
     if (this.state.isActive) {
-      this.logger.warn('Demo already active');
+      this.logger.warn('Demo đã đang hoạt động');
       return;
     }
     
     try {
-      this.logger.info('Starting enhanced demo');
+      this.logger.info('Đang bắt đầu demo nâng cao');
       this.metrics.startTime = Date.now();
       this.metrics.frameCount = 0;
       this.metrics.errorCount = 0;
       this.metrics.connectionAttempts++;
       
-      // Update UI state
+      // Cập nhật trạng thái giao diện
       this.setState({ isActive: true, connectionState: 'connecting' });
       this.clearError();
       
-      // Start the pose detection canvas
+      // Bắt đầu canvas phát hiện tư thế
       await this.components.poseCanvas.start();
       
-      this.logger.info('Enhanced demo started successfully');
-      this.updateDebugOutput('Demo started successfully');
+      this.logger.info('Đã bắt đầu demo nâng cao thành công');
+      this.updateDebugOutput('Đã bắt đầu demo thành công');
       
     } catch (error) {
-      this.logger.error('Failed to start enhanced demo', { error: error.message });
-      this.showError(`Failed to start: ${error.message}`);
+      this.logger.error('Không thể bắt đầu demo nâng cao', { error: error.message });
+      this.showError(`Không thể bắt đầu: ${error.message}`);
       this.setState({ isActive: false, connectionState: 'error' });
     }
   }
 
-  // Stop demo
+  // Dừng demo
   stopDemo() {
     if (!this.state.isActive) {
-      this.logger.warn('Demo not active');
+      this.logger.warn('Demo không hoạt động');
       return;
     }
     
     try {
-      this.logger.info('Stopping enhanced demo');
-      
-      // Stop the pose detection canvas
+      this.logger.info('Đang dừng demo nâng cao');
+
+      // Dừng canvas phát hiện tư thế
       this.components.poseCanvas.stop();
       
-      // Update state
+      // Cập nhật trạng thái
       this.setState({ isActive: false, connectionState: 'disconnected' });
       this.clearError();
-      
-      this.logger.info('Enhanced demo stopped successfully');
-      this.updateDebugOutput('Demo stopped successfully');
+
+      this.logger.info('Đã dừng demo nâng cao thành công');
+      this.updateDebugOutput('Đã dừng demo thành công');
       
     } catch (error) {
-      this.logger.error('Error stopping enhanced demo', { error: error.message });
-      this.showError(`Error stopping: ${error.message}`);
+      this.logger.error('Lỗi khi dừng demo nâng cao', { error: error.message });
+      this.showError(`Lỗi khi dừng: ${error.message}`);
     }
   }
 
-  // Enhanced control methods
+  // Các phương thức điều khiển nâng cao
   toggleDebugMode() {
     this.state.debugMode = !this.state.debugMode;
     const debugPanel = this.container.querySelector('#debug-panel');
@@ -1207,22 +1207,22 @@ export class LiveDemoTab {
     }
     
     if (debugBtn) {
-      debugBtn.textContent = this.state.debugMode ? 'Hide Debug' : 'Debug Mode';
+      debugBtn.textContent = this.state.debugMode ? 'Ẩn Gỡ lỗi' : 'Chế độ Gỡ lỗi';
       debugBtn.classList.toggle('active', this.state.debugMode);
     }
     
-    this.logger.info('Debug mode toggled', { enabled: this.state.debugMode });
+    this.logger.info('Đã chuyển đổi chế độ gỡ lỗi', { enabled: this.state.debugMode });
   }
 
   async changeZone(zoneId) {
-    this.logger.info('Changing zone', { from: this.state.currentZone, to: zoneId });
+    this.logger.info('Đang chuyển vùng', { from: this.state.currentZone, to: zoneId });
     this.state.currentZone = zoneId;
     
-    // Update canvas configuration
+    // Cập nhật cấu hình canvas
     if (this.components.poseCanvas) {
       this.components.poseCanvas.updateConfig({ zoneId });
       
-      // Restart if currently active
+      // Khởi động lại nếu đang hoạt động
       if (this.state.isActive) {
         await this.components.poseCanvas.reconnect();
       }
@@ -1231,17 +1231,17 @@ export class LiveDemoTab {
 
   async forceReconnect() {
     if (!this.state.isActive) {
-      this.showError('Cannot reconnect - demo not active');
+      this.showError('Không thể kết nối lại - demo không hoạt động');
       return;
     }
     
     try {
-      this.logger.info('Forcing reconnection');
+      this.logger.info('Đang buộc kết nối lại');
       await this.components.poseCanvas.reconnect();
-      this.updateDebugOutput('Force reconnection initiated');
+      this.updateDebugOutput('Đã khởi tạo buộc kết nối lại');
     } catch (error) {
-      this.logger.error('Force reconnection failed', { error: error.message });
-      this.showError(`Reconnection failed: ${error.message}`);
+      this.logger.error('Buộc kết nối lại thất bại', { error: error.message });
+      this.showError(`Kết nối lại thất bại: ${error.message}`);
     }
   }
 
@@ -1249,8 +1249,8 @@ export class LiveDemoTab {
     this.metrics.errorCount = 0;
     this.clearError();
     poseService.clearValidationErrors();
-    this.updateDebugOutput('Errors cleared');
-    this.logger.info('Errors cleared');
+    this.updateDebugOutput('Đã xóa lỗi');
+    this.logger.info('Đã xóa lỗi');
   }
 
   exportLogs() {
@@ -1271,11 +1271,11 @@ export class LiveDemoTab {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.updateDebugOutput('Logs exported');
-    this.logger.info('Logs exported');
+    this.updateDebugOutput('Đã xuất nhật ký');
+    this.logger.info('Đã xuất nhật ký');
   }
 
-  // State management
+  // Quản lý trạng thái
   setState(newState) {
     this.state = { ...this.state, ...newState };
     this.updateUI();
@@ -1313,25 +1313,25 @@ export class LiveDemoTab {
 
   getStatusText() {
     if (!this.state.isActive) {
-      return this.state.connectionState === 'error' ? 'Error' : 'Ready';
+      return this.state.connectionState === 'error' ? 'Lỗi' : 'Sẵn sàng';
     }
     const ds = sensingService.dataSource;
-    if (ds === 'live') return 'Active \u2014 ESP32 Live';
-    if (ds === 'server-simulated') return 'Active \u2014 Simulated Data';
-    if (ds === 'simulated') return 'Active \u2014 Offline Simulation';
-    return 'Connecting...';
+    if (ds === 'live') return 'Hoạt động \u2014 ESP32 Trực tiếp';
+    if (ds === 'server-simulated') return 'Hoạt động \u2014 Dữ liệu Mô phỏng';
+    if (ds === 'simulated') return 'Hoạt động \u2014 Mô phỏng Ngoại tuyến';
+    return 'Đang kết nối...';
   }
 
-  /** Update the prominent data-source banner at the top of Live Demo. */
+  /** Cập nhật banner nguồn dữ liệu nổi bật ở đầu Demo Trực tiếp. */
   updateSourceBanner() {
     const banner = this.container.querySelector('#demo-source-banner');
     if (!banner) return;
     const ds = sensingService.dataSource;
     const config = {
-      'live':             { text: 'LIVE \u2014 ESP32 Hardware Connected',           cls: 'demo-source-live' },
-      'server-simulated': { text: 'SIMULATED DATA \u2014 No Hardware Detected',     cls: 'demo-source-sim' },
-      'reconnecting':     { text: 'RECONNECTING TO SERVER...',                      cls: 'demo-source-reconnecting' },
-      'simulated':        { text: 'OFFLINE \u2014 Server Unreachable, Local Sim',   cls: 'demo-source-offline' },
+      'live':             { text: 'TRỰC TIẾP \u2014 Phần cứng ESP32 Đã kết nối',           cls: 'demo-source-live' },
+      'server-simulated': { text: 'DỮ LIỆU MÔ PHỎNG \u2014 Không phát hiện Phần cứng',     cls: 'demo-source-sim' },
+      'reconnecting':     { text: 'ĐANG KẾT NỐI LẠI VỚI MÁY CHỦ...',                      cls: 'demo-source-reconnecting' },
+      'simulated':        { text: 'NGOẠI TUYẾN \u2014 Máy chủ Không thể kết nối, Mô phỏng Cục bộ',   cls: 'demo-source-offline' },
     };
     const cfg = config[ds] || config['reconnecting'];
     banner.textContent = cfg.text;
@@ -1368,10 +1368,10 @@ export class LiveDemoTab {
     if (elements.connectionStatus) {
       const ds = sensingService.dataSource;
       const dsLabels = {
-        'live':              'Connected \u2014 ESP32',
-        'server-simulated':  'Connected \u2014 Simulated',
-        'reconnecting':      'Reconnecting...',
-        'simulated':         'Offline \u2014 Simulated',
+        'live':              'Đã kết nối \u2014 ESP32',
+        'server-simulated':  'Đã kết nối \u2014 Mô phỏng',
+        'reconnecting':      'Đang kết nối lại...',
+        'simulated':         'Ngoại tuyến \u2014 Mô phỏng',
       };
       const label = dsLabels[ds] || this.state.connectionState;
       elements.connectionStatus.textContent = label;
@@ -1399,7 +1399,7 @@ export class LiveDemoTab {
 
     if (elements.lastUpdate) {
       const lastUpdate = this.metrics.lastUpdate ? 
-        new Date(this.metrics.lastUpdate).toLocaleTimeString() : 'Never';
+        new Date(this.metrics.lastUpdate).toLocaleTimeString() : 'Chưa bao giờ';
       elements.lastUpdate.textContent = lastUpdate;
     }
   }
@@ -1414,20 +1414,20 @@ export class LiveDemoTab {
 
     if (source === 'model_inference') {
       badge.className = 'pose-source-badge pose-source-model';
-      badge.textContent = 'Model Inference';
+      badge.textContent = 'Suy luận Mô hình';
       description.textContent =
-        'Pose is estimated by a trained neural network ' +
-        'loaded from an RVF container.';
+        'Tư thế được ước tính bởi mạng nơ-ron đã huấn luyện ' +
+        'được tải từ container RVF.';
     } else if (source === 'signal_derived') {
       badge.className = 'pose-source-badge pose-source-signal';
-      badge.textContent = 'Signal-Derived';
+      badge.textContent = 'Trích xuất từ Tín hiệu';
       description.textContent =
-        'Keypoints are derived from live CSI signal features ' +
-        '(motion power, breathing rate, variance).';
+        'Các điểm khớp được trích xuất từ đặc trưng tín hiệu CSI trực tiếp ' +
+        '(công suất chuyển động, nhịp thở, phương sai).';
     } else {
       badge.className = 'pose-source-badge pose-source-unknown';
-      badge.textContent = 'Unknown';
-      description.textContent = 'Waiting for first frame...';
+      badge.textContent = 'Không xác định';
+      description.textContent = 'Đang chờ khung hình đầu tiên...';
     }
   }
 
@@ -1442,27 +1442,27 @@ export class LiveDemoTab {
 
   async performHealthCheck() {
     try {
-      // Check pose service health
+      // Kiểm tra sức khỏe dịch vụ tư thế
       const poseHealth = await poseService.healthCheck();
       this.updateHealthDisplay('pose-service-health', poseHealth.healthy);
 
-      // Check WebSocket health
+      // Kiểm tra sức khỏe WebSocket
       const wsStats = wsService.getAllConnectionStats();
       const wsHealthy = wsStats.connections.some(conn => conn.status === 'connected');
       this.updateHealthDisplay('websocket-health', wsHealthy);
 
-      // Check API health (simplified)
+      // Kiểm tra sức khỏe API (đơn giản hoá)
       this.updateHealthDisplay('api-health', poseHealth.apiHealthy);
 
     } catch (error) {
-      this.logger.error('Health check failed', { error: error.message });
+      this.logger.error('Kiểm tra sức khỏe thất bại', { error: error.message });
     }
   }
 
   updateHealthDisplay(elementId, isHealthy) {
     const element = this.container.querySelector(`#${elementId}`);
     if (element) {
-      element.textContent = isHealthy ? 'Good' : 'Poor';
+      element.textContent = isHealthy ? 'Tốt' : 'Kém';
       element.className = isHealthy ? 'health-good' : 'health-poor';
     }
   }
@@ -1486,7 +1486,7 @@ export class LiveDemoTab {
       errorDisplay.style.display = 'block';
     }
     
-    // Auto-hide after 10 seconds
+    // Tự động ẩn sau 10 giây
     setTimeout(() => this.clearError(), 10000);
   }
 
@@ -1497,7 +1497,7 @@ export class LiveDemoTab {
     }
   }
 
-  // --- Model Control Methods ---
+  // --- Các phương thức Điều khiển Mô hình ---
 
   async fetchModels() {
     if (!modelService) return;
@@ -1505,7 +1505,7 @@ export class LiveDemoTab {
       const data = await modelService.listModels();
       this.modelState.models = data?.models || [];
       this.populateModelSelector();
-      // Check if a model is already active
+      // Kiểm tra xem mô hình đã hoạt động chưa
       const active = await modelService.getActiveModel();
       if (active && active.model_id) {
         this.modelState.activeModelId = active.model_id;
@@ -1513,19 +1513,19 @@ export class LiveDemoTab {
         this.updateModelUI();
       }
     } catch (error) {
-      this.logger.warn('Could not fetch models', { error: error.message });
+      this.logger.warn('Không thể tải danh sách mô hình', { error: error.message });
     }
   }
 
   populateModelSelector() {
     const selector = this.container.querySelector('#model-selector');
     if (!selector) return;
-    // Keep the first "Signal-Derived" option
-    selector.innerHTML = '<option value="">Signal-Derived (no model)</option>';
+    // Giữ lại tùy chọn "Trích xuất từ Tín hiệu" đầu tiên
+    selector.innerHTML = '<option value="">Trích xuất từ Tín hiệu (không có mô hình)</option>';
     this.modelState.models.forEach(model => {
       const opt = document.createElement('option');
       opt.value = model.id || model.model_id || model.name;
-      opt.textContent = model.name || model.id || 'Unknown Model';
+      opt.textContent = model.name || model.id || 'Mô hình Không xác định';
       selector.appendChild(opt);
     });
     if (this.modelState.activeModelId) {
@@ -1538,19 +1538,19 @@ export class LiveDemoTab {
     const selector = this.container.querySelector('#model-selector');
     const modelId = selector?.value;
     if (!modelId) {
-      this.setModelStatus('Select a model first');
+      this.setModelStatus('Hãy chọn mô hình trước');
       return;
     }
     try {
       this.modelState.loading = true;
-      this.setModelStatus('Loading...');
+      this.setModelStatus('Đang tải...');
       const loadBtn = this.container.querySelector('#load-model-btn');
       if (loadBtn) loadBtn.disabled = true;
 
       await modelService.loadModel(modelId);
       this.modelState.activeModelId = modelId;
 
-      // Try to fetch full info
+      // Thử lấy thông tin đầy đủ
       try {
         const info = await modelService.getModel(modelId);
         this.modelState.activeModelInfo = info;
@@ -1558,7 +1558,7 @@ export class LiveDemoTab {
         this.modelState.activeModelInfo = { model_id: modelId };
       }
 
-      // Fetch LoRA profiles
+      // Lấy danh sách hồ sơ LoRA
       try {
         const profiles = await modelService.getLoraProfiles();
         this.modelState.loraProfiles = profiles || [];
@@ -1570,15 +1570,15 @@ export class LiveDemoTab {
       this.updateModelUI();
       this.updateSplitViewAvailability();
 
-      // Update pose source badge to model inference
+      // Cập nhật badge nguồn tư thế thành suy luận mô hình
       this.setState({ poseSource: 'model_inference' });
 
     } catch (error) {
       this.modelState.loading = false;
-      this.setModelStatus(`Error: ${error.message}`);
+      this.setModelStatus(`Lỗi: ${error.message}`);
       const loadBtn = this.container.querySelector('#load-model-btn');
       if (loadBtn) loadBtn.disabled = false;
-      this.logger.error('Failed to load model', { error: error.message });
+      this.logger.error('Không thể tải mô hình', { error: error.message });
     }
   }
 
@@ -1595,8 +1595,8 @@ export class LiveDemoTab {
       this.disableSplitView();
       this.setState({ poseSource: 'signal_derived' });
     } catch (error) {
-      this.setModelStatus(`Error: ${error.message}`);
-      this.logger.error('Failed to unload model', { error: error.message });
+      this.setModelStatus(`Lỗi: ${error.message}`);
+      this.logger.error('Không thể gỡ tải mô hình', { error: error.message });
     }
   }
 
@@ -1606,9 +1606,9 @@ export class LiveDemoTab {
     try {
       await modelService.activateLoraProfile(this.modelState.activeModelId, profileName);
       this.modelState.selectedLoraProfile = profileName;
-      this.setModelStatus(`LoRA: ${profileName} active`);
+      this.setModelStatus(`LoRA: ${profileName} đang hoạt động`);
     } catch (error) {
-      this.setModelStatus(`LoRA error: ${error.message}`);
+      this.setModelStatus(`Lỗi LoRA: ${error.message}`);
     }
   }
 
@@ -1637,16 +1637,16 @@ export class LiveDemoTab {
       const pck = info.pck_score != null ? info.pck_score.toFixed(2) : '--';
       if (nameEl) nameEl.textContent = `${name}${version}`;
       if (pckEl) pckEl.textContent = `PCK: ${pck}`;
-      this.setModelStatus(`Model: ${name} (PCK: ${pck})`);
+      this.setModelStatus(`Mô hình: ${name} (PCK: ${pck})`);
     } else if (!isLoaded) {
-      this.setModelStatus('No model loaded');
+      this.setModelStatus('Chưa tải mô hình');
     }
 
-    // LoRA profiles
+    // Hồ sơ LoRA
     if (loraRow && loraSel) {
       if (isLoaded && this.modelState.loraProfiles.length > 0) {
         loraRow.style.display = 'flex';
-        loraSel.innerHTML = '<option value="">None</option>';
+        loraSel.innerHTML = '<option value="">Không</option>';
         this.modelState.loraProfiles.forEach(profile => {
           const opt = document.createElement('option');
           opt.value = profile.name || profile;
@@ -1664,7 +1664,7 @@ export class LiveDemoTab {
     if (el) el.textContent = text;
   }
 
-  // --- A/B Split View Methods ---
+  // --- Các phương thức Chế độ xem A/B Chia đôi ---
 
   updateSplitViewAvailability() {
     const toggle = this.container.querySelector('#split-view-toggle');
@@ -1678,7 +1678,7 @@ export class LiveDemoTab {
     this.splitViewActive = !this.splitViewActive;
     const toggle = this.container.querySelector('#split-view-toggle');
     if (toggle) {
-      toggle.textContent = this.splitViewActive ? 'On' : 'Off';
+      toggle.textContent = this.splitViewActive ? 'Bật' : 'Tắt';
       toggle.classList.toggle('active', this.splitViewActive);
     }
     this.updateSplitViewOverlay();
@@ -1688,7 +1688,7 @@ export class LiveDemoTab {
     this.splitViewActive = false;
     const toggle = this.container.querySelector('#split-view-toggle');
     if (toggle) {
-      toggle.textContent = 'Off';
+      toggle.textContent = 'Tắt';
       toggle.classList.remove('active');
     }
     this.updateSplitViewOverlay();
@@ -1698,7 +1698,7 @@ export class LiveDemoTab {
     const mainContainer = this.container.querySelector('.pose-detection-container');
     if (!mainContainer) return;
 
-    // Remove existing overlays
+    // Xóa lớp phủ hiện có
     mainContainer.querySelectorAll('.split-view-divider, .split-view-label').forEach(el => el.remove());
 
     if (this.splitViewActive) {
@@ -1708,17 +1708,17 @@ export class LiveDemoTab {
 
       const leftLabel = document.createElement('div');
       leftLabel.className = 'split-view-label left';
-      leftLabel.textContent = 'Signal-Derived';
+      leftLabel.textContent = 'Trích xuất từ Tín hiệu';
       mainContainer.appendChild(leftLabel);
 
       const rightLabel = document.createElement('div');
       rightLabel.className = 'split-view-label right';
-      rightLabel.textContent = 'Model Inference';
+      rightLabel.textContent = 'Suy luận Mô hình';
       mainContainer.appendChild(rightLabel);
     }
   }
 
-  // --- Training Quick-Panel Methods ---
+  // --- Các phương thức Bảng Huấn luyện Nhanh ---
 
   updateTrainingStatus() {
     const badge = this.container.querySelector('#training-status-badge');
@@ -1729,25 +1729,25 @@ export class LiveDemoTab {
 
     if (state === 'training') {
       badge.classList.add('training');
-      badge.textContent = `Training epoch ${this.trainingState.epoch}/${this.trainingState.totalEpochs}`;
+      badge.textContent = `Đang huấn luyện epoch ${this.trainingState.epoch}/${this.trainingState.totalEpochs}`;
     } else if (state === 'recording') {
       badge.classList.add('recording');
-      badge.textContent = 'Recording...';
+      badge.textContent = 'Đang thu...';
     } else {
-      badge.textContent = 'Idle';
+      badge.textContent = 'Chờ';
     }
   }
 
   async handleQuickRecord() {
     if (!trainingService) {
-      this.logger.warn('Training service not available');
+      this.logger.warn('Dịch vụ huấn luyện không khả dụng');
       return;
     }
     try {
       await trainingService.startRecording({ session_name: `quick_${Date.now()}`, duration_secs: 60 });
       this.trainingState.status = 'recording';
       this.updateTrainingStatus();
-      // Auto-reset after ~65 seconds
+      // Tự động đặt lại sau ~65 giây
       setTimeout(() => {
         if (this.trainingState.status === 'recording') {
           this.trainingState.status = 'idle';
@@ -1755,12 +1755,12 @@ export class LiveDemoTab {
         }
       }, 65000);
     } catch (error) {
-      this.logger.error('Quick record failed', { error: error.message });
+      this.logger.error('Thu nhanh thất bại', { error: error.message });
     }
   }
 
   showTrainingPanel() {
-    // Create a simple modal overlay for the training panel
+    // Tạo lớp phủ modal đơn giản cho bảng huấn luyện
     const existing = document.querySelector('.training-panel-overlay');
     if (existing) existing.remove();
 
@@ -1768,19 +1768,19 @@ export class LiveDemoTab {
     overlay.className = 'training-panel-overlay';
     overlay.innerHTML = `
       <div class="training-panel-modal">
-        <button class="close-btn" id="close-training-modal">Close</button>
-        <h3>Training Panel</h3>
+        <button class="close-btn" id="close-training-modal">Đóng</button>
+        <h3>Bảng Huấn luyện</h3>
         <p style="color: #8899aa; font-size: 13px; margin-bottom: 16px;">
-          Configure and start model training from here. Connect to the backend training API to manage epochs, datasets, and checkpoints.
+          Cấu hình và bắt đầu huấn luyện mô hình từ đây. Kết nối tới API huấn luyện backend để quản lý epoch, tập dữ liệu và checkpoint.
         </p>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <div class="setting-row-ld">
-            <label class="ld-label" style="flex: 1;">Status:</label>
+            <label class="ld-label" style="flex: 1;">Trạng thái:</label>
             <span style="color: #c8d0dc; font-size: 12px;">${this.trainingState.status}</span>
           </div>
           <div class="setting-row-ld">
-            <label class="ld-label" style="flex: 1;">Training service:</label>
-            <span style="color: ${trainingService ? '#00cc88' : '#ef4444'}; font-size: 12px;">${trainingService ? 'Connected' : 'Not available'}</span>
+            <label class="ld-label" style="flex: 1;">Dịch vụ huấn luyện:</label>
+            <span style="color: ${trainingService ? '#00cc88' : '#ef4444'}; font-size: 12px;">${trainingService ? 'Đã kết nối' : 'Không khả dụng'}</span>
           </div>
         </div>
       </div>
@@ -1788,19 +1788,19 @@ export class LiveDemoTab {
 
     document.body.appendChild(overlay);
 
-    // Close handler
+    // Xử lý đóng
     overlay.querySelector('#close-training-modal').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) overlay.remove();
     });
   }
 
-  // --- Service Event Listeners ---
+  // --- Lắng nghe Sự kiện Dịch vụ ---
 
   setupServiceListeners() {
     if (modelService) {
       const unsub1 = modelService.on('model-loaded', (data) => {
-        this.logger.info('Model loaded event', data);
+        this.logger.info('Sự kiện mô hình đã tải', data);
       });
       const unsub2 = modelService.on('model-unloaded', () => {
         this.modelState.activeModelId = null;
@@ -1828,10 +1828,10 @@ export class LiveDemoTab {
     }
   }
 
-  // --- Enhanced Controls Setup ---
+  // --- Thiết lập Điều khiển Nâng cao ---
 
   setupModelTrainingControls() {
-    // Model control buttons
+    // Nút điều khiển mô hình
     const loadBtn = this.container.querySelector('#load-model-btn');
     const unloadBtn = this.container.querySelector('#unload-model-btn');
     const loraSel = this.container.querySelector('#lora-profile-selector');
@@ -1847,17 +1847,17 @@ export class LiveDemoTab {
     if (quickRecordBtn) quickRecordBtn.addEventListener('click', () => this.handleQuickRecord());
   }
 
-  // Clean up
+  // Dọn dẹp
   dispose() {
     try {
-      this.logger.info('Disposing LiveDemoTab component');
-      
-      // Stop demo if running
+      this.logger.info('Đang huỷ thành phần LiveDemoTab');
+
+      // Dừng demo nếu đang chạy
       if (this.state.isActive) {
         this.stopDemo();
       }
       
-      // Clear intervals
+      // Xóa các bộ đếm thời gian
       if (this.healthCheckInterval) {
         clearInterval(this.healthCheckInterval);
       }
@@ -1866,21 +1866,21 @@ export class LiveDemoTab {
         clearInterval(this.uiUpdateInterval);
       }
       
-      // Dispose canvas component
+      // Huỷ thành phần canvas
       if (this.components.poseCanvas) {
         this.components.poseCanvas.dispose();
       }
       
-      // Unsubscribe from services
+      // Huỷ đăng ký dịch vụ
       this.subscriptions.forEach(unsubscribe => unsubscribe());
       this.subscriptions = [];
       if (this._sensingStateUnsub) this._sensingStateUnsub();
       if (this._sensingDataUnsub) this._sensingDataUnsub();
       if (this._autoStartUnsub) this._autoStartUnsub();
       
-      this.logger.info('LiveDemoTab component disposed successfully');
+      this.logger.info('Đã huỷ thành phần LiveDemoTab thành công');
     } catch (error) {
-      this.logger.error('Error during disposal', { error: error.message });
+      this.logger.error('Lỗi khi huỷ', { error: error.message });
     }
   }
 }

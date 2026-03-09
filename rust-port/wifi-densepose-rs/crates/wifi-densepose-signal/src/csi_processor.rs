@@ -1,7 +1,7 @@
-//! CSI (Channel State Information) Processor
+//! Bộ xử lý CSI (Thông tin trạng thái kênh)
 //!
-//! This module provides functionality for preprocessing and processing CSI data
-//! from WiFi signals for human pose estimation.
+//! Module này cung cấp chức năng tiền xử lý và xử lý dữ liệu CSI
+//! từ tín hiệu WiFi cho ước lượng tư thế con người.
 
 use chrono::{DateTime, Utc};
 use ndarray::Array2;
@@ -11,80 +11,80 @@ use std::collections::VecDeque;
 use std::f64::consts::PI;
 use thiserror::Error;
 
-/// Errors that can occur during CSI processing
+/// Các lỗi có thể xảy ra trong quá trình xử lý CSI
 #[derive(Debug, Error)]
 pub enum CsiProcessorError {
-    /// Invalid configuration parameters
-    #[error("Invalid configuration: {0}")]
+    /// Tham số cấu hình không hợp lệ
+    #[error("Cấu hình không hợp lệ: {0}")]
     InvalidConfig(String),
 
-    /// Preprocessing failed
-    #[error("Preprocessing failed: {0}")]
+    /// Tiền xử lý thất bại
+    #[error("Tiền xử lý thất bại: {0}")]
     PreprocessingFailed(String),
 
-    /// Feature extraction failed
-    #[error("Feature extraction failed: {0}")]
+    /// Trích xuất đặc trưng thất bại
+    #[error("Trích xuất đặc trưng thất bại: {0}")]
     FeatureExtractionFailed(String),
 
-    /// Invalid input data
-    #[error("Invalid input data: {0}")]
+    /// Dữ liệu đầu vào không hợp lệ
+    #[error("Dữ liệu đầu vào không hợp lệ: {0}")]
     InvalidData(String),
 
-    /// Processing pipeline error
-    #[error("Pipeline error: {0}")]
+    /// Lỗi đường ống xử lý
+    #[error("Lỗi đường ống: {0}")]
     PipelineError(String),
 }
 
-/// CSI data structure containing raw channel measurements
+/// Cấu trúc dữ liệu CSI chứa các phép đo kênh thô
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsiData {
-    /// Timestamp of the measurement
+    /// Dấu thời gian của phép đo
     pub timestamp: DateTime<Utc>,
 
-    /// Amplitude values (num_antennas x num_subcarriers)
+    /// Giá trị biên độ (số_anten x số_sóng_mang_con)
     pub amplitude: Array2<f64>,
 
-    /// Phase values in radians (num_antennas x num_subcarriers)
+    /// Giá trị pha tính bằng radian (số_anten x số_sóng_mang_con)
     pub phase: Array2<f64>,
 
-    /// Center frequency in Hz
+    /// Tần số trung tâm tính bằng Hz
     pub frequency: f64,
 
-    /// Bandwidth in Hz
+    /// Băng thông tính bằng Hz
     pub bandwidth: f64,
 
-    /// Number of subcarriers
+    /// Số sóng mang con
     pub num_subcarriers: usize,
 
-    /// Number of antennas
+    /// Số anten
     pub num_antennas: usize,
 
-    /// Signal-to-noise ratio in dB
+    /// Tỉ số tín hiệu trên nhiễu tính bằng dB
     pub snr: f64,
 
-    /// Additional metadata
+    /// Siêu dữ liệu bổ sung
     #[serde(default)]
     pub metadata: CsiMetadata,
 }
 
-/// Metadata associated with CSI data
+/// Siêu dữ liệu liên quan đến dữ liệu CSI
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CsiMetadata {
-    /// Whether noise filtering has been applied
+    /// Đã áp dụng lọc nhiễu hay chưa
     pub noise_filtered: bool,
 
-    /// Whether windowing has been applied
+    /// Đã áp dụng cửa sổ hay chưa
     pub windowed: bool,
 
-    /// Whether normalization has been applied
+    /// Đã áp dụng chuẩn hóa hay chưa
     pub normalized: bool,
 
-    /// Additional custom metadata
+    /// Siêu dữ liệu tùy chỉnh bổ sung
     #[serde(flatten)]
     pub custom: std::collections::HashMap<String, serde_json::Value>,
 }
 
-/// Builder for CsiData
+/// Bộ xây dựng cho CsiData
 #[derive(Debug, Default)]
 pub struct CsiDataBuilder {
     timestamp: Option<DateTime<Utc>>,
@@ -97,65 +97,65 @@ pub struct CsiDataBuilder {
 }
 
 impl CsiDataBuilder {
-    /// Create a new builder
+    /// Tạo bộ xây dựng mới
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Set the timestamp
+    /// Đặt dấu thời gian
     pub fn timestamp(mut self, timestamp: DateTime<Utc>) -> Self {
         self.timestamp = Some(timestamp);
         self
     }
 
-    /// Set amplitude data
+    /// Đặt dữ liệu biên độ
     pub fn amplitude(mut self, amplitude: Array2<f64>) -> Self {
         self.amplitude = Some(amplitude);
         self
     }
 
-    /// Set phase data
+    /// Đặt dữ liệu pha
     pub fn phase(mut self, phase: Array2<f64>) -> Self {
         self.phase = Some(phase);
         self
     }
 
-    /// Set center frequency
+    /// Đặt tần số trung tâm
     pub fn frequency(mut self, frequency: f64) -> Self {
         self.frequency = Some(frequency);
         self
     }
 
-    /// Set bandwidth
+    /// Đặt băng thông
     pub fn bandwidth(mut self, bandwidth: f64) -> Self {
         self.bandwidth = Some(bandwidth);
         self
     }
 
-    /// Set SNR
+    /// Đặt SNR
     pub fn snr(mut self, snr: f64) -> Self {
         self.snr = Some(snr);
         self
     }
 
-    /// Set metadata
+    /// Đặt siêu dữ liệu
     pub fn metadata(mut self, metadata: CsiMetadata) -> Self {
         self.metadata = metadata;
         self
     }
 
-    /// Build the CsiData
+    /// Xây dựng CsiData
     pub fn build(self) -> Result<CsiData, CsiProcessorError> {
         let amplitude = self
             .amplitude
-            .ok_or_else(|| CsiProcessorError::InvalidData("Amplitude data is required".into()))?;
+            .ok_or_else(|| CsiProcessorError::InvalidData("Dữ liệu biên độ là bắt buộc".into()))?;
         let phase = self
             .phase
-            .ok_or_else(|| CsiProcessorError::InvalidData("Phase data is required".into()))?;
+            .ok_or_else(|| CsiProcessorError::InvalidData("Dữ liệu pha là bắt buộc".into()))?;
 
         if amplitude.shape() != phase.shape() {
             return Err(CsiProcessorError::InvalidData(
-                "Amplitude and phase must have the same shape".into(),
+                "Biên độ và pha phải có cùng kích thước".into(),
             ));
         }
 
@@ -165,8 +165,8 @@ impl CsiDataBuilder {
             timestamp: self.timestamp.unwrap_or_else(Utc::now),
             amplitude,
             phase,
-            frequency: self.frequency.unwrap_or(5.0e9), // Default 5 GHz
-            bandwidth: self.bandwidth.unwrap_or(20.0e6), // Default 20 MHz
+            frequency: self.frequency.unwrap_or(5.0e9), // Mặc định 5 GHz
+            bandwidth: self.bandwidth.unwrap_or(20.0e6), // Mặc định 20 MHz
             num_subcarriers,
             num_antennas,
             snr: self.snr.unwrap_or(20.0),
@@ -176,12 +176,12 @@ impl CsiDataBuilder {
 }
 
 impl CsiData {
-    /// Create a new CsiData builder
+    /// Tạo bộ xây dựng CsiData mới
     pub fn builder() -> CsiDataBuilder {
         CsiDataBuilder::new()
     }
 
-    /// Get complex CSI values
+    /// Lấy giá trị CSI dạng số phức
     pub fn to_complex(&self) -> Array2<Complex64> {
         let mut complex = Array2::zeros(self.amplitude.dim());
         for ((i, j), amp) in self.amplitude.indexed_iter() {
@@ -191,7 +191,7 @@ impl CsiData {
         complex
     }
 
-    /// Create from complex values
+    /// Tạo từ giá trị số phức
     pub fn from_complex(
         complex: &Array2<Complex64>,
         frequency: f64,
@@ -220,37 +220,37 @@ impl CsiData {
     }
 }
 
-/// Configuration for CSI processor
+/// Cấu hình cho bộ xử lý CSI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsiProcessorConfig {
-    /// Sampling rate in Hz
+    /// Tần số lấy mẫu tính bằng Hz
     pub sampling_rate: f64,
 
-    /// Window size for processing
+    /// Kích thước cửa sổ cho xử lý
     pub window_size: usize,
 
-    /// Overlap fraction (0.0 to 1.0)
+    /// Tỉ lệ chồng lấp (0.0 đến 1.0)
     pub overlap: f64,
 
-    /// Noise threshold in dB
+    /// Ngưỡng nhiễu tính bằng dB
     pub noise_threshold: f64,
 
-    /// Human detection threshold (0.0 to 1.0)
+    /// Ngưỡng phát hiện con người (0.0 đến 1.0)
     pub human_detection_threshold: f64,
 
-    /// Temporal smoothing factor (0.0 to 1.0)
+    /// Hệ số làm mịn thời gian (0.0 đến 1.0)
     pub smoothing_factor: f64,
 
-    /// Maximum history size
+    /// Kích thước lịch sử tối đa
     pub max_history_size: usize,
 
-    /// Enable preprocessing
+    /// Bật tiền xử lý
     pub enable_preprocessing: bool,
 
-    /// Enable feature extraction
+    /// Bật trích xuất đặc trưng
     pub enable_feature_extraction: bool,
 
-    /// Enable human detection
+    /// Bật phát hiện con người
     pub enable_human_detection: bool,
 }
 
@@ -271,109 +271,109 @@ impl Default for CsiProcessorConfig {
     }
 }
 
-/// Builder for CsiProcessorConfig
+/// Bộ xây dựng cho CsiProcessorConfig
 #[derive(Debug, Default)]
 pub struct CsiProcessorConfigBuilder {
     config: CsiProcessorConfig,
 }
 
 impl CsiProcessorConfigBuilder {
-    /// Create a new builder
+    /// Tạo bộ xây dựng mới
     pub fn new() -> Self {
         Self {
             config: CsiProcessorConfig::default(),
         }
     }
 
-    /// Set sampling rate
+    /// Đặt tần số lấy mẫu
     pub fn sampling_rate(mut self, rate: f64) -> Self {
         self.config.sampling_rate = rate;
         self
     }
 
-    /// Set window size
+    /// Đặt kích thước cửa sổ
     pub fn window_size(mut self, size: usize) -> Self {
         self.config.window_size = size;
         self
     }
 
-    /// Set overlap fraction
+    /// Đặt tỉ lệ chồng lấp
     pub fn overlap(mut self, overlap: f64) -> Self {
         self.config.overlap = overlap;
         self
     }
 
-    /// Set noise threshold
+    /// Đặt ngưỡng nhiễu
     pub fn noise_threshold(mut self, threshold: f64) -> Self {
         self.config.noise_threshold = threshold;
         self
     }
 
-    /// Set human detection threshold
+    /// Đặt ngưỡng phát hiện con người
     pub fn human_detection_threshold(mut self, threshold: f64) -> Self {
         self.config.human_detection_threshold = threshold;
         self
     }
 
-    /// Set smoothing factor
+    /// Đặt hệ số làm mịn
     pub fn smoothing_factor(mut self, factor: f64) -> Self {
         self.config.smoothing_factor = factor;
         self
     }
 
-    /// Set max history size
+    /// Đặt kích thước lịch sử tối đa
     pub fn max_history_size(mut self, size: usize) -> Self {
         self.config.max_history_size = size;
         self
     }
 
-    /// Enable/disable preprocessing
+    /// Bật/tắt tiền xử lý
     pub fn enable_preprocessing(mut self, enable: bool) -> Self {
         self.config.enable_preprocessing = enable;
         self
     }
 
-    /// Enable/disable feature extraction
+    /// Bật/tắt trích xuất đặc trưng
     pub fn enable_feature_extraction(mut self, enable: bool) -> Self {
         self.config.enable_feature_extraction = enable;
         self
     }
 
-    /// Enable/disable human detection
+    /// Bật/tắt phát hiện con người
     pub fn enable_human_detection(mut self, enable: bool) -> Self {
         self.config.enable_human_detection = enable;
         self
     }
 
-    /// Build the configuration
+    /// Xây dựng cấu hình
     pub fn build(self) -> CsiProcessorConfig {
         self.config
     }
 }
 
 impl CsiProcessorConfig {
-    /// Create a new config builder
+    /// Tạo bộ xây dựng cấu hình mới
     pub fn builder() -> CsiProcessorConfigBuilder {
         CsiProcessorConfigBuilder::new()
     }
 
-    /// Validate configuration
+    /// Kiểm tra tính hợp lệ của cấu hình
     pub fn validate(&self) -> Result<(), CsiProcessorError> {
         if self.sampling_rate <= 0.0 {
             return Err(CsiProcessorError::InvalidConfig(
-                "sampling_rate must be positive".into(),
+                "sampling_rate phải dương".into(),
             ));
         }
 
         if self.window_size == 0 {
             return Err(CsiProcessorError::InvalidConfig(
-                "window_size must be positive".into(),
+                "window_size phải dương".into(),
             ));
         }
 
         if !(0.0..1.0).contains(&self.overlap) {
             return Err(CsiProcessorError::InvalidConfig(
-                "overlap must be between 0 and 1".into(),
+                "overlap phải nằm trong khoảng 0 đến 1".into(),
             ));
         }
 
@@ -381,27 +381,27 @@ impl CsiProcessorConfig {
     }
 }
 
-/// CSI Preprocessor for cleaning and preparing raw CSI data
+/// Bộ tiền xử lý CSI để làm sạch và chuẩn bị dữ liệu CSI thô
 #[derive(Debug)]
 pub struct CsiPreprocessor {
     noise_threshold: f64,
 }
 
 impl CsiPreprocessor {
-    /// Create a new preprocessor
+    /// Tạo bộ tiền xử lý mới
     pub fn new(noise_threshold: f64) -> Self {
         Self { noise_threshold }
     }
 
-    /// Remove noise from CSI data based on amplitude threshold
+    /// Loại bỏ nhiễu khỏi dữ liệu CSI dựa trên ngưỡng biên độ
     pub fn remove_noise(&self, csi_data: &CsiData) -> Result<CsiData, CsiProcessorError> {
-        // Convert amplitude to dB
+        // Chuyển biên độ sang dB
         let amplitude_db = csi_data.amplitude.mapv(|a| 20.0 * (a + 1e-12).log10());
 
-        // Create noise mask
+        // Tạo mặt nạ nhiễu
         let noise_mask = amplitude_db.mapv(|db| db > self.noise_threshold);
 
-        // Apply mask to amplitude
+        // Áp dụng mặt nạ lên biên độ
         let mut filtered_amplitude = csi_data.amplitude.clone();
         for ((i, j), &mask) in noise_mask.indexed_iter() {
             if !mask {
@@ -425,12 +425,12 @@ impl CsiPreprocessor {
         })
     }
 
-    /// Apply Hamming window to reduce spectral leakage
+    /// Áp dụng cửa sổ Hamming để giảm rò rỉ phổ
     pub fn apply_windowing(&self, csi_data: &CsiData) -> Result<CsiData, CsiProcessorError> {
         let n = csi_data.num_subcarriers;
         let window = Self::hamming_window(n);
 
-        // Apply window to each antenna's amplitude
+        // Áp dụng cửa sổ lên biên độ của mỗi anten
         let mut windowed_amplitude = csi_data.amplitude.clone();
         for mut row in windowed_amplitude.rows_mut() {
             for (i, val) in row.iter_mut().enumerate() {
@@ -454,7 +454,7 @@ impl CsiPreprocessor {
         })
     }
 
-    /// Normalize amplitude values to unit variance
+    /// Chuẩn hóa giá trị biên độ về phương sai đơn vị
     pub fn normalize_amplitude(&self, csi_data: &CsiData) -> Result<CsiData, CsiProcessorError> {
         let std_dev = self.calculate_std(&csi_data.amplitude);
         let normalized_amplitude = csi_data.amplitude.mapv(|a| a / (std_dev + 1e-12));
@@ -475,14 +475,14 @@ impl CsiPreprocessor {
         })
     }
 
-    /// Generate Hamming window
+    /// Tạo cửa sổ Hamming
     fn hamming_window(n: usize) -> Vec<f64> {
         (0..n)
             .map(|i| 0.54 - 0.46 * (2.0 * PI * i as f64 / (n - 1) as f64).cos())
             .collect()
     }
 
-    /// Calculate standard deviation
+    /// Tính độ lệch chuẩn
     fn calculate_std(&self, arr: &Array2<f64>) -> f64 {
         let mean = arr.mean().unwrap_or(0.0);
         let variance = arr.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(0.0);
@@ -490,24 +490,24 @@ impl CsiPreprocessor {
     }
 }
 
-/// Statistics for CSI processing
+/// Thống kê cho xử lý CSI
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProcessingStatistics {
-    /// Total number of samples processed
+    /// Tổng số mẫu đã xử lý
     pub total_processed: usize,
 
-    /// Number of processing errors
+    /// Số lỗi xử lý
     pub processing_errors: usize,
 
-    /// Number of human detections
+    /// Số lần phát hiện con người
     pub human_detections: usize,
 
-    /// Current history size
+    /// Kích thước lịch sử hiện tại
     pub history_size: usize,
 }
 
 impl ProcessingStatistics {
-    /// Calculate error rate
+    /// Tính tỉ lệ lỗi
     pub fn error_rate(&self) -> f64 {
         if self.total_processed > 0 {
             self.processing_errors as f64 / self.total_processed as f64
@@ -516,7 +516,7 @@ impl ProcessingStatistics {
         }
     }
 
-    /// Calculate detection rate
+    /// Tính tỉ lệ phát hiện
     pub fn detection_rate(&self) -> f64 {
         if self.total_processed > 0 {
             self.human_detections as f64 / self.total_processed as f64
@@ -526,7 +526,7 @@ impl ProcessingStatistics {
     }
 }
 
-/// Main CSI Processor for WiFi-DensePose
+/// Bộ xử lý CSI chính cho WiFi-DensePose
 #[derive(Debug)]
 pub struct CsiProcessor {
     config: CsiProcessorConfig,
@@ -537,7 +537,7 @@ pub struct CsiProcessor {
 }
 
 impl CsiProcessor {
-    /// Create a new CSI processor
+    /// Tạo bộ xử lý CSI mới
     pub fn new(config: CsiProcessorConfig) -> Result<Self, CsiProcessorError> {
         config.validate()?;
 
@@ -552,30 +552,30 @@ impl CsiProcessor {
         })
     }
 
-    /// Get the configuration
+    /// Lấy cấu hình
     pub fn config(&self) -> &CsiProcessorConfig {
         &self.config
     }
 
-    /// Preprocess CSI data
+    /// Tiền xử lý dữ liệu CSI
     pub fn preprocess(&self, csi_data: &CsiData) -> Result<CsiData, CsiProcessorError> {
         if !self.config.enable_preprocessing {
             return Ok(csi_data.clone());
         }
 
-        // Remove noise
+        // Loại bỏ nhiễu
         let cleaned = self.preprocessor.remove_noise(csi_data)?;
 
-        // Apply windowing
+        // Áp dụng cửa sổ
         let windowed = self.preprocessor.apply_windowing(&cleaned)?;
 
-        // Normalize amplitude
+        // Chuẩn hóa biên độ
         let normalized = self.preprocessor.normalize_amplitude(&windowed)?;
 
         Ok(normalized)
     }
 
-    /// Add CSI data to history
+    /// Thêm dữ liệu CSI vào lịch sử
     pub fn add_to_history(&mut self, csi_data: CsiData) {
         if self.history.len() >= self.config.max_history_size {
             self.history.pop_front();
@@ -584,13 +584,13 @@ impl CsiProcessor {
         self.statistics.history_size = self.history.len();
     }
 
-    /// Clear history
+    /// Xóa lịch sử
     pub fn clear_history(&mut self) {
         self.history.clear();
         self.statistics.history_size = 0;
     }
 
-    /// Get recent history
+    /// Lấy lịch sử gần đây
     pub fn get_recent_history(&self, count: usize) -> Vec<&CsiData> {
         let len = self.history.len();
         if count >= len {
@@ -600,12 +600,12 @@ impl CsiProcessor {
         }
     }
 
-    /// Get history length
+    /// Lấy chiều dài lịch sử
     pub fn history_len(&self) -> usize {
         self.history.len()
     }
 
-    /// Apply temporal smoothing (exponential moving average)
+    /// Áp dụng làm mịn thời gian (trung bình động hàm mũ)
     pub fn apply_temporal_smoothing(&mut self, raw_confidence: f64) -> f64 {
         let smoothed = self.config.smoothing_factor * self.previous_detection_confidence
             + (1.0 - self.config.smoothing_factor) * raw_confidence;
@@ -613,32 +613,32 @@ impl CsiProcessor {
         smoothed
     }
 
-    /// Get processing statistics
+    /// Lấy thống kê xử lý
     pub fn get_statistics(&self) -> &ProcessingStatistics {
         &self.statistics
     }
 
-    /// Reset statistics
+    /// Đặt lại thống kê
     pub fn reset_statistics(&mut self) {
         self.statistics = ProcessingStatistics::default();
     }
 
-    /// Increment total processed count
+    /// Tăng bộ đếm đã xử lý
     pub fn increment_processed(&mut self) {
         self.statistics.total_processed += 1;
     }
 
-    /// Increment error count
+    /// Tăng bộ đếm lỗi
     pub fn increment_errors(&mut self) {
         self.statistics.processing_errors += 1;
     }
 
-    /// Increment human detection count
+    /// Tăng bộ đếm phát hiện con người
     pub fn increment_detections(&mut self) {
         self.statistics.human_detections += 1;
     }
 
-    /// Get previous detection confidence
+    /// Lấy độ tin cậy phát hiện trước đó
     pub fn previous_confidence(&self) -> f64 {
         self.previous_detection_confidence
     }
@@ -778,12 +778,12 @@ mod tests {
         let window = CsiPreprocessor::hamming_window(64);
         assert_eq!(window.len(), 64);
 
-        // Hamming window should be symmetric
+        // Cửa sổ Hamming phải đối xứng
         for i in 0..32 {
             assert!((window[i] - window[63 - i]).abs() < 1e-10);
         }
 
-        // First and last values should be approximately 0.08
+        // Giá trị đầu và cuối xấp xỉ 0.08
         assert!((window[0] - 0.08).abs() < 0.01);
     }
 }

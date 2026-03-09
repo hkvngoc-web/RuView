@@ -1,18 +1,18 @@
-//! Enhanced gesture classification using `midstreamer-temporal-compare`.
+//! Phân loại cử chỉ nâng cao sử dụng `midstreamer-temporal-compare`.
 //!
-//! Extends the DTW-based gesture classifier from `gesture.rs` with
-//! optimized temporal comparison algorithms provided by the
-//! `midstreamer-temporal-compare` crate (ADR-032a Section 6.4).
+//! Mở rộng bộ phân loại cử chỉ dựa DTW từ `gesture.rs` với
+//! các thuật toán so sánh thời gian tối ưu cung cấp bởi crate
+//! `midstreamer-temporal-compare` (ADR-032a Phần 6.4).
 //!
-//! # Improvements over base gesture classifier
+//! # Cải tiến so với bộ phân loại cử chỉ cơ bản
 //!
-//! - **Cached DTW**: Results cached by sequence hash for repeated comparisons
-//! - **Multi-algorithm**: DTW, LCS, and edit distance available
-//! - **Pattern detection**: Automatic sub-gesture pattern extraction
+//! - **DTW có bộ nhớ đệm**: Kết quả được lưu đệm theo mã băm chuỗi cho so sánh lặp lại
+//! - **Đa thuật toán**: DTW, LCS, và khoảng cách chỉnh sửa khả dụng
+//! - **Phát hiện mẫu**: Trích xuất mẫu phụ cử chỉ tự động
 //!
-//! # References
-//! - ADR-030 Tier 6: Invisible Interaction Layer
-//! - ADR-032a Section 6.4: midstreamer-temporal-compare integration
+//! # Tài liệu tham khảo
+//! - ADR-030 Tier 6: Lớp tương tác vô hình
+//! - ADR-032a Phần 6.4: Tích hợp midstreamer-temporal-compare
 
 use midstreamer_temporal_compare::{
     ComparisonAlgorithm, Sequence, TemporalComparator,
@@ -21,22 +21,22 @@ use midstreamer_temporal_compare::{
 use super::gesture::{GestureConfig, GestureError, GestureResult, GestureTemplate};
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Algorithm selection for temporal gesture matching.
+/// Lựa chọn thuật toán cho đối chiếu cử chỉ thời gian.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GestureAlgorithm {
-    /// Dynamic Time Warping (classic, from base gesture module).
+    /// Xoắn thời gian động (kinh điển, từ module cử chỉ cơ bản).
     Dtw,
-    /// Longest Common Subsequence (better for sparse gestures).
+    /// Chuỗi con chung dài nhất (tốt hơn cho cử chỉ thưa).
     Lcs,
-    /// Edit distance (better for discrete gesture phases).
+    /// Khoảng cách chỉnh sửa (tốt hơn cho các pha cử chỉ rời rạc).
     EditDistance,
 }
 
 impl GestureAlgorithm {
-    /// Convert to the midstreamer comparison algorithm.
+    /// Chuyển đổi sang thuật toán so sánh midstreamer.
     pub fn to_comparison_algorithm(&self) -> ComparisonAlgorithm {
         match self {
             GestureAlgorithm::Dtw => ComparisonAlgorithm::DTW,
@@ -46,20 +46,20 @@ impl GestureAlgorithm {
     }
 }
 
-/// Configuration for the temporal gesture classifier.
+/// Cấu hình cho bộ phân loại cử chỉ thời gian.
 #[derive(Debug, Clone)]
 pub struct TemporalGestureConfig {
-    /// Base gesture config (feature_dim, min_sequence_len, etc.).
+    /// Cấu hình cử chỉ cơ bản (feature_dim, min_sequence_len, v.v.).
     pub base: GestureConfig,
-    /// Primary comparison algorithm.
+    /// Thuật toán so sánh chính.
     pub algorithm: GestureAlgorithm,
-    /// Whether to enable result caching.
+    /// Có bật bộ nhớ đệm kết quả hay không.
     pub enable_cache: bool,
-    /// Cache capacity (number of comparison results to cache).
+    /// Dung lượng bộ nhớ đệm (số kết quả so sánh lưu đệm).
     pub cache_capacity: usize,
-    /// Maximum distance for a match (lower = stricter).
+    /// Khoảng cách tối đa cho khớp (thấp hơn = nghiêm ngặt hơn).
     pub max_distance: f64,
-    /// Maximum sequence length accepted by the comparator.
+    /// Chiều dài chuỗi tối đa được bộ so sánh chấp nhận.
     pub max_sequence_length: usize,
 }
 
@@ -77,27 +77,27 @@ impl Default for TemporalGestureConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Temporal gesture classifier
+// Bộ phân loại cử chỉ thời gian
 // ---------------------------------------------------------------------------
 
-/// Enhanced gesture classifier using `midstreamer-temporal-compare`.
+/// Bộ phân loại cử chỉ nâng cao sử dụng `midstreamer-temporal-compare`.
 ///
-/// Provides multi-algorithm gesture matching with caching.
-/// The comparator uses `f64` elements where each frame is reduced
-/// to its L2 norm for scalar temporal comparison.
+/// Cung cấp đối chiếu cử chỉ đa thuật toán với bộ nhớ đệm.
+/// Bộ so sánh sử dụng phần tử `f64` trong đó mỗi khung được rút gọn
+/// thành chuẩn L2 cho so sánh thời gian vô hướng.
 pub struct TemporalGestureClassifier {
-    /// Configuration.
+    /// Cấu hình.
     config: TemporalGestureConfig,
-    /// Registered gesture templates.
+    /// Các mẫu cử chỉ đã đăng ký.
     templates: Vec<GestureTemplate>,
-    /// Template sequences pre-converted to midstreamer format.
+    /// Chuỗi mẫu đã chuyển đổi trước sang định dạng midstreamer.
     template_sequences: Vec<Sequence<i64>>,
-    /// Temporal comparator with caching.
+    /// Bộ so sánh thời gian với bộ nhớ đệm.
     comparator: TemporalComparator<i64>,
 }
 
 impl TemporalGestureClassifier {
-    /// Create a new temporal gesture classifier.
+    /// Tạo bộ phân loại cử chỉ thời gian mới.
     pub fn new(config: TemporalGestureConfig) -> Self {
         let comparator = TemporalComparator::new(
             config.cache_capacity,
@@ -111,14 +111,14 @@ impl TemporalGestureClassifier {
         }
     }
 
-    /// Register a gesture template.
+    /// Đăng ký một mẫu cử chỉ.
     pub fn add_template(
         &mut self,
         template: GestureTemplate,
     ) -> Result<(), GestureError> {
         if template.name.is_empty() {
             return Err(GestureError::InvalidTemplateName(
-                "Template name cannot be empty".into(),
+                "Tên mẫu không được rỗng".into(),
             ));
         }
         if template.feature_dim != self.config.base.feature_dim {
@@ -140,15 +140,15 @@ impl TemporalGestureClassifier {
         Ok(())
     }
 
-    /// Number of registered templates.
+    /// Số mẫu đã đăng ký.
     pub fn template_count(&self) -> usize {
         self.templates.len()
     }
 
-    /// Classify a perturbation sequence against registered templates.
+    /// Phân loại chuỗi nhiễu loạn so với các mẫu đã đăng ký.
     ///
-    /// Uses the configured comparison algorithm (DTW, LCS, or edit distance)
-    /// from `midstreamer-temporal-compare`.
+    /// Sử dụng thuật toán so sánh đã cấu hình (DTW, LCS, hoặc khoảng cách chỉnh sửa)
+    /// từ `midstreamer-temporal-compare`.
     pub fn classify(
         &self,
         sequence: &[Vec<f64>],
@@ -184,7 +184,7 @@ impl TemporalGestureClassifier {
             let result = self
                 .comparator
                 .compare(&query_seq, template_seq, algo);
-            // Use distance from ComparisonResult (lower = better match)
+            // Dùng khoảng cách từ ComparisonResult (thấp hơn = khớp tốt hơn)
             let distance = match result {
                 Ok(cr) => cr.distance,
                 Err(_) => f64::INFINITY,
@@ -201,7 +201,7 @@ impl TemporalGestureClassifier {
 
         let recognized = best_distance <= self.config.max_distance;
 
-        // Confidence based on margin between best and second-best
+        // Độ tin cậy dựa trên khoảng cách giữa tốt nhất và tốt nhì
         let confidence = if recognized && second_best.is_finite() && second_best > 1e-10 {
             (1.0 - best_distance / second_best).clamp(0.0, 1.0)
         } else if recognized {
@@ -242,20 +242,20 @@ impl TemporalGestureClassifier {
         }
     }
 
-    /// Get cache statistics from the temporal comparator.
+    /// Lấy thống kê bộ nhớ đệm từ bộ so sánh thời gian.
     pub fn cache_stats(&self) -> midstreamer_temporal_compare::CacheStats {
         self.comparator.cache_stats()
     }
 
-    /// Active comparison algorithm.
+    /// Thuật toán so sánh đang hoạt động.
     pub fn algorithm(&self) -> GestureAlgorithm {
         self.config.algorithm
     }
 
-    /// Convert a feature sequence to a midstreamer `Sequence<i64>`.
+    /// Chuyển đổi chuỗi đặc trưng sang `Sequence<i64>` của midstreamer.
     ///
-    /// Each frame's L2 norm is quantized to an i64 (multiplied by 1000)
-    /// for use with the generic comparator.
+    /// Chuẩn L2 của mỗi khung được lượng tử hóa thành i64 (nhân 1000)
+    /// để sử dụng với bộ so sánh tổng quát.
     fn to_sequence(frames: &[Vec<f64>]) -> Sequence<i64> {
         let mut seq = Sequence::new();
         for (i, frame) in frames.iter().enumerate() {
@@ -267,7 +267,7 @@ impl TemporalGestureClassifier {
     }
 }
 
-// We implement Debug manually because TemporalComparator does not derive Debug
+// Triển khai Debug thủ công vì TemporalComparator không derive Debug
 impl std::fmt::Debug for TemporalGestureClassifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TemporalGestureClassifier")
@@ -278,7 +278,7 @@ impl std::fmt::Debug for TemporalGestureClassifier {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -331,7 +331,7 @@ mod tests {
             algorithm: GestureAlgorithm::Dtw,
             enable_cache: false,
             cache_capacity: 64,
-            max_distance: 100000.0, // generous for testing
+            max_distance: 100000.0, // rộng rãi cho kiểm thử
             max_sequence_length: 1024,
         }
     }
@@ -405,9 +405,9 @@ mod tests {
             .collect();
 
         let result = classifier.classify(&seq, 1, 100_000).unwrap();
-        assert!(result.recognized, "Exact match should be recognized");
+        assert!(result.recognized, "Khớp chính xác phải được nhận diện");
         assert_eq!(result.gesture_type, Some(GestureType::Wave));
-        assert!(result.distance < 1e-6, "Exact match should have near-zero distance");
+        assert!(result.distance < 1e-6, "Khớp chính xác phải có khoảng cách gần 0");
     }
 
     #[test]
@@ -503,8 +503,8 @@ mod tests {
     fn test_to_sequence_conversion() {
         let frames: Vec<Vec<f64>> = vec![vec![3.0, 4.0], vec![0.0, 1.0]];
         let seq = TemporalGestureClassifier::to_sequence(&frames);
-        // First element: sqrt(9+16) = 5.0 -> 5000
-        // Second element: sqrt(0+1) = 1.0 -> 1000
+        // Phần tử đầu: sqrt(9+16) = 5.0 -> 5000
+        // Phần tử thứ hai: sqrt(0+1) = 1.0 -> 1000
         assert_eq!(seq.len(), 2);
     }
 

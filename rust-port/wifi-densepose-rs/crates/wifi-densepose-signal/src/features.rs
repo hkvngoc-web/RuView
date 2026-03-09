@@ -1,7 +1,7 @@
-//! Feature Extraction Module
+//! Module trích xuất đặc trưng
 //!
-//! This module provides feature extraction capabilities for CSI data,
-//! including amplitude, phase, correlation, Doppler, and power spectral density features.
+//! Module này cung cấp khả năng trích xuất đặc trưng cho dữ liệu CSI,
+//! bao gồm đặc trưng biên độ, pha, tương quan, Doppler, và mật độ phổ công suất.
 
 use crate::csi_processor::CsiData;
 use chrono::{DateTime, Utc};
@@ -10,32 +10,32 @@ use num_complex::Complex64;
 use rustfft::FftPlanner;
 use serde::{Deserialize, Serialize};
 
-/// Amplitude-based features
+/// Đặc trưng dựa trên biên độ
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AmplitudeFeatures {
-    /// Mean amplitude across antennas for each subcarrier
+    /// Biên độ trung bình qua các anten cho mỗi sóng mang con
     pub mean: Array1<f64>,
 
-    /// Variance of amplitude across antennas for each subcarrier
+    /// Phương sai biên độ qua các anten cho mỗi sóng mang con
     pub variance: Array1<f64>,
 
-    /// Peak amplitude value
+    /// Giá trị biên độ đỉnh
     pub peak: f64,
 
-    /// RMS amplitude
+    /// Biên độ hiệu dụng (RMS)
     pub rms: f64,
 
-    /// Dynamic range (max - min)
+    /// Dải động (max - min)
     pub dynamic_range: f64,
 }
 
 impl AmplitudeFeatures {
-    /// Extract amplitude features from CSI data
+    /// Trích xuất đặc trưng biên độ từ dữ liệu CSI
     pub fn from_csi_data(csi_data: &CsiData) -> Self {
         let amplitude = &csi_data.amplitude;
         let (nrows, ncols) = amplitude.dim();
 
-        // Calculate mean across antennas (axis 0)
+        // Tính trung bình qua các anten (trục 0)
         let mut mean = Array1::zeros(ncols);
         for j in 0..ncols {
             let mut sum = 0.0;
@@ -45,7 +45,7 @@ impl AmplitudeFeatures {
             mean[j] = sum / nrows as f64;
         }
 
-        // Calculate variance across antennas
+        // Tính phương sai qua các anten
         let mut variance = Array1::zeros(ncols);
         for j in 0..ncols {
             let mut var_sum = 0.0;
@@ -55,7 +55,7 @@ impl AmplitudeFeatures {
             variance[j] = var_sum / nrows as f64;
         }
 
-        // Calculate global statistics
+        // Tính thống kê toàn cục
         let flat: Vec<f64> = amplitude.iter().copied().collect();
         let peak = flat.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let min_val = flat.iter().cloned().fold(f64::INFINITY, f64::min);
@@ -73,29 +73,29 @@ impl AmplitudeFeatures {
     }
 }
 
-/// Phase-based features
+/// Đặc trưng dựa trên pha
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhaseFeatures {
-    /// Phase differences between adjacent subcarriers (mean across antennas)
+    /// Hiệu pha giữa các sóng mang con liền kề (trung bình qua các anten)
     pub difference: Array1<f64>,
 
-    /// Phase variance across subcarriers
+    /// Phương sai pha qua các sóng mang con
     pub variance: Array1<f64>,
 
-    /// Phase gradient (rate of change)
+    /// Gradient pha (tốc độ thay đổi)
     pub gradient: Array1<f64>,
 
-    /// Phase coherence measure
+    /// Thước đo tương hợp pha
     pub coherence: f64,
 }
 
 impl PhaseFeatures {
-    /// Extract phase features from CSI data
+    /// Trích xuất đặc trưng pha từ dữ liệu CSI
     pub fn from_csi_data(csi_data: &CsiData) -> Self {
         let phase = &csi_data.phase;
         let (nrows, ncols) = phase.dim();
 
-        // Calculate phase differences between adjacent subcarriers
+        // Tính hiệu pha giữa các sóng mang con liền kề
         let mut diff_matrix = Array2::zeros((nrows, ncols.saturating_sub(1)));
         for i in 0..nrows {
             for j in 0..ncols.saturating_sub(1) {
@@ -103,7 +103,7 @@ impl PhaseFeatures {
             }
         }
 
-        // Mean phase difference across antennas
+        // Hiệu pha trung bình qua các anten
         let mut difference = Array1::zeros(ncols.saturating_sub(1));
         for j in 0..ncols.saturating_sub(1) {
             let mut sum = 0.0;
@@ -113,7 +113,7 @@ impl PhaseFeatures {
             difference[j] = sum / nrows as f64;
         }
 
-        // Phase variance per subcarrier
+        // Phương sai pha trên từng sóng mang con
         let mut variance = Array1::zeros(ncols);
         for j in 0..ncols {
             let mut col_sum = 0.0;
@@ -129,7 +129,7 @@ impl PhaseFeatures {
             variance[j] = var_sum / nrows as f64;
         }
 
-        // Calculate gradient (second order differences)
+        // Tính gradient (hiệu bậc hai)
         let gradient = if ncols >= 3 {
             let mut grad = Array1::zeros(ncols.saturating_sub(2));
             for j in 0..ncols.saturating_sub(2) {
@@ -140,7 +140,7 @@ impl PhaseFeatures {
             Array1::zeros(1)
         };
 
-        // Phase coherence (measure of phase stability)
+        // Tương hợp pha (thước đo độ ổn định pha)
         let coherence = Self::calculate_coherence(phase);
 
         Self {
@@ -151,20 +151,20 @@ impl PhaseFeatures {
         }
     }
 
-    /// Calculate phase coherence
+    /// Tính tương hợp pha
     fn calculate_coherence(phase: &Array2<f64>) -> f64 {
         let (nrows, ncols) = phase.dim();
         if nrows < 2 || ncols == 0 {
             return 0.0;
         }
 
-        // Calculate coherence as the mean of cross-antenna phase correlation
+        // Tính tương hợp bằng trung bình tương quan pha chéo anten
         let mut coherence_sum = 0.0;
         let mut count = 0;
 
         for i in 0..nrows {
             for k in (i + 1)..nrows {
-                // Calculate correlation between antenna pairs
+                // Tính tương quan giữa các cặp anten
                 let row_i: Vec<f64> = phase.row(i).to_vec();
                 let row_k: Vec<f64> = phase.row(k).to_vec();
 
@@ -199,24 +199,24 @@ impl PhaseFeatures {
     }
 }
 
-/// Correlation features between antennas
+/// Đặc trưng tương quan giữa các anten
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorrelationFeatures {
-    /// Correlation matrix between antennas
+    /// Ma trận tương quan giữa các anten
     pub matrix: Array2<f64>,
 
-    /// Mean off-diagonal correlation
+    /// Tương quan trung bình ngoài đường chéo
     pub mean_correlation: f64,
 
-    /// Maximum correlation coefficient
+    /// Hệ số tương quan lớn nhất
     pub max_correlation: f64,
 
-    /// Correlation spread (std of off-diagonal elements)
+    /// Độ phân tán tương quan (độ lệch chuẩn các phần tử ngoài đường chéo)
     pub correlation_spread: f64,
 }
 
 impl CorrelationFeatures {
-    /// Extract correlation features from CSI data
+    /// Trích xuất đặc trưng tương quan từ dữ liệu CSI
     pub fn from_csi_data(csi_data: &CsiData) -> Self {
         let amplitude = &csi_data.amplitude;
         let matrix = Self::correlation_matrix(amplitude);
@@ -262,17 +262,17 @@ impl CorrelationFeatures {
         }
     }
 
-    /// Compute correlation matrix between rows (antennas)
+    /// Tính ma trận tương quan giữa các hàng (anten)
     fn correlation_matrix(data: &Array2<f64>) -> Array2<f64> {
         let (nrows, ncols) = data.dim();
         let mut corr = Array2::zeros((nrows, nrows));
 
-        // Calculate means
+        // Tính trung bình
         let means: Vec<f64> = (0..nrows)
             .map(|i| data.row(i).sum() / ncols as f64)
             .collect();
 
-        // Calculate standard deviations
+        // Tính độ lệch chuẩn
         let stds: Vec<f64> = (0..nrows)
             .map(|i| {
                 let mean = means[i];
@@ -281,7 +281,7 @@ impl CorrelationFeatures {
             })
             .collect();
 
-        // Calculate correlation coefficients
+        // Tính hệ số tương quan
         for i in 0..nrows {
             for j in 0..nrows {
                 if i == j {
@@ -303,24 +303,24 @@ impl CorrelationFeatures {
     }
 }
 
-/// Doppler shift features
+/// Đặc trưng dịch chuyển Doppler
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DopplerFeatures {
-    /// Estimated Doppler shifts per subcarrier
+    /// Dịch chuyển Doppler ước lượng cho mỗi sóng mang con
     pub shifts: Array1<f64>,
 
-    /// Peak Doppler frequency
+    /// Tần số Doppler đỉnh
     pub peak_frequency: f64,
 
-    /// Mean Doppler shift magnitude
+    /// Biên độ dịch chuyển Doppler trung bình
     pub mean_magnitude: f64,
 
-    /// Doppler spread (standard deviation)
+    /// Độ trải Doppler (độ lệch chuẩn)
     pub spread: f64,
 }
 
 impl DopplerFeatures {
-    /// Extract Doppler features from temporal CSI data
+    /// Trích xuất đặc trưng Doppler từ dữ liệu CSI theo thời gian
     pub fn from_csi_history(history: &[CsiData], sampling_rate: f64) -> Self {
         if history.is_empty() {
             return Self::empty();
@@ -333,35 +333,35 @@ impl DopplerFeatures {
             return Self::empty_with_size(num_subcarriers);
         }
 
-        // Stack amplitude data for each subcarrier across time
+        // Xếp chồng dữ liệu biên độ cho mỗi sóng mang con theo thời gian
         let mut shifts = Array1::zeros(num_subcarriers);
         let mut fft_planner = FftPlanner::new();
         let fft = fft_planner.plan_fft_forward(num_samples);
 
         for j in 0..num_subcarriers {
-            // Extract time series for this subcarrier (use first antenna)
+            // Trích xuất chuỗi thời gian cho sóng mang con này (dùng anten đầu tiên)
             let mut buffer: Vec<Complex64> = history
                 .iter()
                 .map(|csi| Complex64::new(csi.amplitude[[0, j]], 0.0))
                 .collect();
 
-            // Apply FFT
+            // Áp dụng FFT
             fft.process(&mut buffer);
 
-            // Find peak frequency (Doppler shift)
+            // Tìm tần số đỉnh (dịch chuyển Doppler)
             let mut max_mag = 0.0;
             let mut max_idx = 0;
 
             for (idx, val) in buffer.iter().enumerate() {
                 let mag = val.norm();
                 if mag > max_mag && idx != 0 {
-                    // Skip DC component
+                    // Bỏ qua thành phần DC
                     max_mag = mag;
                     max_idx = idx;
                 }
             }
 
-            // Convert bin index to frequency
+            // Chuyển đổi chỉ số bin sang tần số
             let freq_resolution = sampling_rate / num_samples as f64;
             let doppler_freq = if max_idx <= num_samples / 2 {
                 max_idx as f64 * freq_resolution
@@ -393,7 +393,7 @@ impl DopplerFeatures {
         }
     }
 
-    /// Create empty Doppler features
+    /// Tạo đặc trưng Doppler rỗng
     fn empty() -> Self {
         Self {
             shifts: Array1::zeros(1),
@@ -403,7 +403,7 @@ impl DopplerFeatures {
         }
     }
 
-    /// Create empty Doppler features with specified size
+    /// Tạo đặc trưng Doppler rỗng với kích thước chỉ định
     fn empty_with_size(size: usize) -> Self {
         Self {
             shifts: Array1::zeros(size),
@@ -414,38 +414,38 @@ impl DopplerFeatures {
     }
 }
 
-/// Power Spectral Density features
+/// Đặc trưng mật độ phổ công suất
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PowerSpectralDensity {
-    /// PSD values (frequency bins)
+    /// Giá trị PSD (các bin tần số)
     pub values: Array1<f64>,
 
-    /// Frequency bins in Hz
+    /// Các bin tần số tính bằng Hz
     pub frequencies: Array1<f64>,
 
-    /// Total power
+    /// Tổng công suất
     pub total_power: f64,
 
-    /// Peak power
+    /// Công suất đỉnh
     pub peak_power: f64,
 
-    /// Peak frequency
+    /// Tần số đỉnh
     pub peak_frequency: f64,
 
-    /// Spectral centroid
+    /// Trọng tâm phổ
     pub centroid: f64,
 
-    /// Spectral bandwidth
+    /// Băng thông phổ
     pub bandwidth: f64,
 }
 
 impl PowerSpectralDensity {
-    /// Calculate PSD from CSI amplitude data
+    /// Tính PSD từ dữ liệu biên độ CSI
     pub fn from_csi_data(csi_data: &CsiData, fft_size: usize) -> Self {
         let amplitude = &csi_data.amplitude;
         let flat: Vec<f64> = amplitude.iter().copied().collect();
 
-        // Pad or truncate to FFT size
+        // Đệm hoặc cắt đến kích thước FFT
         let mut input: Vec<Complex64> = flat
             .iter()
             .take(fft_size)
@@ -456,18 +456,18 @@ impl PowerSpectralDensity {
             input.push(Complex64::new(0.0, 0.0));
         }
 
-        // Apply FFT
+        // Áp dụng FFT
         let mut fft_planner = FftPlanner::new();
         let fft = fft_planner.plan_fft_forward(fft_size);
         fft.process(&mut input);
 
-        // Calculate power spectrum
+        // Tính phổ công suất
         let mut psd = Array1::zeros(fft_size);
         for (i, val) in input.iter().enumerate() {
             psd[i] = val.norm_sqr() / fft_size as f64;
         }
 
-        // Calculate frequency bins
+        // Tính các bin tần số
         let freq_resolution = csi_data.bandwidth / fft_size as f64;
         let frequencies: Array1<f64> = (0..fft_size)
             .map(|i| {
@@ -479,7 +479,7 @@ impl PowerSpectralDensity {
             })
             .collect();
 
-        // Calculate statistics (use first half for positive frequencies)
+        // Tính thống kê (dùng nửa đầu cho tần số dương)
         let half = fft_size / 2;
         let positive_psd: Vec<f64> = psd.iter().take(half).copied().collect();
         let positive_freq: Vec<f64> = frequencies.iter().take(half).copied().collect();
@@ -497,7 +497,7 @@ impl PowerSpectralDensity {
             .unwrap_or(0);
         let peak_frequency = positive_freq[peak_idx];
 
-        // Spectral centroid
+        // Trọng tâm phổ
         let centroid = if total_power > 1e-10 {
             let weighted_sum: f64 = positive_psd
                 .iter()
@@ -509,7 +509,7 @@ impl PowerSpectralDensity {
             0.0
         };
 
-        // Spectral bandwidth (standard deviation around centroid)
+        // Băng thông phổ (độ lệch chuẩn quanh trọng tâm)
         let bandwidth = if total_power > 1e-10 {
             let weighted_var: f64 = positive_psd
                 .iter()
@@ -533,63 +533,63 @@ impl PowerSpectralDensity {
     }
 }
 
-/// Complete CSI features collection
+/// Bộ sưu tập đặc trưng CSI hoàn chỉnh
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsiFeatures {
-    /// Amplitude-based features
+    /// Đặc trưng dựa trên biên độ
     pub amplitude: AmplitudeFeatures,
 
-    /// Phase-based features
+    /// Đặc trưng dựa trên pha
     pub phase: PhaseFeatures,
 
-    /// Correlation features
+    /// Đặc trưng tương quan
     pub correlation: CorrelationFeatures,
 
-    /// Doppler features (optional, requires history)
+    /// Đặc trưng Doppler (tùy chọn, cần lịch sử)
     pub doppler: Option<DopplerFeatures>,
 
-    /// Power spectral density
+    /// Mật độ phổ công suất
     pub psd: PowerSpectralDensity,
 
-    /// Timestamp of feature extraction
+    /// Thời điểm trích xuất đặc trưng
     pub timestamp: DateTime<Utc>,
 
-    /// Source CSI metadata
+    /// Siêu dữ liệu CSI nguồn
     pub metadata: FeatureMetadata,
 }
 
-/// Metadata for extracted features
+/// Siêu dữ liệu cho đặc trưng đã trích xuất
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FeatureMetadata {
-    /// Number of antennas in source data
+    /// Số anten trong dữ liệu nguồn
     pub num_antennas: usize,
 
-    /// Number of subcarriers in source data
+    /// Số sóng mang con trong dữ liệu nguồn
     pub num_subcarriers: usize,
 
-    /// FFT size used for PSD
+    /// Kích thước FFT dùng cho PSD
     pub fft_size: usize,
 
-    /// Sampling rate used for Doppler
+    /// Tần số lấy mẫu dùng cho Doppler
     pub sampling_rate: Option<f64>,
 
-    /// Number of samples used for Doppler
+    /// Số mẫu dùng cho Doppler
     pub doppler_samples: Option<usize>,
 }
 
-/// Configuration for feature extraction
+/// Cấu hình trích xuất đặc trưng
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureExtractorConfig {
-    /// FFT size for PSD calculation
+    /// Kích thước FFT cho tính PSD
     pub fft_size: usize,
 
-    /// Sampling rate for Doppler calculation
+    /// Tần số lấy mẫu cho tính Doppler
     pub sampling_rate: f64,
 
-    /// Minimum history length for Doppler features
+    /// Độ dài lịch sử tối thiểu cho đặc trưng Doppler
     pub min_doppler_history: usize,
 
-    /// Enable Doppler feature extraction
+    /// Bật trích xuất đặc trưng Doppler
     pub enable_doppler: bool,
 }
 
@@ -604,29 +604,29 @@ impl Default for FeatureExtractorConfig {
     }
 }
 
-/// Feature extractor for CSI data
+/// Bộ trích xuất đặc trưng cho dữ liệu CSI
 #[derive(Debug)]
 pub struct FeatureExtractor {
     config: FeatureExtractorConfig,
 }
 
 impl FeatureExtractor {
-    /// Create a new feature extractor
+    /// Tạo bộ trích xuất đặc trưng mới
     pub fn new(config: FeatureExtractorConfig) -> Self {
         Self { config }
     }
 
-    /// Create with default configuration
+    /// Tạo với cấu hình mặc định
     pub fn default_config() -> Self {
         Self::new(FeatureExtractorConfig::default())
     }
 
-    /// Get configuration
+    /// Lấy cấu hình
     pub fn config(&self) -> &FeatureExtractorConfig {
         &self.config
     }
 
-    /// Extract features from single CSI sample
+    /// Trích xuất đặc trưng từ một mẫu CSI đơn
     pub fn extract(&self, csi_data: &CsiData) -> CsiFeatures {
         let amplitude = AmplitudeFeatures::from_csi_data(csi_data);
         let phase = PhaseFeatures::from_csi_data(csi_data);
@@ -652,7 +652,7 @@ impl FeatureExtractor {
         }
     }
 
-    /// Extract features including Doppler from CSI history
+    /// Trích xuất đặc trưng bao gồm Doppler từ lịch sử CSI
     pub fn extract_with_history(&self, csi_data: &CsiData, history: &[CsiData]) -> CsiFeatures {
         let mut features = self.extract(csi_data);
 
@@ -666,27 +666,27 @@ impl FeatureExtractor {
         features
     }
 
-    /// Extract amplitude features only
+    /// Chỉ trích xuất đặc trưng biên độ
     pub fn extract_amplitude(&self, csi_data: &CsiData) -> AmplitudeFeatures {
         AmplitudeFeatures::from_csi_data(csi_data)
     }
 
-    /// Extract phase features only
+    /// Chỉ trích xuất đặc trưng pha
     pub fn extract_phase(&self, csi_data: &CsiData) -> PhaseFeatures {
         PhaseFeatures::from_csi_data(csi_data)
     }
 
-    /// Extract correlation features only
+    /// Chỉ trích xuất đặc trưng tương quan
     pub fn extract_correlation(&self, csi_data: &CsiData) -> CorrelationFeatures {
         CorrelationFeatures::from_csi_data(csi_data)
     }
 
-    /// Extract PSD features only
+    /// Chỉ trích xuất đặc trưng PSD
     pub fn extract_psd(&self, csi_data: &CsiData) -> PowerSpectralDensity {
         PowerSpectralDensity::from_csi_data(csi_data, self.config.fft_size)
     }
 
-    /// Extract Doppler features from history
+    /// Trích xuất đặc trưng Doppler từ lịch sử
     pub fn extract_doppler(&self, history: &[CsiData]) -> Option<DopplerFeatures> {
         if history.len() >= self.config.min_doppler_history {
             Some(DopplerFeatures::from_csi_history(
@@ -772,12 +772,12 @@ mod tests {
 
         assert_eq!(features.matrix.dim(), (4, 4));
 
-        // Diagonal should be 1
+        // Đường chéo phải là 1
         for i in 0..4 {
             assert!((features.matrix[[i, i]] - 1.0).abs() < 1e-10);
         }
 
-        // Matrix should be symmetric
+        // Ma trận phải đối xứng
         for i in 0..4 {
             for j in 0..4 {
                 assert!((features.matrix[[i, j]] - features.matrix[[j, i]]).abs() < 1e-10);

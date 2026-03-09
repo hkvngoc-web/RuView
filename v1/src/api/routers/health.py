@@ -1,5 +1,5 @@
 """
-Health check API endpoints
+Các endpoint API kiểm tra sức khỏe
 """
 
 import logging
@@ -16,162 +16,162 @@ from src.config.settings import get_settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Recorded at module import time — proxy for application startup time
+# Ghi lại tại thời điểm import module — đại diện cho thời gian khởi động ứng dụng
 _APP_START_TIME = datetime.now()
 
 
-# Response models
+# Mô hình phản hồi
 class ComponentHealth(BaseModel):
-    """Health status for a system component."""
-    
-    name: str = Field(..., description="Component name")
-    status: str = Field(..., description="Health status (healthy, degraded, unhealthy)")
-    message: Optional[str] = Field(default=None, description="Status message")
-    last_check: datetime = Field(..., description="Last health check timestamp")
-    uptime_seconds: Optional[float] = Field(default=None, description="Component uptime")
-    metrics: Optional[Dict[str, Any]] = Field(default=None, description="Component metrics")
+    """Trạng thái sức khỏe cho một thành phần hệ thống."""
+
+    name: str = Field(..., description="Tên thành phần")
+    status: str = Field(..., description="Trạng thái sức khỏe (khỏe mạnh, suy giảm, không khỏe)")
+    message: Optional[str] = Field(default=None, description="Thông báo trạng thái")
+    last_check: datetime = Field(..., description="Thời gian kiểm tra sức khỏe lần cuối")
+    uptime_seconds: Optional[float] = Field(default=None, description="Thời gian hoạt động thành phần")
+    metrics: Optional[Dict[str, Any]] = Field(default=None, description="Số liệu thành phần")
 
 
 class SystemHealth(BaseModel):
-    """Overall system health status."""
-    
-    status: str = Field(..., description="Overall system status")
-    timestamp: datetime = Field(..., description="Health check timestamp")
-    uptime_seconds: float = Field(..., description="System uptime")
-    components: Dict[str, ComponentHealth] = Field(..., description="Component health status")
-    system_metrics: Dict[str, Any] = Field(..., description="System-level metrics")
+    """Trạng thái sức khỏe tổng thể hệ thống."""
+
+    status: str = Field(..., description="Trạng thái tổng thể hệ thống")
+    timestamp: datetime = Field(..., description="Thời gian kiểm tra sức khỏe")
+    uptime_seconds: float = Field(..., description="Thời gian hoạt động hệ thống")
+    components: Dict[str, ComponentHealth] = Field(..., description="Trạng thái sức khỏe thành phần")
+    system_metrics: Dict[str, Any] = Field(..., description="Số liệu cấp hệ thống")
 
 
 class ReadinessCheck(BaseModel):
-    """System readiness check result."""
-    
-    ready: bool = Field(..., description="Whether system is ready to serve requests")
-    timestamp: datetime = Field(..., description="Readiness check timestamp")
-    checks: Dict[str, bool] = Field(..., description="Individual readiness checks")
-    message: str = Field(..., description="Readiness status message")
+    """Kết quả kiểm tra sẵn sàng hệ thống."""
+
+    ready: bool = Field(..., description="Hệ thống có sẵn sàng phục vụ yêu cầu không")
+    timestamp: datetime = Field(..., description="Thời gian kiểm tra sẵn sàng")
+    checks: Dict[str, bool] = Field(..., description="Các kiểm tra sẵn sàng riêng lẻ")
+    message: str = Field(..., description="Thông báo trạng thái sẵn sàng")
 
 
-# Health check endpoints
+# Các endpoint kiểm tra sức khỏe
 @router.get("/health", response_model=SystemHealth)
 async def health_check(request: Request):
-    """Comprehensive system health check."""
+    """Kiểm tra sức khỏe hệ thống toàn diện."""
     try:
-        # Get services from app state
+        # Lấy dịch vụ từ trạng thái ứng dụng
         hardware_service = getattr(request.app.state, 'hardware_service', None)
         pose_service = getattr(request.app.state, 'pose_service', None)
         stream_service = getattr(request.app.state, 'stream_service', None)
-        
+
         timestamp = datetime.utcnow()
         components = {}
         overall_status = "healthy"
-        
-        # Check hardware service
+
+        # Kiểm tra dịch vụ phần cứng
         if hardware_service:
             try:
                 hw_health = await hardware_service.health_check()
                 components["hardware"] = ComponentHealth(
-                    name="Hardware Service",
+                    name="Dịch vụ Phần cứng",
                     status=hw_health["status"],
                     message=hw_health.get("message"),
                     last_check=timestamp,
                     uptime_seconds=hw_health.get("uptime_seconds"),
                     metrics=hw_health.get("metrics")
                 )
-                
+
                 if hw_health["status"] != "healthy":
                     overall_status = "degraded" if overall_status == "healthy" else "unhealthy"
-                    
+
             except Exception as e:
-                logger.error(f"Hardware service health check failed: {e}")
+                logger.error(f"Kiểm tra sức khỏe dịch vụ phần cứng thất bại: {e}")
                 components["hardware"] = ComponentHealth(
-                    name="Hardware Service",
+                    name="Dịch vụ Phần cứng",
                     status="unhealthy",
-                    message=f"Health check failed: {str(e)}",
+                    message=f"Kiểm tra sức khỏe thất bại: {str(e)}",
                     last_check=timestamp
                 )
                 overall_status = "unhealthy"
         else:
             components["hardware"] = ComponentHealth(
-                name="Hardware Service",
+                name="Dịch vụ Phần cứng",
                 status="unavailable",
-                message="Service not initialized",
+                message="Dịch vụ chưa được khởi tạo",
                 last_check=timestamp
             )
             overall_status = "degraded"
-        
-        # Check pose service
+
+        # Kiểm tra dịch vụ tư thế
         if pose_service:
             try:
                 pose_health = await pose_service.health_check()
                 components["pose"] = ComponentHealth(
-                    name="Pose Service",
+                    name="Dịch vụ Tư thế",
                     status=pose_health["status"],
                     message=pose_health.get("message"),
                     last_check=timestamp,
                     uptime_seconds=pose_health.get("uptime_seconds"),
                     metrics=pose_health.get("metrics")
                 )
-                
+
                 if pose_health["status"] != "healthy":
                     overall_status = "degraded" if overall_status == "healthy" else "unhealthy"
-                    
+
             except Exception as e:
-                logger.error(f"Pose service health check failed: {e}")
+                logger.error(f"Kiểm tra sức khỏe dịch vụ tư thế thất bại: {e}")
                 components["pose"] = ComponentHealth(
-                    name="Pose Service",
+                    name="Dịch vụ Tư thế",
                     status="unhealthy",
-                    message=f"Health check failed: {str(e)}",
+                    message=f"Kiểm tra sức khỏe thất bại: {str(e)}",
                     last_check=timestamp
                 )
                 overall_status = "unhealthy"
         else:
             components["pose"] = ComponentHealth(
-                name="Pose Service",
+                name="Dịch vụ Tư thế",
                 status="unavailable",
-                message="Service not initialized",
+                message="Dịch vụ chưa được khởi tạo",
                 last_check=timestamp
             )
             overall_status = "degraded"
-        
-        # Check stream service
+
+        # Kiểm tra dịch vụ truyền phát
         if stream_service:
             try:
                 stream_health = await stream_service.health_check()
                 components["stream"] = ComponentHealth(
-                    name="Stream Service",
+                    name="Dịch vụ Truyền phát",
                     status=stream_health["status"],
                     message=stream_health.get("message"),
                     last_check=timestamp,
                     uptime_seconds=stream_health.get("uptime_seconds"),
                     metrics=stream_health.get("metrics")
                 )
-                
+
                 if stream_health["status"] != "healthy":
                     overall_status = "degraded" if overall_status == "healthy" else "unhealthy"
-                    
+
             except Exception as e:
-                logger.error(f"Stream service health check failed: {e}")
+                logger.error(f"Kiểm tra sức khỏe dịch vụ truyền phát thất bại: {e}")
                 components["stream"] = ComponentHealth(
-                    name="Stream Service",
+                    name="Dịch vụ Truyền phát",
                     status="unhealthy",
-                    message=f"Health check failed: {str(e)}",
+                    message=f"Kiểm tra sức khỏe thất bại: {str(e)}",
                     last_check=timestamp
                 )
                 overall_status = "unhealthy"
         else:
             components["stream"] = ComponentHealth(
-                name="Stream Service",
+                name="Dịch vụ Truyền phát",
                 status="unavailable",
-                message="Service not initialized",
+                message="Dịch vụ chưa được khởi tạo",
                 last_check=timestamp
             )
             overall_status = "degraded"
-        
-        # Get system metrics
+
+        # Lấy số liệu hệ thống
         system_metrics = get_system_metrics()
-        
+
         uptime_seconds = (datetime.now() - _APP_START_TIME).total_seconds()
-        
+
         return SystemHealth(
             status=overall_status,
             timestamp=timestamp,
@@ -179,77 +179,77 @@ async def health_check(request: Request):
             components=components,
             system_metrics=system_metrics
         )
-        
+
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error(f"Kiểm tra sức khỏe thất bại: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Health check failed: {str(e)}"
+            detail=f"Kiểm tra sức khỏe thất bại: {str(e)}"
         )
 
 
 @router.get("/ready", response_model=ReadinessCheck)
 async def readiness_check(request: Request):
-    """Check if system is ready to serve requests."""
+    """Kiểm tra xem hệ thống có sẵn sàng phục vụ yêu cầu không."""
     try:
         timestamp = datetime.utcnow()
         checks = {}
-        
-        # Check if services are available in app state
+
+        # Kiểm tra xem dịch vụ có sẵn trong trạng thái ứng dụng không
         if hasattr(request.app.state, 'pose_service') and request.app.state.pose_service:
             try:
                 checks["pose_ready"] = await request.app.state.pose_service.is_ready()
             except Exception as e:
-                logger.warning(f"Pose service readiness check failed: {e}")
+                logger.warning(f"Kiểm tra sẵn sàng dịch vụ tư thế thất bại: {e}")
                 checks["pose_ready"] = False
         else:
             checks["pose_ready"] = False
-            
+
         if hasattr(request.app.state, 'stream_service') and request.app.state.stream_service:
             try:
                 checks["stream_ready"] = await request.app.state.stream_service.is_ready()
             except Exception as e:
-                logger.warning(f"Stream service readiness check failed: {e}")
+                logger.warning(f"Kiểm tra sẵn sàng dịch vụ truyền phát thất bại: {e}")
                 checks["stream_ready"] = False
         else:
             checks["stream_ready"] = False
-            
-        # Hardware service check (basic availability)
-        checks["hardware_ready"] = True  # Basic readiness - API is responding
-        
-        # Check system resources
+
+        # Kiểm tra dịch vụ phần cứng (sẵn sàng cơ bản)
+        checks["hardware_ready"] = True  # Sẵn sàng cơ bản - API đang phản hồi
+
+        # Kiểm tra tài nguyên hệ thống
         checks["memory_available"] = check_memory_availability()
         checks["disk_space_available"] = check_disk_space()
-        
-        # Application is ready if at least the basic services are available
-        # For now, we'll consider it ready if the API is responding
-        ready = True  # Basic readiness
-        
-        message = "System is ready" if ready else "System is not ready"
+
+        # Ứng dụng sẵn sàng nếu ít nhất các dịch vụ cơ bản khả dụng
+        # Hiện tại, coi là sẵn sàng nếu API đang phản hồi
+        ready = True  # Sẵn sàng cơ bản
+
+        message = "Hệ thống sẵn sàng" if ready else "Hệ thống chưa sẵn sàng"
         if not ready:
             failed_checks = [name for name, status in checks.items() if not status]
-            message += f". Failed checks: {', '.join(failed_checks)}"
-        
+            message += f". Các kiểm tra thất bại: {', '.join(failed_checks)}"
+
         return ReadinessCheck(
             ready=ready,
             timestamp=timestamp,
             checks=checks,
             message=message
         )
-        
+
     except Exception as e:
-        logger.error(f"Readiness check failed: {e}")
+        logger.error(f"Kiểm tra sẵn sàng thất bại: {e}")
         return ReadinessCheck(
             ready=False,
             timestamp=datetime.utcnow(),
             checks={},
-            message=f"Readiness check failed: {str(e)}"
+            message=f"Kiểm tra sẵn sàng thất bại: {str(e)}"
         )
 
 
 @router.get("/live")
 async def liveness_check():
-    """Simple liveness check for load balancers."""
+    """Kiểm tra hoạt động đơn giản cho bộ cân bằng tải."""
     return {
         "status": "alive",
         "timestamp": datetime.utcnow().isoformat()
@@ -261,32 +261,32 @@ async def get_health_metrics(
     request: Request,
     current_user: Optional[Dict] = Depends(get_current_user)
 ):
-    """Get detailed system metrics."""
+    """Lấy số liệu hệ thống chi tiết."""
     try:
         metrics = get_system_metrics()
-        
-        # Add additional metrics if authenticated
+
+        # Thêm số liệu bổ sung nếu đã xác thực
         if current_user:
             metrics.update(get_detailed_metrics())
-        
+
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "metrics": metrics
         }
-        
+
     except Exception as e:
-        logger.error(f"Error getting system metrics: {e}")
+        logger.error(f"Lỗi khi lấy số liệu hệ thống: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get system metrics: {str(e)}"
+            detail=f"Không thể lấy số liệu hệ thống: {str(e)}"
         )
 
 
 @router.get("/version")
 async def get_version_info():
-    """Get application version information."""
+    """Lấy thông tin phiên bản ứng dụng."""
     settings = get_settings()
-    
+
     return {
         "name": settings.app_name,
         "version": settings.version,
@@ -297,13 +297,13 @@ async def get_version_info():
 
 
 def get_system_metrics() -> Dict[str, Any]:
-    """Get basic system metrics."""
+    """Lấy số liệu hệ thống cơ bản."""
     try:
-        # CPU metrics
+        # Số liệu CPU
         cpu_percent = psutil.cpu_percent(interval=1)
         cpu_count = psutil.cpu_count()
-        
-        # Memory metrics
+
+        # Số liệu bộ nhớ
         memory = psutil.virtual_memory()
         memory_metrics = {
             "total_gb": round(memory.total / (1024**3), 2),
@@ -311,8 +311,8 @@ def get_system_metrics() -> Dict[str, Any]:
             "used_gb": round(memory.used / (1024**3), 2),
             "percent": memory.percent
         }
-        
-        # Disk metrics
+
+        # Số liệu ổ đĩa
         disk = psutil.disk_usage('/')
         disk_metrics = {
             "total_gb": round(disk.total / (1024**3), 2),
@@ -320,8 +320,8 @@ def get_system_metrics() -> Dict[str, Any]:
             "used_gb": round(disk.used / (1024**3), 2),
             "percent": round((disk.used / disk.total) * 100, 2)
         }
-        
-        # Network metrics (basic)
+
+        # Số liệu mạng (cơ bản)
         network = psutil.net_io_counters()
         network_metrics = {
             "bytes_sent": network.bytes_sent,
@@ -329,7 +329,7 @@ def get_system_metrics() -> Dict[str, Any]:
             "packets_sent": network.packets_sent,
             "packets_recv": network.packets_recv
         }
-        
+
         return {
             "cpu": {
                 "percent": cpu_percent,
@@ -339,16 +339,16 @@ def get_system_metrics() -> Dict[str, Any]:
             "disk": disk_metrics,
             "network": network_metrics
         }
-        
+
     except Exception as e:
-        logger.error(f"Error getting system metrics: {e}")
+        logger.error(f"Lỗi khi lấy số liệu hệ thống: {e}")
         return {}
 
 
 def get_detailed_metrics() -> Dict[str, Any]:
-    """Get detailed system metrics (requires authentication)."""
+    """Lấy số liệu hệ thống chi tiết (yêu cầu xác thực)."""
     try:
-        # Process metrics
+        # Số liệu tiến trình
         process = psutil.Process()
         process_metrics = {
             "pid": process.pid,
@@ -357,16 +357,16 @@ def get_detailed_metrics() -> Dict[str, Any]:
             "num_threads": process.num_threads(),
             "create_time": datetime.fromtimestamp(process.create_time()).isoformat()
         }
-        
-        # Load average (Unix-like systems)
+
+        # Tải trung bình (hệ thống Unix-like)
         load_avg = None
         try:
             load_avg = psutil.getloadavg()
         except AttributeError:
-            # Windows doesn't have load average
+            # Windows không có tải trung bình
             pass
-        
-        # Temperature sensors (if available)
+
+        # Cảm biến nhiệt độ (nếu có)
         temperatures = {}
         try:
             temps = psutil.sensors_temperatures()
@@ -376,45 +376,45 @@ def get_detailed_metrics() -> Dict[str, Any]:
                     for entry in entries
                 ]
         except AttributeError:
-            # Not available on all systems
+            # Không khả dụng trên tất cả hệ thống
             pass
-        
+
         detailed = {
             "process": process_metrics
         }
-        
+
         if load_avg:
             detailed["load_average"] = {
                 "1min": load_avg[0],
                 "5min": load_avg[1],
                 "15min": load_avg[2]
             }
-        
+
         if temperatures:
             detailed["temperatures"] = temperatures
-        
+
         return detailed
-        
+
     except Exception as e:
-        logger.error(f"Error getting detailed metrics: {e}")
+        logger.error(f"Lỗi khi lấy số liệu chi tiết: {e}")
         return {}
 
 
 def check_memory_availability() -> bool:
-    """Check if sufficient memory is available."""
+    """Kiểm tra xem bộ nhớ có đủ không."""
     try:
         memory = psutil.virtual_memory()
-        # Consider system ready if less than 90% memory is used
+        # Coi hệ thống sẵn sàng nếu sử dụng dưới 90% bộ nhớ
         return memory.percent < 90.0
     except Exception:
         return False
 
 
 def check_disk_space() -> bool:
-    """Check if sufficient disk space is available."""
+    """Kiểm tra xem dung lượng ổ đĩa có đủ không."""
     try:
         disk = psutil.disk_usage('/')
-        # Consider system ready if more than 1GB free space
+        # Coi hệ thống sẵn sàng nếu còn hơn 1GB dung lượng trống
         free_gb = disk.free / (1024**3)
         return free_gb > 1.0
     except Exception:

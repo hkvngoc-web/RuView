@@ -1,23 +1,23 @@
-//! Enhanced longitudinal drift detection using `midstreamer-attractor`.
+//! Phát hiện trôi theo chiều dọc nâng cao sử dụng `midstreamer-attractor`.
 //!
-//! Extends the Welford-statistics drift detection from `longitudinal.rs`
-//! with phase-space attractor analysis provided by the
-//! `midstreamer-attractor` crate (ADR-032a Section 6.4).
+//! Mở rộng phát hiện trôi thống kê Welford từ `longitudinal.rs`
+//! với phân tích hút tử không gian pha cung cấp bởi crate
+//! `midstreamer-attractor` (ADR-032a Phần 6.4).
 //!
-//! # Improvements over base drift detection
+//! # Cải tiến so với phát hiện trôi cơ bản
 //!
-//! - **Phase-space embedding**: Detects regime changes invisible to simple
-//!   z-score analysis (e.g., gait transitioning from limit cycle to
-//!   strange attractor = developing instability)
-//! - **Lyapunov exponent**: Quantifies sensitivity to initial conditions,
-//!   catching chaotic transitions in breathing patterns
-//! - **Attractor classification**: Automatically classifies biophysical
-//!   time series as point attractor (stable), limit cycle (periodic),
-//!   or strange attractor (chaotic)
+//! - **Nhúng không gian pha**: Phát hiện thay đổi chế độ vô hình với
+//!   phân tích điểm z đơn giản (ví dụ: dáng đi chuyển từ chu kỳ giới hạn
+//!   sang hút tử lạ = phát triển mất ổn định)
+//! - **Số mũ Lyapunov**: Định lượng độ nhạy với điều kiện ban đầu,
+//!   bắt chuyển tiếp hỗn loạn trong mẫu hô hấp
+//! - **Phân loại hút tử**: Tự động phân loại chuỗi thời gian sinh lý
+//!   thành hút tử điểm (ổn định), chu kỳ giới hạn (tuần hoàn),
+//!   hoặc hút tử lạ (hỗn loạn)
 //!
-//! # References
-//! - ADR-030 Tier 4: Longitudinal Biomechanics Drift
-//! - ADR-032a Section 6.4: midstreamer-attractor integration
+//! # Tài liệu tham khảo
+//! - ADR-030 Tier 4: Phát hiện trôi sinh trắc học theo chiều dọc
+//! - ADR-032a Phần 6.4: Tích hợp midstreamer-attractor
 //! - Takens, F. (1981). "Detecting strange attractors in turbulence."
 
 use midstreamer_attractor::{
@@ -27,26 +27,26 @@ use midstreamer_attractor::{
 use super::longitudinal::DriftMetric;
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for attractor-based drift analysis.
+/// Cấu hình cho phân tích trôi dựa trên hút tử.
 #[derive(Debug, Clone)]
 pub struct AttractorDriftConfig {
-    /// Embedding dimension for phase-space reconstruction (Takens' theorem).
-    /// Default: 3 (sufficient for most biophysical signals).
+    /// Chiều nhúng cho tái tạo không gian pha (định lý Takens).
+    /// Mặc định: 3 (đủ cho hầu hết tín hiệu sinh lý).
     pub embedding_dim: usize,
-    /// Time delay for phase-space embedding (in observation steps).
-    /// Default: 1 (consecutive observations).
+    /// Độ trễ thời gian cho nhúng không gian pha (theo bước quan sát).
+    /// Mặc định: 1 (các quan sát liên tiếp).
     pub time_delay: usize,
-    /// Minimum observations needed before analysis is meaningful.
-    /// Default: 30 (about 1 month of daily observations).
+    /// Số quan sát tối thiểu cần có trước khi phân tích có ý nghĩa.
+    /// Mặc định: 30 (khoảng 1 tháng quan sát hàng ngày).
     pub min_observations: usize,
-    /// Lyapunov exponent threshold for chaos detection.
-    /// Default: 0.01.
+    /// Ngưỡng số mũ Lyapunov cho phát hiện hỗn loạn.
+    /// Mặc định: 0.01.
     pub lyapunov_threshold: f64,
-    /// Maximum trajectory length for the analyzer.
-    /// Default: 10000.
+    /// Chiều dài quỹ đạo tối đa cho bộ phân tích.
+    /// Mặc định: 10000.
     pub max_trajectory_length: usize,
 }
 
@@ -63,53 +63,53 @@ impl Default for AttractorDriftConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from attractor-based drift analysis.
+/// Các lỗi từ phân tích trôi dựa trên hút tử.
 #[derive(Debug, thiserror::Error)]
 pub enum AttractorDriftError {
-    /// Not enough observations for phase-space embedding.
-    #[error("Insufficient observations: need >= {needed}, have {have}")]
+    /// Không đủ quan sát cho nhúng không gian pha.
+    #[error("Không đủ quan sát: cần >= {needed}, có {have}")]
     InsufficientData { needed: usize, have: usize },
 
-    /// The metric has no observations recorded.
-    #[error("No observations for metric: {0}")]
+    /// Chỉ số không có quan sát nào được ghi nhận.
+    #[error("Không có quan sát cho chỉ số: {0}")]
     NoObservations(String),
 
-    /// Phase-space embedding dimension is invalid.
-    #[error("Invalid embedding dimension: {dim} (must be >= 2)")]
+    /// Chiều nhúng không gian pha không hợp lệ.
+    #[error("Chiều nhúng không hợp lệ: {dim} (phải >= 2)")]
     InvalidEmbeddingDim { dim: usize },
 
-    /// Attractor analysis library error.
-    #[error("Attractor analysis failed: {0}")]
+    /// Lỗi thư viện phân tích hút tử.
+    #[error("Phân tích hút tử thất bại: {0}")]
     AnalysisFailed(String),
 }
 
 // ---------------------------------------------------------------------------
-// Attractor classification result
+// Kết quả phân loại hút tử
 // ---------------------------------------------------------------------------
 
-/// Classification of a biophysical time series attractor.
+/// Phân loại hút tử của chuỗi thời gian sinh lý.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BiophysicalAttractor {
-    /// Point attractor: metric has converged to a stable value.
+    /// Hút tử điểm: chỉ số đã hội tụ về giá trị ổn định.
     Stable { center: f64 },
-    /// Limit cycle: metric oscillates periodically.
+    /// Chu kỳ giới hạn: chỉ số dao động tuần hoàn.
     Periodic { lyapunov_max: f64 },
-    /// Strange attractor: metric exhibits chaotic dynamics.
+    /// Hút tử lạ: chỉ số thể hiện động lực hỗn loạn.
     Chaotic { lyapunov_exponent: f64 },
-    /// Transitioning between attractor types.
+    /// Đang chuyển tiếp giữa các loại hút tử.
     Transitioning {
         from: Box<BiophysicalAttractor>,
         to: Box<BiophysicalAttractor>,
     },
-    /// Insufficient data to classify.
+    /// Không đủ dữ liệu để phân loại.
     Unknown,
 }
 
 impl BiophysicalAttractor {
-    /// Whether this attractor type warrants monitoring attention.
+    /// Loại hút tử này có đáng chú ý giám sát hay không.
     pub fn is_concerning(&self) -> bool {
         matches!(
             self,
@@ -117,7 +117,7 @@ impl BiophysicalAttractor {
         )
     }
 
-    /// Human-readable label for reporting.
+    /// Nhãn dễ đọc cho báo cáo.
     pub fn label(&self) -> &'static str {
         match self {
             BiophysicalAttractor::Stable { .. } => "stable",
@@ -130,45 +130,45 @@ impl BiophysicalAttractor {
 }
 
 // ---------------------------------------------------------------------------
-// Attractor drift report
+// Báo cáo trôi hút tử
 // ---------------------------------------------------------------------------
 
-/// Report from attractor-based drift analysis.
+/// Báo cáo từ phân tích trôi dựa trên hút tử.
 #[derive(Debug, Clone)]
 pub struct AttractorDriftReport {
-    /// Person this report pertains to.
+    /// Người mà báo cáo này liên quan đến.
     pub person_id: u64,
-    /// Which biophysical metric was analyzed.
+    /// Chỉ số sinh lý nào được phân tích.
     pub metric: DriftMetric,
-    /// Classified attractor type.
+    /// Loại hút tử đã phân loại.
     pub attractor: BiophysicalAttractor,
-    /// Whether the attractor type has changed from the previous analysis.
+    /// Loại hút tử có thay đổi so với phân tích trước hay không.
     pub regime_changed: bool,
-    /// Number of observations used in this analysis.
+    /// Số quan sát được sử dụng trong phân tích này.
     pub observation_count: usize,
-    /// Timestamp of the analysis (microseconds).
+    /// Dấu thời gian của phân tích (micro giây).
     pub timestamp_us: u64,
 }
 
 // ---------------------------------------------------------------------------
-// Per-metric observation buffer
+// Bộ đệm quan sát cho mỗi chỉ số
 // ---------------------------------------------------------------------------
 
-/// Time series buffer for a single biophysical metric.
+/// Bộ đệm chuỗi thời gian cho một chỉ số sinh lý đơn lẻ.
 #[derive(Debug, Clone)]
 struct MetricBuffer {
-    /// Metric type.
+    /// Loại chỉ số.
     metric: DriftMetric,
-    /// Observed values (most recent at the end).
+    /// Các giá trị quan sát (gần nhất ở cuối).
     values: Vec<f64>,
-    /// Maximum buffer size.
+    /// Kích thước bộ đệm tối đa.
     max_size: usize,
-    /// Last classified attractor label.
+    /// Nhãn hút tử đã phân loại lần cuối.
     last_label: String,
 }
 
 impl MetricBuffer {
-    /// Create a new buffer.
+    /// Tạo bộ đệm mới.
     fn new(metric: DriftMetric, max_size: usize) -> Self {
         Self {
             metric,
@@ -178,7 +178,7 @@ impl MetricBuffer {
         }
     }
 
-    /// Add an observation.
+    /// Thêm một quan sát.
     fn push(&mut self, value: f64) {
         if self.values.len() >= self.max_size {
             self.values.remove(0);
@@ -186,34 +186,34 @@ impl MetricBuffer {
         self.values.push(value);
     }
 
-    /// Number of observations.
+    /// Số quan sát.
     fn count(&self) -> usize {
         self.values.len()
     }
 }
 
 // ---------------------------------------------------------------------------
-// Attractor drift analyzer
+// Bộ phân tích trôi hút tử
 // ---------------------------------------------------------------------------
 
-/// Attractor-based drift analyzer for longitudinal biophysical monitoring.
+/// Bộ phân tích trôi dựa trên hút tử cho giám sát sinh lý theo chiều dọc.
 ///
-/// Uses phase-space reconstruction (Takens' embedding theorem) and
-/// `midstreamer-attractor` to classify the dynamical regime of each
-/// biophysical metric. Detects regime changes that precede simple
-/// metric drift.
+/// Sử dụng tái tạo không gian pha (định lý nhúng Takens) và
+/// `midstreamer-attractor` để phân loại chế độ động lực của mỗi
+/// chỉ số sinh lý. Phát hiện thay đổi chế độ xảy ra trước
+/// trôi chỉ số đơn giản.
 pub struct AttractorDriftAnalyzer {
-    /// Configuration.
+    /// Cấu hình.
     config: AttractorDriftConfig,
-    /// Person ID being monitored.
+    /// ID người đang được giám sát.
     person_id: u64,
-    /// Per-metric observation buffers.
+    /// Bộ đệm quan sát cho mỗi chỉ số.
     buffers: Vec<MetricBuffer>,
-    /// Total analyses performed.
+    /// Tổng số phân tích đã thực hiện.
     analysis_count: u64,
 }
 
-// Manual Debug since AttractorAnalyzer does not derive Debug
+// Debug thủ công vì AttractorAnalyzer không derive Debug
 impl std::fmt::Debug for AttractorDriftAnalyzer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AttractorDriftAnalyzer")
@@ -224,7 +224,7 @@ impl std::fmt::Debug for AttractorDriftAnalyzer {
 }
 
 impl AttractorDriftAnalyzer {
-    /// Create a new attractor drift analyzer for a person.
+    /// Tạo bộ phân tích trôi hút tử mới cho một người.
     pub fn new(
         person_id: u64,
         config: AttractorDriftConfig,
@@ -237,7 +237,7 @@ impl AttractorDriftAnalyzer {
 
         let buffers = DriftMetric::all()
             .iter()
-            .map(|&m| MetricBuffer::new(m, 365)) // 1 year of daily observations
+            .map(|&m| MetricBuffer::new(m, 365)) // 1 năm quan sát hàng ngày
             .collect();
 
         Ok(Self {
@@ -248,17 +248,17 @@ impl AttractorDriftAnalyzer {
         })
     }
 
-    /// Add an observation for a specific metric.
+    /// Thêm một quan sát cho một chỉ số cụ thể.
     pub fn add_observation(&mut self, metric: DriftMetric, value: f64) {
         if let Some(buf) = self.buffers.iter_mut().find(|b| b.metric == metric) {
             buf.push(value);
         }
     }
 
-    /// Perform attractor analysis on a specific metric.
+    /// Thực hiện phân tích hút tử trên một chỉ số cụ thể.
     ///
-    /// Reconstructs the phase space using Takens' embedding and
-    /// classifies the attractor type using `midstreamer-attractor`.
+    /// Tái tạo không gian pha sử dụng nhúng Takens và
+    /// phân loại loại hút tử bằng `midstreamer-attractor`.
     pub fn analyze(
         &mut self,
         metric: DriftMetric,
@@ -279,8 +279,8 @@ impl AttractorDriftAnalyzer {
             });
         }
 
-        // Build phase-space trajectory using Takens' embedding
-        // and feed into a fresh AttractorAnalyzer
+        // Xây dựng quỹ đạo không gian pha sử dụng nhúng Takens
+        // và nạp vào AttractorAnalyzer mới
         let dim = self.config.embedding_dim;
         let delay = self.config.time_delay;
         let values = &self.buffers[buf_idx].values;
@@ -294,7 +294,7 @@ impl AttractorDriftAnalyzer {
             let _ = analyzer.add_point(point);
         }
 
-        // Analyze the trajectory
+        // Phân tích quỹ đạo
         let attractor = match analyzer.analyze() {
             Ok(info) => {
                 let max_lyap = info
@@ -303,7 +303,7 @@ impl AttractorDriftAnalyzer {
 
                 match info.attractor_type {
                     AttractorType::PointAttractor => {
-                        // Compute center as mean of last few values
+                        // Tính tâm bằng trung bình vài giá trị cuối
                         let recent = &values[values.len().saturating_sub(10)..];
                         let center = recent.iter().sum::<f64>() / recent.len() as f64;
                         BiophysicalAttractor::Stable { center }
@@ -320,7 +320,7 @@ impl AttractorDriftAnalyzer {
             Err(_) => BiophysicalAttractor::Unknown,
         };
 
-        // Check for regime change
+        // Kiểm tra thay đổi chế độ
         let label = attractor.label().to_string();
         let regime_changed = label != self.buffers[buf_idx].last_label;
         self.buffers[buf_idx].last_label = label;
@@ -337,7 +337,7 @@ impl AttractorDriftAnalyzer {
         })
     }
 
-    /// Number of observations for a specific metric.
+    /// Số quan sát cho một chỉ số cụ thể.
     pub fn observation_count(&self, metric: DriftMetric) -> usize {
         self.buffers
             .iter()
@@ -345,19 +345,19 @@ impl AttractorDriftAnalyzer {
             .map_or(0, |b| b.count())
     }
 
-    /// Total analyses performed.
+    /// Tổng số phân tích đã thực hiện.
     pub fn analysis_count(&self) -> u64 {
         self.analysis_count
     }
 
-    /// Person ID being monitored.
+    /// ID người đang được giám sát.
     pub fn person_id(&self) -> u64 {
         self.person_id
     }
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -419,7 +419,7 @@ mod tests {
         )
         .unwrap();
 
-        // Stable signal: constant with tiny noise
+        // Tín hiệu ổn định: hằng số với nhiễu nhỏ
         for i in 0..150 {
             let noise = 0.001 * (i as f64 % 3.0 - 1.0);
             a.add_observation(DriftMetric::GaitSymmetry, 0.1 + noise);
@@ -443,7 +443,7 @@ mod tests {
         )
         .unwrap();
 
-        // Periodic signal: sinusoidal with enough points for analyzer
+        // Tín hiệu tuần hoàn: hình sin với đủ điểm cho bộ phân tích
         for i in 0..200 {
             let value = 0.5 + 0.3 * (i as f64 * std::f64::consts::PI / 7.0).sin();
             a.add_observation(DriftMetric::BreathingRegularity, value);
@@ -465,14 +465,14 @@ mod tests {
         )
         .unwrap();
 
-        // Phase 1: stable signal (enough for analyzer: >= 100 points)
+        // Giai đoạn 1: tín hiệu ổn định (đủ cho bộ phân tích: >= 100 điểm)
         for i in 0..150 {
             let noise = 0.001 * (i as f64 % 3.0 - 1.0);
             a.add_observation(DriftMetric::StabilityIndex, 0.9 + noise);
         }
         let _report1 = a.analyze(DriftMetric::StabilityIndex, 1000).unwrap();
 
-        // Phase 2: add chaotic-like signal
+        // Giai đoạn 2: thêm tín hiệu dạng hỗn loạn
         for i in 150..300 {
             let value = 0.5 + 0.4 * ((i as f64 * 1.7).sin() * (i as f64 * 0.3).cos());
             a.add_observation(DriftMetric::StabilityIndex, value);

@@ -1,5 +1,5 @@
 """
-Rate limiting middleware for WiFi-DensePose API
+Middleware giới hạn tốc độ cho WiFi-DensePose API
 """
 
 import logging
@@ -18,22 +18,22 @@ logger = logging.getLogger(__name__)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware with sliding window algorithm."""
-    
+    """Middleware giới hạn tốc độ với thuật toán cửa sổ trượt."""
+
     def __init__(self, app):
         super().__init__(app)
         self.settings = get_settings()
-        
-        # Rate limit storage (in production, use Redis)
+
+        # Lưu trữ giới hạn tốc độ (trong sản xuất, sử dụng Redis)
         self.request_counts = defaultdict(lambda: deque())
         self.blocked_clients = {}
-        
-        # Rate limit configurations
+
+        # Cấu hình giới hạn tốc độ
         self.rate_limits = {
             "anonymous": {
                 "requests": self.settings.rate_limit_requests,
                 "window": self.settings.rate_limit_window,
-                "burst": 10  # Allow burst of 10 requests
+                "burst": 10  # Cho phép đợt 10 yêu cầu
             },
             "authenticated": {
                 "requests": self.settings.rate_limit_authenticated_requests,
@@ -41,22 +41,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "burst": 50
             },
             "admin": {
-                "requests": 10000,  # Very high limit for admins
+                "requests": 10000,  # Giới hạn rất cao cho quản trị viên
                 "window": self.settings.rate_limit_window,
                 "burst": 100
             }
         }
-        
-        # Path-specific rate limits
+
+        # Giới hạn tốc độ theo đường dẫn cụ thể
         self.path_limits = {
-            "/api/v1/pose/current": {"requests": 60, "window": 60},  # 1 per second
-            "/api/v1/pose/analyze": {"requests": 10, "window": 60},  # 10 per minute
-            "/api/v1/pose/calibrate": {"requests": 1, "window": 300}, # 1 per 5 minutes
-            "/api/v1/stream/start": {"requests": 5, "window": 60},   # 5 per minute
-            "/api/v1/stream/stop": {"requests": 5, "window": 60},    # 5 per minute
+            "/api/v1/pose/current": {"requests": 60, "window": 60},  # 1 mỗi giây
+            "/api/v1/pose/analyze": {"requests": 10, "window": 60},  # 10 mỗi phút
+            "/api/v1/pose/calibrate": {"requests": 1, "window": 300}, # 1 mỗi 5 phút
+            "/api/v1/stream/start": {"requests": 5, "window": 60},   # 5 mỗi phút
+            "/api/v1/stream/stop": {"requests": 5, "window": 60},    # 5 mỗi phút
         }
-        
-        # Exempt paths from rate limiting
+
+        # Đường dẫn được miễn giới hạn tốc độ
         self.exempt_paths = {
             "/health",
             "/ready",
@@ -64,105 +64,105 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/version",
             "/metrics"
         }
-    
+
     async def dispatch(self, request: Request, call_next):
-        """Process request through rate limiting middleware."""
-        
-        # Skip rate limiting for exempt paths
+        """Xử lý yêu cầu qua middleware giới hạn tốc độ."""
+
+        # Bỏ qua giới hạn tốc độ cho đường dẫn được miễn
         if self._is_exempt_path(request.url.path):
             return await call_next(request)
-        
-        # Get client identifier
+
+        # Lấy định danh máy khách
         client_id = self._get_client_id(request)
-        
-        # Check if client is temporarily blocked
+
+        # Kiểm tra xem máy khách có bị chặn tạm thời không
         if self._is_client_blocked(client_id):
             return self._create_rate_limit_response(
-                "Client temporarily blocked due to excessive requests"
+                "Máy khách bị chặn tạm thời do yêu cầu quá nhiều"
             )
-        
-        # Get user type for rate limiting
+
+        # Lấy loại người dùng cho giới hạn tốc độ
         user_type = self._get_user_type(request)
-        
-        # Check rate limits
+
+        # Kiểm tra giới hạn tốc độ
         rate_limit_result = self._check_rate_limits(
-            client_id, 
-            request.url.path, 
+            client_id,
+            request.url.path,
             user_type
         )
-        
+
         if not rate_limit_result["allowed"]:
-            # Log rate limit violation
+            # Ghi log vi phạm giới hạn tốc độ
             self._log_rate_limit_violation(request, client_id, rate_limit_result)
-            
-            # Check if client should be temporarily blocked
+
+            # Kiểm tra xem máy khách có nên bị chặn tạm thời không
             if rate_limit_result.get("violations", 0) > 5:
-                self._block_client(client_id, duration=300)  # 5 minutes
-            
+                self._block_client(client_id, duration=300)  # 5 phút
+
             return self._create_rate_limit_response(
                 rate_limit_result["message"],
                 retry_after=rate_limit_result.get("retry_after", 60)
             )
-        
-        # Record the request
+
+        # Ghi lại yêu cầu
         self._record_request(client_id, request.url.path)
-        
-        # Process request
+
+        # Xử lý yêu cầu
         response = await call_next(request)
-        
-        # Add rate limit headers
+
+        # Thêm tiêu đề giới hạn tốc độ
         self._add_rate_limit_headers(response, client_id, user_type)
-        
+
         return response
-    
+
     def _is_exempt_path(self, path: str) -> bool:
-        """Check if path is exempt from rate limiting."""
+        """Kiểm tra xem đường dẫn có được miễn giới hạn tốc độ không."""
         return path in self.exempt_paths
-    
+
     def _get_client_id(self, request: Request) -> str:
-        """Get unique client identifier for rate limiting."""
-        # Try to get user ID from request state (set by auth middleware)
+        """Lấy định danh máy khách duy nhất cho giới hạn tốc độ."""
+        # Thử lấy ID người dùng từ trạng thái yêu cầu (được đặt bởi middleware xác thực)
         if hasattr(request.state, 'user') and request.state.user:
             return f"user:{request.state.user['id']}"
-        
-        # Fall back to IP address
+
+        # Quay về địa chỉ IP
         client_ip = request.client.host if request.client else "unknown"
-        
-        # Include user agent for better identification
+
+        # Bao gồm user agent để nhận dạng tốt hơn
         user_agent = request.headers.get("user-agent", "")
         user_agent_hash = str(hash(user_agent))[:8]
-        
+
         return f"ip:{client_ip}:{user_agent_hash}"
-    
+
     def _get_user_type(self, request: Request) -> str:
-        """Determine user type for rate limiting."""
+        """Xác định loại người dùng cho giới hạn tốc độ."""
         if hasattr(request.state, 'user') and request.state.user:
             if request.state.user.get("is_admin", False):
                 return "admin"
             return "authenticated"
         return "anonymous"
-    
+
     def _check_rate_limits(self, client_id: str, path: str, user_type: str) -> Dict:
-        """Check if request is within rate limits."""
+        """Kiểm tra xem yêu cầu có nằm trong giới hạn tốc độ không."""
         now = time.time()
-        
-        # Get applicable rate limits
+
+        # Lấy giới hạn tốc độ áp dụng
         general_limit = self.rate_limits[user_type]
         path_limit = self.path_limits.get(path)
-        
-        # Check general rate limit
+
+        # Kiểm tra giới hạn tốc độ chung
         general_result = self._check_limit(
-            client_id, 
-            "general", 
-            general_limit["requests"], 
+            client_id,
+            "general",
+            general_limit["requests"],
             general_limit["window"],
             now
         )
-        
+
         if not general_result["allowed"]:
             return general_result
-        
-        # Check path-specific rate limit if exists
+
+        # Kiểm tra giới hạn tốc độ theo đường dẫn nếu có
         if path_limit:
             path_result = self._check_limit(
                 client_id,
@@ -171,75 +171,75 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 path_limit["window"],
                 now
             )
-            
+
             if not path_result["allowed"]:
                 return path_result
-        
+
         return {"allowed": True}
-    
+
     def _check_limit(self, client_id: str, limit_type: str, max_requests: int, window: int, now: float) -> Dict:
-        """Check specific rate limit using sliding window."""
+        """Kiểm tra giới hạn tốc độ cụ thể bằng cửa sổ trượt."""
         key = f"{client_id}:{limit_type}"
         requests = self.request_counts[key]
-        
-        # Remove old requests outside the window
+
+        # Loại bỏ yêu cầu cũ ngoài cửa sổ
         cutoff = now - window
         while requests and requests[0] <= cutoff:
             requests.popleft()
-        
-        # Check if limit exceeded
+
+        # Kiểm tra xem giới hạn có bị vượt quá không
         if len(requests) >= max_requests:
-            # Calculate retry after time
+            # Tính thời gian thử lại
             oldest_request = requests[0] if requests else now
             retry_after = int(oldest_request + window - now) + 1
-            
+
             return {
                 "allowed": False,
-                "message": f"Rate limit exceeded: {max_requests} requests per {window} seconds",
+                "message": f"Giới hạn tốc độ bị vượt quá: {max_requests} yêu cầu mỗi {window} giây",
                 "retry_after": retry_after,
                 "current_count": len(requests),
                 "limit": max_requests,
                 "window": window
             }
-        
+
         return {
             "allowed": True,
             "current_count": len(requests),
             "limit": max_requests,
             "window": window
         }
-    
+
     def _record_request(self, client_id: str, path: str):
-        """Record a request for rate limiting."""
+        """Ghi lại yêu cầu cho giới hạn tốc độ."""
         now = time.time()
-        
-        # Record general request
+
+        # Ghi lại yêu cầu chung
         general_key = f"{client_id}:general"
         self.request_counts[general_key].append(now)
-        
-        # Record path-specific request if path has specific limits
+
+        # Ghi lại yêu cầu theo đường dẫn nếu có giới hạn cụ thể
         if path in self.path_limits:
             path_key = f"{client_id}:path:{path}"
             self.request_counts[path_key].append(now)
-    
+
     def _is_client_blocked(self, client_id: str) -> bool:
-        """Check if client is temporarily blocked."""
+        """Kiểm tra xem máy khách có bị chặn tạm thời không."""
         if client_id in self.blocked_clients:
             block_until = self.blocked_clients[client_id]
             if time.time() < block_until:
                 return True
             else:
-                # Block expired, remove it
+                # Chặn đã hết hạn, xóa bỏ
                 del self.blocked_clients[client_id]
         return False
-    
+
     def _block_client(self, client_id: str, duration: int):
-        """Temporarily block a client."""
+        """Chặn tạm thời một máy khách."""
         self.blocked_clients[client_id] = time.time() + duration
-        logger.warning(f"Client {client_id} blocked for {duration} seconds due to rate limit violations")
-    
+        logger.warning(f"Máy khách {client_id} bị chặn {duration} giây do vi phạm giới hạn tốc độ")
+
     def _create_rate_limit_response(self, message: str, retry_after: int = 60) -> JSONResponse:
-        """Create rate limit exceeded response."""
+        """Tạo phản hồi giới hạn tốc độ bị vượt quá."""
         return JSONResponse(
             status_code=429,
             content={
@@ -255,34 +255,34 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "X-RateLimit-Remaining": "0"
             }
         )
-    
+
     def _add_rate_limit_headers(self, response: Response, client_id: str, user_type: str):
-        """Add rate limit headers to response."""
+        """Thêm tiêu đề giới hạn tốc độ vào phản hồi."""
         try:
             general_limit = self.rate_limits[user_type]
             general_key = f"{client_id}:general"
             current_requests = len(self.request_counts[general_key])
-            
+
             remaining = max(0, general_limit["requests"] - current_requests)
-            
+
             response.headers["X-RateLimit-Limit"] = str(general_limit["requests"])
             response.headers["X-RateLimit-Remaining"] = str(remaining)
             response.headers["X-RateLimit-Window"] = str(general_limit["window"])
-            
-            # Add reset time
+
+            # Thêm thời gian đặt lại
             if self.request_counts[general_key]:
                 oldest_request = self.request_counts[general_key][0]
                 reset_time = int(oldest_request + general_limit["window"])
                 response.headers["X-RateLimit-Reset"] = str(reset_time)
-        
+
         except Exception as e:
-            logger.error(f"Error adding rate limit headers: {e}")
-    
+            logger.error(f"Lỗi khi thêm tiêu đề giới hạn tốc độ: {e}")
+
     def _log_rate_limit_violation(self, request: Request, client_id: str, result: Dict):
-        """Log rate limit violations for monitoring."""
+        """Ghi log vi phạm giới hạn tốc độ để giám sát."""
         client_ip = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
-        
+
         log_data = {
             "event_type": "rate_limit_violation",
             "timestamp": datetime.utcnow().isoformat(),
@@ -295,31 +295,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "limit": result.get("limit"),
             "window": result.get("window")
         }
-        
-        logger.warning(f"Rate limit violation: {log_data}")
-    
+
+        logger.warning(f"Vi phạm giới hạn tốc độ: {log_data}")
+
     def cleanup_old_data(self):
-        """Clean up old rate limiting data (call periodically)."""
+        """Dọn dẹp dữ liệu giới hạn tốc độ cũ (gọi định kỳ)."""
         now = time.time()
-        cutoff = now - 3600  # Keep data for 1 hour
-        
-        # Clean up request counts
+        cutoff = now - 3600  # Giữ dữ liệu trong 1 giờ
+
+        # Dọn dẹp bộ đếm yêu cầu
         for key in list(self.request_counts.keys()):
             requests = self.request_counts[key]
             while requests and requests[0] <= cutoff:
                 requests.popleft()
-            
-            # Remove empty deques
+
+            # Xóa deque rỗng
             if not requests:
                 del self.request_counts[key]
-        
-        # Clean up expired blocks
+
+        # Dọn dẹp chặn đã hết hạn
         expired_blocks = [
             client_id for client_id, block_until in self.blocked_clients.items()
             if now >= block_until
         ]
-        
+
         for client_id in expired_blocks:
             del self.blocked_clients[client_id]
-
-

@@ -1,66 +1,66 @@
-//! Coarse RF Tomography from link attenuations.
+//! Chụp cắt lớp RF thô từ suy hao trên các liên kết.
 //!
-//! Produces a low-resolution 3D occupancy volume by inverting per-link
-//! attenuation measurements. Each voxel receives an occupancy probability
-//! based on how many links traverse it and how much attenuation those links
-//! observed.
+//! Tạo ra thể tích chiếm dụng 3D độ phân giải thấp bằng cách nghịch đảo
+//! các phép đo suy hao trên từng liên kết. Mỗi voxel nhận một xác suất
+//! chiếm dụng dựa trên số liên kết xuyên qua nó và mức suy hao mà
+//! các liên kết đó quan sát được.
 //!
-//! # Algorithm
-//! 1. Define a voxel grid covering the monitored volume
-//! 2. For each link, determine which voxels lie along the propagation path
-//! 3. Solve the sparse tomographic inverse: attenuation = sum(voxel_density * path_weight)
-//! 4. Apply L1 regularization for sparsity (most voxels are unoccupied)
+//! # Thuật toán
+//! 1. Định nghĩa lưới voxel bao phủ thể tích giám sát
+//! 2. Với mỗi liên kết, xác định các voxel nằm dọc đường truyền sóng
+//! 3. Giải bài toán nghịch đảo chụp cắt lớp thưa: suy hao = tổng(mật_độ_voxel * trọng_số_đường)
+//! 4. Áp dụng chính quy hóa L1 để đảm bảo tính thưa (hầu hết voxel không bị chiếm dụng)
 //!
-//! # References
-//! - ADR-030 Tier 2: Coarse RF Tomography
+//! # Tài liệu tham khảo
+//! - ADR-030 Tier 2: Chụp cắt lớp RF thô
 //! - Wilson & Patwari (2010), "Radio Tomographic Imaging"
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from tomography operations.
+/// Các lỗi từ thao tác chụp cắt lớp.
 #[derive(Debug, thiserror::Error)]
 pub enum TomographyError {
-    /// Not enough links for tomographic inversion.
-    #[error("Insufficient links: need >= {needed}, got {got}")]
+    /// Không đủ liên kết cho nghịch đảo chụp cắt lớp.
+    #[error("Không đủ liên kết: cần >= {needed}, có {got}")]
     InsufficientLinks { needed: usize, got: usize },
 
-    /// Grid dimensions are invalid.
-    #[error("Invalid grid dimensions: {0}")]
+    /// Kích thước lưới không hợp lệ.
+    #[error("Kích thước lưới không hợp lệ: {0}")]
     InvalidGrid(String),
 
-    /// No voxels intersected by any link.
-    #[error("No voxels intersected by links — check geometry")]
+    /// Không có voxel nào bị giao cắt bởi liên kết.
+    #[error("Không có voxel nào bị giao cắt bởi liên kết — kiểm tra hình học")]
     NoIntersections,
 
-    /// Observation vector length mismatch.
-    #[error("Observation length mismatch: expected {expected}, got {got}")]
+    /// Độ dài vector quan sát không khớp.
+    #[error("Độ dài quan sát không khớp: kỳ vọng {expected}, nhận được {got}")]
     ObservationMismatch { expected: usize, got: usize },
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for the voxel grid and tomographic solver.
+/// Cấu hình cho lưới voxel và bộ giải chụp cắt lớp.
 #[derive(Debug, Clone)]
 pub struct TomographyConfig {
-    /// Number of voxels along X axis.
+    /// Số voxel theo trục X.
     pub nx: usize,
-    /// Number of voxels along Y axis.
+    /// Số voxel theo trục Y.
     pub ny: usize,
-    /// Number of voxels along Z axis.
+    /// Số voxel theo trục Z.
     pub nz: usize,
-    /// Physical extent of the grid: `[x_min, y_min, z_min, x_max, y_max, z_max]`.
+    /// Phạm vi vật lý của lưới: `[x_min, y_min, z_min, x_max, y_max, z_max]`.
     pub bounds: [f64; 6],
-    /// L1 regularization weight (higher = sparser solution).
+    /// Trọng số chính quy hóa L1 (cao hơn = nghiệm thưa hơn).
     pub lambda: f64,
-    /// Maximum iterations for the solver.
+    /// Số vòng lặp tối đa cho bộ giải.
     pub max_iterations: usize,
-    /// Convergence tolerance.
+    /// Ngưỡng hội tụ.
     pub tolerance: f64,
-    /// Minimum links required for inversion (default 8).
+    /// Số liên kết tối thiểu cần cho nghịch đảo (mặc định 8).
     pub min_links: usize,
 }
 
@@ -80,10 +80,10 @@ impl Default for TomographyConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Geometry types
+// Kiểu hình học
 // ---------------------------------------------------------------------------
 
-/// A 3D position.
+/// Vị trí 3D.
 #[derive(Debug, Clone, Copy)]
 pub struct Position3D {
     pub x: f64,
@@ -91,19 +91,19 @@ pub struct Position3D {
     pub z: f64,
 }
 
-/// A link between a transmitter and receiver.
+/// Một liên kết giữa máy phát và máy thu.
 #[derive(Debug, Clone)]
 pub struct LinkGeometry {
-    /// Transmitter position.
+    /// Vị trí máy phát.
     pub tx: Position3D,
-    /// Receiver position.
+    /// Vị trí máy thu.
     pub rx: Position3D,
-    /// Link identifier.
+    /// Định danh liên kết.
     pub link_id: usize,
 }
 
 impl LinkGeometry {
-    /// Euclidean distance between TX and RX.
+    /// Khoảng cách Euclid giữa TX và RX.
     pub fn distance(&self) -> f64 {
         let dx = self.rx.x - self.tx.x;
         let dy = self.rx.y - self.tx.y;
@@ -113,32 +113,32 @@ impl LinkGeometry {
 }
 
 // ---------------------------------------------------------------------------
-// Occupancy volume
+// Thể tích chiếm dụng
 // ---------------------------------------------------------------------------
 
-/// 3D occupancy grid resulting from tomographic inversion.
+/// Lưới chiếm dụng 3D kết quả từ nghịch đảo chụp cắt lớp.
 #[derive(Debug, Clone)]
 pub struct OccupancyVolume {
-    /// Voxel densities in row-major order `[nz][ny][nx]`.
+    /// Mật độ voxel theo thứ tự hàng chính `[nz][ny][nx]`.
     pub densities: Vec<f64>,
-    /// Grid dimensions.
+    /// Kích thước lưới.
     pub nx: usize,
     pub ny: usize,
     pub nz: usize,
-    /// Physical bounds.
+    /// Giới hạn vật lý.
     pub bounds: [f64; 6],
-    /// Number of occupied voxels (density > threshold).
+    /// Số voxel bị chiếm dụng (mật độ > ngưỡng).
     pub occupied_count: usize,
-    /// Total voxel count.
+    /// Tổng số voxel.
     pub total_voxels: usize,
-    /// Solver residual at convergence.
+    /// Phần dư của bộ giải tại hội tụ.
     pub residual: f64,
-    /// Number of iterations used.
+    /// Số vòng lặp đã sử dụng.
     pub iterations: usize,
 }
 
 impl OccupancyVolume {
-    /// Get density at voxel (ix, iy, iz). Returns None if out of bounds.
+    /// Lấy mật độ tại voxel (ix, iy, iz). Trả về None nếu ngoài phạm vi.
     pub fn get(&self, ix: usize, iy: usize, iz: usize) -> Option<f64> {
         if ix < self.nx && iy < self.ny && iz < self.nz {
             Some(self.densities[iz * self.ny * self.nx + iy * self.nx + ix])
@@ -147,7 +147,7 @@ impl OccupancyVolume {
         }
     }
 
-    /// Voxel size along each axis.
+    /// Kích thước voxel theo mỗi trục.
     pub fn voxel_size(&self) -> [f64; 3] {
         [
             (self.bounds[3] - self.bounds[0]) / self.nx as f64,
@@ -156,7 +156,7 @@ impl OccupancyVolume {
         ]
     }
 
-    /// Center position of voxel (ix, iy, iz).
+    /// Vị trí tâm của voxel (ix, iy, iz).
     pub fn voxel_center(&self, ix: usize, iy: usize, iz: usize) -> Position3D {
         let vs = self.voxel_size();
         Position3D {
@@ -168,24 +168,24 @@ impl OccupancyVolume {
 }
 
 // ---------------------------------------------------------------------------
-// Tomographic solver
+// Bộ giải chụp cắt lớp
 // ---------------------------------------------------------------------------
 
-/// Coarse RF tomography solver.
+/// Bộ giải chụp cắt lớp RF thô.
 ///
-/// Given a set of TX-RX links and per-link attenuation measurements,
-/// reconstructs a 3D occupancy volume using L1-regularized least squares.
+/// Với một tập hợp liên kết TX-RX và phép đo suy hao trên từng liên kết,
+/// tái tạo thể tích chiếm dụng 3D bằng bình phương tối thiểu có chính quy L1.
 pub struct RfTomographer {
     config: TomographyConfig,
-    /// Precomputed weight matrix: `weight_matrix[link_idx]` is a list of
-    /// (voxel_index, weight) pairs.
+    /// Ma trận trọng số đã tính trước: `weight_matrix[link_idx]` là danh sách
+    /// các cặp (chỉ_số_voxel, trọng_số).
     weight_matrix: Vec<Vec<(usize, f64)>>,
-    /// Number of voxels.
+    /// Số lượng voxel.
     n_voxels: usize,
 }
 
 impl RfTomographer {
-    /// Create a new tomographer with the given configuration and link geometry.
+    /// Tạo bộ chụp cắt lớp mới với cấu hình và hình học liên kết cho trước.
     pub fn new(config: TomographyConfig, links: &[LinkGeometry]) -> Result<Self, TomographyError> {
         if links.len() < config.min_links {
             return Err(TomographyError::InsufficientLinks {
@@ -195,7 +195,7 @@ impl RfTomographer {
         }
         if config.nx == 0 || config.ny == 0 || config.nz == 0 {
             return Err(TomographyError::InvalidGrid(
-                "Grid dimensions must be > 0".into(),
+                "Kích thước lưới phải > 0".into(),
             ));
         }
 
@@ -205,18 +205,18 @@ impl RfTomographer {
             .and_then(|v| v.checked_mul(config.nz))
             .ok_or_else(|| {
                 TomographyError::InvalidGrid(format!(
-                    "Grid dimensions overflow: {}x{}x{}",
+                    "Kích thước lưới tràn số: {}x{}x{}",
                     config.nx, config.ny, config.nz
                 ))
             })?;
 
-        // Precompute weight matrix
+        // Tính trước ma trận trọng số
         let weight_matrix: Vec<Vec<(usize, f64)>> = links
             .iter()
             .map(|link| compute_link_weights(link, &config))
             .collect();
 
-        // Ensure at least one link intersects some voxels
+        // Đảm bảo ít nhất một liên kết giao cắt với voxel nào đó
         let total_weights: usize = weight_matrix.iter().map(|w| w.len()).sum();
         if total_weights == 0 {
             return Err(TomographyError::NoIntersections);
@@ -229,10 +229,10 @@ impl RfTomographer {
         })
     }
 
-    /// Reconstruct occupancy from per-link attenuation measurements.
+    /// Tái tạo chiếm dụng từ phép đo suy hao trên từng liên kết.
     ///
-    /// `attenuations` has one entry per link (same order as links passed to `new`).
-    /// Higher attenuation indicates more obstruction along the link path.
+    /// `attenuations` có một phần tử cho mỗi liên kết (cùng thứ tự với liên kết truyền vào `new`).
+    /// Suy hao cao hơn cho thấy vật cản nhiều hơn dọc đường truyền liên kết.
     pub fn reconstruct(&self, attenuations: &[f64]) -> Result<OccupancyVolume, TomographyError> {
         if attenuations.len() != self.weight_matrix.len() {
             return Err(TomographyError::ObservationMismatch {
@@ -241,15 +241,15 @@ impl RfTomographer {
             });
         }
 
-        // ISTA (Iterative Shrinkage-Thresholding Algorithm) for L1 minimization
+        // ISTA (Thuật toán co rút-ngưỡng lặp) cho tối thiểu hóa L1
         // min ||Wx - y||^2 + lambda * ||x||_1
         let mut x = vec![0.0_f64; self.n_voxels];
         let n_links = attenuations.len();
 
-        // Estimate step size: 1 / L where L is the Lipschitz constant of the
-        // gradient of ||Wx - y||^2, i.e. the spectral norm of W^T W.
-        // A safe upper bound is the Frobenius norm squared of W (sum of all
-        // squared entries), since ||W^T W|| <= ||W||_F^2.
+        // Ước lượng bước nhảy: 1 / L với L là hằng số Lipschitz của
+        // gradient ||Wx - y||^2, tức chuẩn phổ của W^T W.
+        // Cận trên an toàn là bình phương chuẩn Frobenius của W (tổng tất cả
+        // các phần tử bình phương), vì ||W^T W|| <= ||W||_F^2.
         let frobenius_sq: f64 = self
             .weight_matrix
             .iter()
@@ -262,17 +262,17 @@ impl RfTomographer {
         let mut iterations = 0;
 
         for iter in 0..self.config.max_iterations {
-            // Compute gradient: W^T (Wx - y)
+            // Tính gradient: W^T (Wx - y)
             let mut gradient = vec![0.0_f64; self.n_voxels];
             residual = 0.0;
 
             for (link_idx, weights) in self.weight_matrix.iter().enumerate() {
-                // Forward: Wx for this link
+                // Chiều thuận: Wx cho liên kết này
                 let predicted: f64 = weights.iter().map(|&(idx, w)| w * x[idx]).sum();
                 let diff = predicted - attenuations[link_idx];
                 residual += diff * diff;
 
-                // Backward: accumulate gradient
+                // Chiều ngược: tích lũy gradient
                 for &(idx, w) in weights {
                     gradient[idx] += w * diff;
                 }
@@ -280,11 +280,11 @@ impl RfTomographer {
 
             residual = (residual / n_links as f64).sqrt();
 
-            // Gradient step + soft thresholding (proximal L1)
+            // Bước gradient + co rút mềm (proximal L1)
             let mut max_change = 0.0_f64;
             for i in 0..self.n_voxels {
                 let new_val = x[i] - step_size * gradient[i];
-                // Soft thresholding
+                // Co rút mềm
                 let threshold = self.config.lambda * step_size;
                 let shrunk = if new_val > threshold {
                     new_val - threshold
@@ -293,7 +293,7 @@ impl RfTomographer {
                 } else {
                     0.0
                 };
-                // Non-negativity constraint (density >= 0)
+                // Ràng buộc không âm (mật độ >= 0)
                 let clamped = shrunk.max(0.0);
                 max_change = max_change.max((clamped - x[i]).abs());
                 x[i] = clamped;
@@ -306,7 +306,7 @@ impl RfTomographer {
             }
         }
 
-        // Count occupied voxels (density > 0.01)
+        // Đếm voxel bị chiếm dụng (mật độ > 0.01)
         let occupied_count = x.iter().filter(|&&d| d > 0.01).count();
 
         Ok(OccupancyVolume {
@@ -322,32 +322,32 @@ impl RfTomographer {
         })
     }
 
-    /// Number of links in this tomographer.
+    /// Số liên kết trong bộ chụp cắt lớp này.
     pub fn n_links(&self) -> usize {
         self.weight_matrix.len()
     }
 
-    /// Number of voxels in the grid.
+    /// Số voxel trong lưới.
     pub fn n_voxels(&self) -> usize {
         self.n_voxels
     }
 }
 
 // ---------------------------------------------------------------------------
-// Weight computation (simplified ray-voxel intersection)
+// Tính trọng số (giao cắt tia-voxel đơn giản hóa)
 // ---------------------------------------------------------------------------
 
-/// Compute the intersection weights of a link with the voxel grid.
+/// Tính trọng số giao cắt của một liên kết với lưới voxel.
 ///
-/// Uses a simplified approach: for each voxel, computes the minimum
-/// distance from the voxel center to the link ray. Voxels within
-/// one Fresnel zone receive weight proportional to closeness.
+/// Sử dụng phương pháp đơn giản hóa: cho mỗi voxel, tính khoảng cách
+/// tối thiểu từ tâm voxel đến tia liên kết. Các voxel nằm trong
+/// một vùng Fresnel nhận trọng số tỉ lệ thuận với độ gần.
 fn compute_link_weights(link: &LinkGeometry, config: &TomographyConfig) -> Vec<(usize, f64)> {
     let vx = (config.bounds[3] - config.bounds[0]) / config.nx as f64;
     let vy = (config.bounds[4] - config.bounds[1]) / config.ny as f64;
     let vz = (config.bounds[5] - config.bounds[2]) / config.nz as f64;
 
-    // Fresnel zone half-width (approximate)
+    // Bán kính nửa vùng Fresnel (xấp xỉ)
     let link_dist = link.distance();
     let wavelength = 0.06; // ~5 GHz
     let fresnel_radius = (wavelength * link_dist / 4.0).sqrt().max(vx.max(vy));
@@ -365,13 +365,13 @@ fn compute_link_weights(link: &LinkGeometry, config: &TomographyConfig) -> Vec<(
                 let cy = config.bounds[1] + (iy as f64 + 0.5) * vy;
                 let cz = config.bounds[2] + (iz as f64 + 0.5) * vz;
 
-                // Point-to-line distance
+                // Khoảng cách từ điểm đến đường thẳng
                 let dist = point_to_segment_distance(
                     cx, cy, cz, link.tx.x, link.tx.y, link.tx.z, dx, dy, dz, link_dist,
                 );
 
                 if dist < fresnel_radius {
-                    // Weight decays with distance from link ray
+                    // Trọng số giảm theo khoảng cách từ tia liên kết
                     let w = 1.0 - dist / fresnel_radius;
                     let idx = iz * config.ny * config.nx + iy * config.nx + ix;
                     weights.push((idx, w));
@@ -383,8 +383,8 @@ fn compute_link_weights(link: &LinkGeometry, config: &TomographyConfig) -> Vec<(
     weights
 }
 
-/// Distance from point (px,py,pz) to line segment defined by start + t*dir
-/// where dir = (dx,dy,dz) and segment length = `seg_len`.
+/// Khoảng cách từ điểm (px,py,pz) đến đoạn thẳng xác định bởi start + t*dir
+/// trong đó dir = (dx,dy,dz) và chiều dài đoạn = `seg_len`.
 fn point_to_segment_distance(
     px: f64,
     py: f64,
@@ -401,7 +401,7 @@ fn point_to_segment_distance(
         return ((px - sx).powi(2) + (py - sy).powi(2) + (pz - sz).powi(2)).sqrt();
     }
 
-    // Project point onto line: t = dot(P-S, D) / |D|^2
+    // Chiếu điểm lên đường thẳng: t = dot(P-S, D) / |D|^2
     let t = ((px - sx) * dx + (py - sy) * dy + (pz - sz) * dz) / (seg_len * seg_len);
     let t_clamped = t.clamp(0.0, 1.0);
 
@@ -413,7 +413,7 @@ fn point_to_segment_distance(
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -421,7 +421,7 @@ mod tests {
     use super::*;
 
     fn make_square_links() -> Vec<LinkGeometry> {
-        // 4 nodes in a square at z=1.5, 12 directed links
+        // 4 nút trong hình vuông tại z=1.5, 12 liên kết có hướng
         let nodes = [
             Position3D {
                 x: 0.5,
@@ -520,15 +520,15 @@ mod tests {
         };
         let tomo = RfTomographer::new(config, &links).unwrap();
 
-        // Zero attenuation = empty room
+        // Suy hao bằng 0 = phòng trống
         let attenuations = vec![0.0; tomo.n_links()];
         let volume = tomo.reconstruct(&attenuations).unwrap();
 
         assert_eq!(volume.total_voxels, 8 * 8 * 4);
-        // All densities should be zero or near zero
+        // Tất cả mật độ phải bằng 0 hoặc gần 0
         assert!(
             volume.occupied_count == 0,
-            "Empty room should have no occupied voxels, got {}",
+            "Phòng trống không nên có voxel bị chiếm dụng, nhận được {}",
             volume.occupied_count
         );
     }
@@ -538,22 +538,22 @@ mod tests {
         let links = make_square_links();
         let config = TomographyConfig {
             min_links: 8,
-            lambda: 0.001, // light regularization so solution is not zeroed
+            lambda: 0.001, // chính quy nhẹ để nghiệm không bị triệt tiêu
             max_iterations: 500,
             tolerance: 1e-8,
             ..Default::default()
         };
         let tomo = RfTomographer::new(config, &links).unwrap();
 
-        // Strong attenuations to represent obstructed links
+        // Suy hao lớn để đại diện cho liên kết bị vật cản
         let attenuations: Vec<f64> = (0..tomo.n_links()).map(|i| 5.0 + 1.0 * i as f64).collect();
         let volume = tomo.reconstruct(&attenuations).unwrap();
 
-        // Check that at least some voxels have non-negligible density
+        // Kiểm tra ít nhất một số voxel có mật độ đáng kể
         let any_nonzero = volume.densities.iter().any(|&d| d > 1e-6);
         assert!(
             any_nonzero,
-            "Non-zero attenuation should produce non-zero voxel densities"
+            "Suy hao khác 0 phải tạo ra mật độ voxel khác 0"
         );
     }
 
@@ -566,7 +566,7 @@ mod tests {
         };
         let tomo = RfTomographer::new(config, &links).unwrap();
 
-        let attenuations = vec![0.1; 3]; // wrong count
+        let attenuations = vec![0.1; 3]; // số lượng sai
         assert!(matches!(
             tomo.reconstruct(&attenuations),
             Err(TomographyError::ObservationMismatch { .. })
@@ -585,10 +585,10 @@ mod tests {
         let attenuations = vec![0.0; tomo.n_links()];
         let volume = tomo.reconstruct(&attenuations).unwrap();
 
-        // Valid access
+        // Truy cập hợp lệ
         assert!(volume.get(0, 0, 0).is_some());
         assert!(volume.get(7, 7, 3).is_some());
-        // Out of bounds
+        // Ngoài phạm vi
         assert!(volume.get(8, 0, 0).is_none());
         assert!(volume.get(0, 8, 0).is_none());
         assert!(volume.get(0, 0, 4).is_none());
@@ -639,11 +639,11 @@ mod tests {
 
     #[test]
     fn test_point_to_segment_distance() {
-        // Point directly on the segment
+        // Điểm nằm trên đoạn thẳng
         let d = point_to_segment_distance(0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0);
         assert!(d < 1e-10);
 
-        // Point 1 unit above the midpoint
+        // Điểm cách 1 đơn vị phía trên trung điểm
         let d = point_to_segment_distance(0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0);
         assert!((d - 1.0).abs() < 1e-10);
     }

@@ -1,12 +1,12 @@
 """
-Common sensing backend interface.
+Giao diện backend cảm biến chung.
 
-Defines the ``SensingBackend`` protocol and the ``CommodityBackend`` concrete
-implementation that wires together the RSSI collector, feature extractor, and
-classifier into a single coherent pipeline.
+Định nghĩa giao thức ``SensingBackend`` và triển khai cụ thể
+``CommodityBackend`` kết nối bộ thu thập RSSI, bộ trích xuất đặc trưng
+và bộ phân loại thành một pipeline thống nhất.
 
-The ``Capability`` enum enumerates all possible sensing capabilities.  The
-``CommodityBackend`` honestly reports that it supports only PRESENCE and MOTION.
+Enum ``Capability`` liệt kê tất cả khả năng cảm biến có thể.
+``CommodityBackend`` báo cáo trung thực rằng nó chỉ hỗ trợ PRESENCE và MOTION.
 """
 
 from __future__ import annotations
@@ -29,11 +29,11 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Capability enum
+# Enum khả năng
 # ---------------------------------------------------------------------------
 
 class Capability(Enum):
-    """All possible sensing capabilities across backend tiers."""
+    """Tất cả khả năng cảm biến có thể trên các tầng backend."""
 
     PRESENCE = auto()
     MOTION = auto()
@@ -43,45 +43,45 @@ class Capability(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Backend protocol
+# Giao thức backend
 # ---------------------------------------------------------------------------
 
 @runtime_checkable
 class SensingBackend(Protocol):
-    """Protocol that all sensing backends must implement."""
+    """Giao thức mà tất cả backend cảm biến phải triển khai."""
 
     def get_features(self) -> RssiFeatures:
-        """Extract current features from the sensing pipeline."""
+        """Trích xuất đặc trưng hiện tại từ pipeline cảm biến."""
         ...
 
     def get_capabilities(self) -> Set[Capability]:
-        """Return the set of capabilities this backend supports."""
+        """Trả về tập hợp khả năng mà backend này hỗ trợ."""
         ...
 
 
 # ---------------------------------------------------------------------------
-# Commodity backend
+# Backend hàng hóa
 # ---------------------------------------------------------------------------
 
 class CommodityBackend:
     """
-    RSSI-based commodity sensing backend.
+    Backend cảm biến hàng hóa dựa trên RSSI.
 
-    Wires together:
-        - A WiFi collector (real or simulated)
-        - An RSSI feature extractor
-        - A presence/motion classifier
+    Kết nối:
+        - Bộ thu thập WiFi (thực hoặc mô phỏng)
+        - Bộ trích xuất đặc trưng RSSI
+        - Bộ phân loại hiện diện/chuyển động
 
-    Capabilities: PRESENCE and MOTION only.
+    Khả năng: chỉ PRESENCE và MOTION.
 
     Parameters
     ----------
-    collector : WifiCollector-compatible object
-        The data source (LinuxWifiCollector or SimulatedCollector).
-    extractor : RssiFeatureExtractor, optional
-        Feature extractor (created with defaults if not provided).
-    classifier : PresenceClassifier, optional
-        Classifier (created with defaults if not provided).
+    collector : đối tượng tương thích WifiCollector
+        Nguồn dữ liệu (LinuxWifiCollector hoặc SimulatedCollector).
+    extractor : RssiFeatureExtractor, tùy chọn
+        Bộ trích xuất đặc trưng (tạo với mặc định nếu không cung cấp).
+    classifier : PresenceClassifier, tùy chọn
+        Bộ phân loại (tạo với mặc định nếu không cung cấp).
     """
 
     SUPPORTED_CAPABILITIES: Set[Capability] = frozenset(
@@ -110,14 +110,14 @@ class CommodityBackend:
     def classifier(self) -> PresenceClassifier:
         return self._classifier
 
-    # -- SensingBackend protocol ---------------------------------------------
+    # -- Giao thức SensingBackend ---------------------------------------------
 
     def get_features(self) -> RssiFeatures:
         """
-        Get current features from the latest collected samples.
+        Lấy đặc trưng hiện tại từ các mẫu thu thập mới nhất.
 
-        Uses the extractor's window_seconds to determine how many samples
-        to pull from the collector's ring buffer.
+        Sử dụng window_seconds của bộ trích xuất để xác định số lượng mẫu
+        cần lấy từ bộ đệm vòng của bộ thu thập.
         """
         window = self._extractor.window_seconds
         sample_rate = self._collector.sample_rate_hz
@@ -126,38 +126,38 @@ class CommodityBackend:
         return self._extractor.extract(samples)
 
     def get_capabilities(self) -> Set[Capability]:
-        """CommodityBackend supports PRESENCE and MOTION only."""
+        """CommodityBackend chỉ hỗ trợ PRESENCE và MOTION."""
         return set(self.SUPPORTED_CAPABILITIES)
 
-    # -- convenience methods -------------------------------------------------
+    # -- phương thức tiện ích -------------------------------------------------
 
     def get_result(self) -> SensingResult:
         """
-        Run the full pipeline: collect -> extract -> classify.
+        Chạy toàn bộ pipeline: thu thập -> trích xuất -> phân loại.
 
         Returns
         -------
         SensingResult
-            Classification result with motion level and confidence.
+            Kết quả phân loại với mức chuyển động và độ tin cậy.
         """
         features = self.get_features()
         return self._classifier.classify(features)
 
     def start(self) -> None:
-        """Start the underlying collector."""
+        """Khởi động bộ thu thập bên dưới."""
         self._collector.start()
         logger.info(
-            "CommodityBackend started (capabilities: %s)",
+            "CommodityBackend đã khởi động (khả năng: %s)",
             ", ".join(c.name for c in self.SUPPORTED_CAPABILITIES),
         )
 
     def stop(self) -> None:
-        """Stop the underlying collector."""
+        """Dừng bộ thu thập bên dưới."""
         self._collector.stop()
-        logger.info("CommodityBackend stopped")
+        logger.info("CommodityBackend đã dừng")
 
     def is_capable(self, capability: Capability) -> bool:
-        """Check whether this backend supports a specific capability."""
+        """Kiểm tra xem backend này có hỗ trợ khả năng cụ thể không."""
         return capability in self.SUPPORTED_CAPABILITIES
 
     def __repr__(self) -> str:

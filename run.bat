@@ -1,204 +1,150 @@
 @echo off
 chcp 65001 >nul 2>&1
-setlocal enabledelayedexpansion
-title RuView - Hệ Thống Cảm Biến WiFi
+:: Refresh PATH to pick up newly installed tools (Rust, etc.)
+for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "PATH=%%B;%PATH%"
+title RuView - He Thong Cam Bien WiFi AI
 
 color 0B
 
-:: ============================================================
-::  ██████╗ ██╗   ██╗██╗   ██╗██╗███████╗██╗    ██╗
-::  ██╔══██╗██║   ██║██║   ██║██║██╔════╝██║    ██║
-::  ██████╔╝██║   ██║██║   ██║██║█████╗  ██║ █╗ ██║
-::  ██╔══██╗██║   ██║╚██╗ ██╔╝██║██╔══╝  ██║███╗██║
-::  ██║  ██║╚██████╔╝ ╚████╔╝ ██║███████╗╚███╔███╔╝
-::  ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝╚══════╝ ╚══╝╚══╝
-:: ============================================================
-::  Hệ Thống Ước Lượng Tư Thế Con Người Qua WiFi
-::  Sử dụng Thông Tin Trạng Thái Kênh (CSI)
-:: ============================================================
-
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║                                                          ║
-echo  ║   ██████╗ ██╗   ██╗██╗   ██╗██╗███████╗██╗    ██╗       ║
-echo  ║   ██╔══██╗██║   ██║██║   ██║██║██╔════╝██║    ██║       ║
-echo  ║   ██████╔╝██║   ██║██║   ██║██║█████╗  ██║ █╗ ██║       ║
-echo  ║   ██╔══██╗██║   ██║╚██╗ ██╔╝██║██╔══╝  ██║███╗██║       ║
-echo  ║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║███████╗╚███╔███╔╝       ║
-echo  ║   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝╚══════╝ ╚══╝╚══╝       ║
-echo  ║                                                          ║
-echo  ║   Hệ Thống Cảm Biến WiFi - Ước Lượng Tư Thế            ║
-echo  ║   Phiên bản: 1.2.0                                      ║
-echo  ║                                                          ║
-echo  ╚══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo    RUVIEW - He Thong Cam Bien WiFi AI
+echo    Uoc Luong Tu The Con Nguoi Qua WiFi
+echo    Phien ban: 1.2.0
+echo  ========================================================
 echo.
 
-:: ============================================================
-::  KIỂM TRA PHỤ THUỘC
-:: ============================================================
-echo  [*] Đang kiểm tra các phụ thuộc cần thiết...
+echo  [*] Dang kiem tra cac phu thuoc can thiet...
 echo.
 
 set "MISSING=0"
 
-:: Kiểm tra Node.js
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] Node.js         : CHƯA CÀI ĐẶT
-    echo      ^> Tải tại: https://nodejs.org/
+    echo  [X] Node.js         : CHUA CAI DAT
+    echo      ^> Tai tai: https://nodejs.org/
     set "MISSING=1"
 ) else (
-    for /f "tokens=*" %%v in ('node --version 2^>nul') do set "NODE_VER=%%v"
-    echo  [✓] Node.js         : !NODE_VER!
+    echo  [OK] Node.js        : Da cai dat
 )
 
-:: Kiểm tra npm
 where npm >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] npm             : CHƯA CÀI ĐẶT
-    echo      ^> Đi kèm với Node.js
+    echo  [X] npm             : CHUA CAI DAT
     set "MISSING=1"
 ) else (
-    for /f "tokens=*" %%v in ('npm --version 2^>nul') do set "NPM_VER=%%v"
-    echo  [✓] npm             : !NPM_VER!
+    echo  [OK] npm            : Da cai dat
 )
 
-:: Kiểm tra Rust
 where rustc >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] Rust ^(rustc^)    : CHƯA CÀI ĐẶT
-    echo      ^> Tải tại: https://rustup.rs/
+    echo  [X] Rust            : CHUA CAI DAT
+    echo      ^> Tai tai: https://rustup.rs/
     set "MISSING=1"
 ) else (
-    for /f "tokens=*" %%v in ('rustc --version 2^>nul') do set "RUST_VER=%%v"
-    echo  [✓] Rust            : !RUST_VER!
+    echo  [OK] Rust           : Da cai dat
 )
 
-:: Kiểm tra Cargo
 where cargo >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] Cargo           : CHƯA CÀI ĐẶT
-    echo      ^> Đi kèm với Rust
+    echo  [X] Cargo           : CHUA CAI DAT
     set "MISSING=1"
 ) else (
-    for /f "tokens=*" %%v in ('cargo --version 2^>nul') do set "CARGO_VER=%%v"
-    echo  [✓] Cargo           : !CARGO_VER!
+    echo  [OK] Cargo          : Da cai dat
 )
 
-:: Kiểm tra Python
 where python >nul 2>&1
 if %errorlevel% neq 0 (
-    where python3 >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo  [~] Python          : CHƯA CÀI ĐẶT ^(tùy chọn^)
-    ) else (
-        for /f "tokens=*" %%v in ('python3 --version 2^>nul') do set "PY_VER=%%v"
-        echo  [✓] Python          : !PY_VER!
-    )
+    echo  [~] Python          : Chua cai dat (tuy chon)
 ) else (
-    for /f "tokens=*" %%v in ('python --version 2^>nul') do set "PY_VER=%%v"
-    echo  [✓] Python          : !PY_VER!
+    echo  [OK] Python         : Da cai dat
 )
 
 echo.
 
 if "%MISSING%"=="1" (
-    echo  ╔══════════════════════════════════════════════════════════╗
-    echo  ║  [!] CẢNH BÁO: Một số phụ thuộc chưa được cài đặt.     ║
-    echo  ║      Một số tùy chọn có thể không hoạt động.            ║
-    echo  ╚══════════════════════════════════════════════════════════╝
+    echo  [CANH BAO] Mot so phu thuoc chua cai dat. Mot so chuc nang co the khong hoat dong.
     echo.
 )
 
-:: ============================================================
-::  MENU CHÍNH
-:: ============================================================
 :MENU
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║                    MENU CHÍNH                            ║
-echo  ╠══════════════════════════════════════════════════════════╣
-echo  ║                                                          ║
-echo  ║   [1]  Khởi động Máy Chủ Cảm Biến                      ║
-echo  ║        ^> Khởi chạy máy chủ WiFi sensing Rust            ║
-echo  ║                                                          ║
-echo  ║   [2]  Khởi động Ứng Dụng Di Động ^(Expo^)                ║
-echo  ║        ^> Chạy ứng dụng React Native/Expo                ║
-echo  ║                                                          ║
-echo  ║   [3]  Khởi động Ứng Dụng Máy Tính ^(Tauri^)             ║
-echo  ║        ^> Chạy ứng dụng desktop Tauri                    ║
-echo  ║                                                          ║
-echo  ║   [4]  Chạy Bộ Kiểm Thử Rust                           ║
-echo  ║        ^> cargo test --workspace --no-default-features    ║
-echo  ║                                                          ║
-echo  ║   [5]  Thoát                                            ║
-echo  ║                                                          ║
-echo  ╚══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo                      MENU CHINH
+echo  ========================================================
 echo.
-set /p "CHOICE=  Nhập lựa chọn của bạn [1-5]: "
+echo   [1]  Khoi dong Web UI (trinh duyet)
+echo        ^> Mo giao dien web tai localhost
+echo.
+echo   [2]  Khoi dong Ung Dung Di Dong (Expo)
+echo        ^> Chay ung dung React Native/Expo
+echo.
+echo   [3]  Khoi dong May Chu Cam Bien (Rust)
+echo        ^> Khoi chay may chu WiFi sensing
+echo.
+echo   [4]  Khoi dong Ung Dung May Tinh (Tauri)
+echo        ^> Chay ung dung desktop Tauri
+echo.
+echo   [5]  Chay API Server (Python)
+echo        ^> Khoi dong Python API backend
+echo.
+echo   [6]  Thoat
+echo.
+echo  ========================================================
+echo.
+set /p "CHOICE=  Nhap lua chon cua ban [1-6]: "
 
-if "%CHOICE%"=="1" goto OPT_SERVER
+if "%CHOICE%"=="1" goto OPT_WEB
 if "%CHOICE%"=="2" goto OPT_MOBILE
-if "%CHOICE%"=="3" goto OPT_DESKTOP
-if "%CHOICE%"=="4" goto OPT_TEST
-if "%CHOICE%"=="5" goto EXIT
+if "%CHOICE%"=="3" goto OPT_SERVER
+if "%CHOICE%"=="4" goto OPT_DESKTOP
+if "%CHOICE%"=="5" goto OPT_PYTHON
+if "%CHOICE%"=="6" goto EXIT
 
 echo.
-echo  [✗] Lựa chọn không hợp lệ. Vui lòng nhập số từ 1 đến 5.
+echo  [X] Lua chon khong hop le. Vui long nhap so tu 1 den 6.
 echo.
 goto MENU
 
 :: ============================================================
-::  [1] KHỞI ĐỘNG MÁY CHỦ CẢM BIẾN
+::  [1] WEB UI
 :: ============================================================
-:OPT_SERVER
+:OPT_WEB
 echo.
-echo  ────────────────────────────────────────────────────────
-echo   Đang khởi động Máy Chủ Cảm Biến WiFi...
-echo  ────────────────────────────────────────────────────────
+echo  --------------------------------------------------------
+echo   Dang khoi dong Web UI...
+echo  --------------------------------------------------------
 echo.
 
-where cargo >nul 2>&1
+cd /d "%~dp0ui"
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy Cargo. Vui lòng cài đặt Rust trước.
-    echo      ^> https://rustup.rs/
-    echo.
-    pause
-    goto MENU
-)
-
-cd /d "%~dp0rust-port\wifi-densepose-rs"
-if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy thư mục dự án Rust.
+    echo  [X] LOI: Khong tim thay thu muc ui/
     echo.
     pause
     cd /d "%~dp0"
     goto MENU
 )
 
-echo  [*] Đang biên dịch và khởi chạy máy chủ cảm biến...
-echo  [*] Nhấn Ctrl+C để dừng máy chủ.
+echo  [*] Dang mo trinh duyet...
+start "" "index.html"
+echo  [OK] Da mo index.html trong trinh duyet.
 echo.
-cargo run -p wifi-densepose-sensing-server --no-default-features
-echo.
-echo  [*] Máy chủ đã dừng.
 cd /d "%~dp0"
-echo.
 pause
 goto MENU
 
 :: ============================================================
-::  [2] KHỞI ĐỘNG ỨNG DỤNG DI ĐỘNG (EXPO)
+::  [2] EXPO MOBILE
 :: ============================================================
 :OPT_MOBILE
 echo.
-echo  ────────────────────────────────────────────────────────
-echo   Đang khởi động Ứng Dụng Di Động (Expo)...
-echo  ────────────────────────────────────────────────────────
+echo  --------------------------------------------------------
+echo   Dang khoi dong Ung Dung Di Dong (Expo)...
+echo  --------------------------------------------------------
 echo.
 
 where npx >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy npx. Vui lòng cài đặt Node.js trước.
+    echo  [X] LOI: Khong tim thay npx. Vui long cai dat Node.js truoc.
     echo      ^> https://nodejs.org/
     echo.
     pause
@@ -207,7 +153,7 @@ if %errorlevel% neq 0 (
 
 cd /d "%~dp0ui\mobile"
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy thư mục ứng dụng di động.
+    echo  [X] LOI: Khong tim thay thu muc ui/mobile/
     echo.
     pause
     cd /d "%~dp0"
@@ -215,10 +161,10 @@ if %errorlevel% neq 0 (
 )
 
 if not exist "node_modules" (
-    echo  [*] Lần đầu chạy — đang cài đặt phụ thuộc...
+    echo  [*] Lan dau chay — dang cai dat phu thuoc...
     call npm install
     if %errorlevel% neq 0 (
-        echo  [✗] LỖI: Cài đặt phụ thuộc thất bại.
+        echo  [X] LOI: Cai dat phu thuoc that bai.
         echo.
         pause
         cd /d "%~dp0"
@@ -226,29 +172,68 @@ if not exist "node_modules" (
     )
 )
 
-echo  [*] Đang khởi chạy Expo... (Nhấn Ctrl+C để dừng)
+echo  [*] Dang khoi chay Expo... (Nhan Ctrl+C de dung)
 echo.
 call npx expo start
 echo.
-echo  [*] Ứng dụng Expo đã dừng.
+echo  [*] Ung dung Expo da dung.
 cd /d "%~dp0"
 echo.
 pause
 goto MENU
 
 :: ============================================================
-::  [3] KHỞI ĐỘNG ỨNG DỤNG MÁY TÍNH (TAURI)
+::  [3] RUST SENSING SERVER
+:: ============================================================
+:OPT_SERVER
+echo.
+echo  --------------------------------------------------------
+echo   Dang khoi dong May Chu Cam Bien WiFi...
+echo  --------------------------------------------------------
+echo.
+
+where cargo >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [X] LOI: Khong tim thay Cargo. Vui long cai dat Rust truoc.
+    echo      ^> https://rustup.rs/
+    echo.
+    pause
+    goto MENU
+)
+
+cd /d "%~dp0rust-port\wifi-densepose-rs"
+if %errorlevel% neq 0 (
+    echo  [X] LOI: Khong tim thay thu muc du an Rust.
+    echo.
+    pause
+    cd /d "%~dp0"
+    goto MENU
+)
+
+echo  [*] Dang bien dich va khoi chay may chu cam bien...
+echo  [*] Nhan Ctrl+C de dung may chu.
+echo.
+cargo run -p wifi-densepose-sensing-server --no-default-features
+echo.
+echo  [*] May chu da dung.
+cd /d "%~dp0"
+echo.
+pause
+goto MENU
+
+:: ============================================================
+::  [4] TAURI DESKTOP
 :: ============================================================
 :OPT_DESKTOP
 echo.
-echo  ────────────────────────────────────────────────────────
-echo   Đang khởi động Ứng Dụng Máy Tính (Tauri)...
-echo  ────────────────────────────────────────────────────────
+echo  --------------------------------------------------------
+echo   Dang khoi dong Ung Dung May Tinh (Tauri)...
+echo  --------------------------------------------------------
 echo.
 
 where cargo >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy Cargo. Vui lòng cài đặt Rust trước.
+    echo  [X] LOI: Khong tim thay Cargo. Vui long cai dat Rust truoc.
     echo      ^> https://rustup.rs/
     echo.
     pause
@@ -257,85 +242,80 @@ if %errorlevel% neq 0 (
 
 cd /d "%~dp0rust-port\wifi-densepose-rs"
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy thư mục dự án Rust.
+    echo  [X] LOI: Khong tim thay thu muc du an Rust.
     echo.
     pause
     cd /d "%~dp0"
     goto MENU
 )
 
-echo  [*] Đang biên dịch và khởi chạy ứng dụng Tauri...
-echo  [*] Lần đầu có thể mất vài phút để biên dịch.
+echo  [*] Dang bien dich va khoi chay ung dung Tauri...
+echo  [*] Lan dau co the mat vai phut de bien dich.
 echo.
 cargo tauri dev
 echo.
-echo  [*] Ứng dụng Tauri đã đóng.
+echo  [*] Ung dung Tauri da dong.
 cd /d "%~dp0"
 echo.
 pause
 goto MENU
 
 :: ============================================================
-::  [4] CHẠY BỘ KIỂM THỬ RUST
+::  [5] PYTHON API SERVER
 :: ============================================================
-:OPT_TEST
+:OPT_PYTHON
 echo.
-echo  ────────────────────────────────────────────────────────
-echo   Đang chạy Bộ Kiểm Thử Rust...
-echo  ────────────────────────────────────────────────────────
+echo  --------------------------------------------------------
+echo   Dang khoi dong Python API Server...
+echo  --------------------------------------------------------
 echo.
 
-where cargo >nul 2>&1
+where python >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy Cargo. Vui lòng cài đặt Rust trước.
-    echo      ^> https://rustup.rs/
+    echo  [X] LOI: Khong tim thay Python. Vui long cai dat Python truoc.
+    echo      ^> https://www.python.org/downloads/
     echo.
     pause
     goto MENU
 )
 
-cd /d "%~dp0rust-port\wifi-densepose-rs"
+cd /d "%~dp0v1"
 if %errorlevel% neq 0 (
-    echo  [✗] LỖI: Không tìm thấy thư mục dự án Rust.
+    echo  [X] LOI: Khong tim thay thu muc v1/
     echo.
     pause
     cd /d "%~dp0"
     goto MENU
 )
 
-echo  [*] Đang biên dịch và chạy toàn bộ bộ kiểm thử...
-echo  [*] Mục tiêu: 1.031+ bài kiểm thử đều pass.
-echo.
-cargo test --workspace --no-default-features
-set "TEST_RESULT=%errorlevel%"
-echo.
-
-if "%TEST_RESULT%"=="0" (
-    echo  ╔══════════════════════════════════════════════════════════╗
-    echo  ║  [✓] TẤT CẢ BÀI KIỂM THỬ ĐÃ PASS!                    ║
-    echo  ╚══════════════════════════════════════════════════════════╝
+if not exist "venv" (
+    echo  [*] Dang tao moi truong ao Python...
+    python -m venv venv
+    echo  [*] Dang cai dat phu thuoc...
+    call venv\Scripts\activate.bat
+    pip install -r requirements-lock.txt
 ) else (
-    echo  ╔══════════════════════════════════════════════════════════╗
-    echo  ║  [✗] MỘT SỐ BÀI KIỂM THỬ THẤT BẠI.                   ║
-    echo  ║      Kiểm tra log ở trên để biết chi tiết.             ║
-    echo  ╚══════════════════════════════════════════════════════════╝
+    call venv\Scripts\activate.bat
 )
+
+echo  [*] Dang khoi chay API server... (Nhan Ctrl+C de dung)
+echo.
+python -m src.commands.start
+echo.
+echo  [*] API server da dung.
 cd /d "%~dp0"
 echo.
 pause
 goto MENU
 
 :: ============================================================
-::  THOÁT
+::  THOAT
 :: ============================================================
 :EXIT
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║                                                          ║
-echo  ║   Cảm ơn Đại Ca đã sử dụng RuView!                     ║
-echo  ║   Hẹn gặp lại.                                          ║
-echo  ║                                                          ║
-echo  ╚══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Cam on Dai Ca da su dung RuView!
+echo   Hen gap lai.
+echo  ========================================================
 echo.
-endlocal
 exit /b 0

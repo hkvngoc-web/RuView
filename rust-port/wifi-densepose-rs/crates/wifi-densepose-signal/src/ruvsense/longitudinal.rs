@@ -1,68 +1,68 @@
-//! Longitudinal biomechanics drift detection.
+//! Phát hiện trôi sinh trắc học theo chiều dọc thời gian.
 //!
-//! Maintains per-person biophysical baselines over days/weeks using Welford
-//! online statistics. Detects meaningful drift in gait symmetry, stability,
-//! breathing regularity, micro-tremor, and activity level. Produces traceable
-//! evidence reports that link to stored embedding trajectories.
+//! Duy trì đường cơ sở sinh lý cá nhân theo ngày/tuần sử dụng thống kê
+//! trực tuyến Welford. Phát hiện trôi có ý nghĩa trong đối xứng dáng đi,
+//! độ ổn định, quy luật hô hấp, vi rung, và mức hoạt động. Tạo ra
+//! báo cáo bằng chứng có thể truy vết liên kết đến quỹ đạo nhúng đã lưu.
 //!
-//! # Key Invariants
-//! - Baseline requires >= 7 observation days before drift detection activates
-//! - Drift alert requires > 2-sigma deviation sustained for >= 3 consecutive days
-//! - Output is metric values and deviations, never diagnostic language
-//! - Welford statistics use full history (no windowing) for stability
+//! # Bất biến chính
+//! - Đường cơ sở yêu cầu >= 7 ngày quan sát trước khi phát hiện trôi được kích hoạt
+//! - Cảnh báo trôi yêu cầu độ lệch > 2-sigma duy trì >= 3 ngày liên tiếp
+//! - Đầu ra là giá trị chỉ số và độ lệch, không bao giờ dùng ngôn ngữ chẩn đoán
+//! - Thống kê Welford sử dụng toàn bộ lịch sử (không cửa sổ) để đảm bảo ổn định
 //!
-//! # References
+//! # Tài liệu tham khảo
 //! - Welford, B.P. (1962). "Note on a Method for Calculating Corrected
 //!   Sums of Squares." Technometrics.
-//! - ADR-030 Tier 4: Longitudinal Biomechanics Drift
+//! - ADR-030 Tier 4: Phát hiện trôi sinh trắc học theo chiều dọc
 
 use crate::ruvsense::field_model::WelfordStats;
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from longitudinal monitoring operations.
+/// Các lỗi từ thao tác giám sát theo chiều dọc.
 #[derive(Debug, thiserror::Error)]
 pub enum LongitudinalError {
-    /// Not enough observation days for drift detection.
-    #[error("Insufficient observation days: need >= {needed}, got {got}")]
+    /// Không đủ ngày quan sát cho phát hiện trôi.
+    #[error("Không đủ ngày quan sát: cần >= {needed}, có {got}")]
     InsufficientDays { needed: u32, got: u32 },
 
-    /// Person ID not found in the registry.
-    #[error("Unknown person ID: {0}")]
+    /// Không tìm thấy ID người trong sổ đăng ký.
+    #[error("ID người không xác định: {0}")]
     UnknownPerson(u64),
 
-    /// Embedding dimension mismatch.
-    #[error("Embedding dimension mismatch: expected {expected}, got {got}")]
+    /// Chiều nhúng không khớp.
+    #[error("Chiều nhúng không khớp: kỳ vọng {expected}, nhận được {got}")]
     EmbeddingDimensionMismatch { expected: usize, got: usize },
 
-    /// Invalid metric value.
-    #[error("Invalid metric value for {metric}: {reason}")]
+    /// Giá trị chỉ số không hợp lệ.
+    #[error("Giá trị chỉ số không hợp lệ cho {metric}: {reason}")]
     InvalidMetric { metric: String, reason: String },
 }
 
 // ---------------------------------------------------------------------------
-// Domain types
+// Kiểu miền
 // ---------------------------------------------------------------------------
 
-/// Biophysical metric types tracked per person.
+/// Các loại chỉ số sinh lý được theo dõi cho mỗi người.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DriftMetric {
-    /// Gait symmetry ratio (0.0 = perfectly symmetric, higher = asymmetric).
+    /// Tỉ lệ đối xứng dáng đi (0.0 = hoàn toàn đối xứng, cao hơn = bất đối xứng).
     GaitSymmetry,
-    /// Stability index (lower = less stable).
+    /// Chỉ số ổn định (thấp hơn = kém ổn định hơn).
     StabilityIndex,
-    /// Breathing regularity (coefficient of variation of breath intervals).
+    /// Quy luật hô hấp (hệ số biến thiên của khoảng thở).
     BreathingRegularity,
-    /// Micro-tremor amplitude (mm, from high-frequency pose jitter).
+    /// Biên độ vi rung (mm, từ nhiễu tư thế tần số cao).
     MicroTremor,
-    /// Daily activity level (normalized 0-1).
+    /// Mức hoạt động hàng ngày (chuẩn hóa 0-1).
     ActivityLevel,
 }
 
 impl DriftMetric {
-    /// All metric variants.
+    /// Tất cả các biến thể chỉ số.
     pub fn all() -> &'static [DriftMetric] {
         &[
             DriftMetric::GaitSymmetry,
@@ -73,7 +73,7 @@ impl DriftMetric {
         ]
     }
 
-    /// Human-readable name.
+    /// Tên dễ đọc.
     pub fn name(&self) -> &'static str {
         match self {
             DriftMetric::GaitSymmetry => "gait_symmetry",
@@ -85,97 +85,97 @@ impl DriftMetric {
     }
 }
 
-/// Direction of drift.
+/// Hướng trôi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DriftDirection {
-    /// Metric is increasing relative to baseline.
+    /// Chỉ số đang tăng so với đường cơ sở.
     Increasing,
-    /// Metric is decreasing relative to baseline.
+    /// Chỉ số đang giảm so với đường cơ sở.
     Decreasing,
 }
 
-/// Monitoring level for drift reports.
+/// Mức giám sát cho báo cáo trôi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MonitoringLevel {
-    /// Level 1: Raw biophysical metric value.
+    /// Mức 1: Giá trị chỉ số sinh lý thô.
     Physiological = 1,
-    /// Level 2: Personal baseline deviation.
+    /// Mức 2: Độ lệch so với đường cơ sở cá nhân.
     Drift = 2,
-    /// Level 3: Pattern-matched risk correlation.
+    /// Mức 3: Tương quan rủi ro đối chiếu mẫu.
     RiskCorrelation = 3,
 }
 
-/// A drift report with traceable evidence.
+/// Báo cáo trôi với bằng chứng có thể truy vết.
 #[derive(Debug, Clone)]
 pub struct DriftReport {
-    /// Person this report pertains to.
+    /// Người mà báo cáo này liên quan đến.
     pub person_id: u64,
-    /// Which metric drifted.
+    /// Chỉ số nào bị trôi.
     pub metric: DriftMetric,
-    /// Direction of drift.
+    /// Hướng trôi.
     pub direction: DriftDirection,
-    /// Z-score relative to personal baseline.
+    /// Điểm Z so với đường cơ sở cá nhân.
     pub z_score: f64,
-    /// Current metric value (today or most recent).
+    /// Giá trị chỉ số hiện tại (hôm nay hoặc gần nhất).
     pub current_value: f64,
-    /// Baseline mean for this metric.
+    /// Trung bình đường cơ sở cho chỉ số này.
     pub baseline_mean: f64,
-    /// Baseline standard deviation.
+    /// Độ lệch chuẩn đường cơ sở.
     pub baseline_std: f64,
-    /// Number of consecutive days the drift has been sustained.
+    /// Số ngày liên tiếp trôi đã được duy trì.
     pub sustained_days: u32,
-    /// Monitoring level.
+    /// Mức giám sát.
     pub level: MonitoringLevel,
-    /// Timestamp (microseconds) when this report was generated.
+    /// Dấu thời gian (micro giây) khi báo cáo này được tạo.
     pub timestamp_us: u64,
 }
 
-/// Daily metric summary for one person.
+/// Tóm tắt chỉ số hàng ngày cho một người.
 #[derive(Debug, Clone)]
 pub struct DailyMetricSummary {
-    /// Person ID.
+    /// ID người.
     pub person_id: u64,
-    /// Day timestamp (start of day, microseconds).
+    /// Dấu thời gian ngày (đầu ngày, micro giây).
     pub day_us: u64,
-    /// Metric values for this day.
+    /// Giá trị chỉ số cho ngày này.
     pub metrics: Vec<(DriftMetric, f64)>,
-    /// AETHER embedding centroid for this day.
+    /// Trọng tâm nhúng AETHER cho ngày này.
     pub embedding_centroid: Option<Vec<f32>>,
 }
 
 // ---------------------------------------------------------------------------
-// Personal baseline
+// Đường cơ sở cá nhân
 // ---------------------------------------------------------------------------
 
-/// Per-person longitudinal baseline with Welford statistics.
+/// Đường cơ sở theo chiều dọc cho mỗi người với thống kê Welford.
 ///
-/// Tracks running mean and variance for each biophysical metric over
-/// the person's entire observation history. Uses Welford's algorithm
-/// for numerical stability.
+/// Theo dõi trung bình chạy và phương sai cho mỗi chỉ số sinh lý
+/// trên toàn bộ lịch sử quan sát của người đó. Sử dụng thuật toán Welford
+/// để đảm bảo ổn định số học.
 #[derive(Debug, Clone)]
 pub struct PersonalBaseline {
-    /// Unique person identifier.
+    /// Định danh duy nhất của người.
     pub person_id: u64,
-    /// Per-metric Welford accumulators.
+    /// Bộ tích lũy Welford cho mỗi chỉ số.
     pub gait_symmetry: WelfordStats,
     pub stability_index: WelfordStats,
     pub breathing_regularity: WelfordStats,
     pub micro_tremor: WelfordStats,
     pub activity_level: WelfordStats,
-    /// Running centroid of AETHER embeddings.
+    /// Trọng tâm chạy của nhúng AETHER.
     pub embedding_centroid: Vec<f32>,
-    /// Number of observation days.
+    /// Số ngày quan sát.
     pub observation_days: u32,
-    /// Timestamp of last update (microseconds).
+    /// Dấu thời gian cập nhật cuối (micro giây).
     pub updated_at_us: u64,
-    /// Per-metric consecutive drift days counter.
+    /// Bộ đếm ngày trôi liên tiếp cho mỗi chỉ số.
     drift_counters: [u32; 5],
 }
 
 impl PersonalBaseline {
-    /// Create a new baseline for a person.
+    /// Tạo đường cơ sở mới cho một người.
     ///
-    /// `embedding_dim` is typically 128 for AETHER embeddings.
+    /// `embedding_dim` thường là 128 cho nhúng AETHER.
     pub fn new(person_id: u64, embedding_dim: usize) -> Self {
         Self {
             person_id,
@@ -191,7 +191,7 @@ impl PersonalBaseline {
         }
     }
 
-    /// Get the Welford stats for a specific metric.
+    /// Lấy thống kê Welford cho một chỉ số cụ thể.
     pub fn stats_for(&self, metric: DriftMetric) -> &WelfordStats {
         match metric {
             DriftMetric::GaitSymmetry => &self.gait_symmetry,
@@ -202,7 +202,7 @@ impl PersonalBaseline {
         }
     }
 
-    /// Get mutable Welford stats for a specific metric.
+    /// Lấy thống kê Welford có thể thay đổi cho một chỉ số cụ thể.
     fn stats_for_mut(&mut self, metric: DriftMetric) -> &mut WelfordStats {
         match metric {
             DriftMetric::GaitSymmetry => &mut self.gait_symmetry,
@@ -213,7 +213,7 @@ impl PersonalBaseline {
         }
     }
 
-    /// Index of a metric in the drift_counters array.
+    /// Chỉ số của một chỉ số trong mảng drift_counters.
     fn metric_index(metric: DriftMetric) -> usize {
         match metric {
             DriftMetric::GaitSymmetry => 0,
@@ -224,14 +224,14 @@ impl PersonalBaseline {
         }
     }
 
-    /// Whether baseline has enough data for drift detection.
+    /// Đường cơ sở đã có đủ dữ liệu cho phát hiện trôi hay chưa.
     pub fn is_ready(&self) -> bool {
         self.observation_days >= 7
     }
 
-    /// Update baseline with a daily summary.
+    /// Cập nhật đường cơ sở với tóm tắt hàng ngày.
     ///
-    /// Returns drift reports for any metrics that exceed thresholds.
+    /// Trả về báo cáo trôi cho bất kỳ chỉ số nào vượt ngưỡng.
     pub fn update_daily(
         &mut self,
         summary: &DailyMetricSummary,
@@ -240,7 +240,7 @@ impl PersonalBaseline {
         self.observation_days += 1;
         self.updated_at_us = timestamp_us;
 
-        // Update embedding centroid with EMA (decay = 0.95)
+        // Cập nhật trọng tâm nhúng với EMA (hệ số suy giảm = 0.95)
         if let Some(ref emb) = summary.embedding_centroid {
             if emb.len() == self.embedding_centroid.len() {
                 let alpha = 0.05_f32; // 1 - 0.95
@@ -255,7 +255,7 @@ impl PersonalBaseline {
         let observation_days = self.observation_days;
 
         for &(metric, value) in &summary.metrics {
-            // Update stats and extract values before releasing the mutable borrow
+            // Cập nhật thống kê và trích xuất giá trị trước khi giải phóng mượn thay đổi
             let (z, baseline_mean, baseline_std) = {
                 let stats = self.stats_for_mut(metric);
                 stats.update(value);
@@ -308,37 +308,37 @@ impl PersonalBaseline {
         reports
     }
 
-    /// Check readiness at a specific observation day count (internal helper).
+    /// Kiểm tra sẵn sàng tại số ngày quan sát cụ thể (hàm nội bộ).
     fn is_ready_at(&self, days: u32) -> bool {
         days >= 7
     }
 
-    /// Get current drift counter for a metric.
+    /// Lấy bộ đếm trôi hiện tại cho một chỉ số.
     pub fn drift_days(&self, metric: DriftMetric) -> u32 {
         self.drift_counters[Self::metric_index(metric)]
     }
 }
 
 // ---------------------------------------------------------------------------
-// Embedding history (simplified HNSW-indexed store)
+// Lịch sử nhúng (kho lưu chỉ mục HNSW đơn giản hóa)
 // ---------------------------------------------------------------------------
 
-/// Entry in the embedding history.
+/// Mục nhập trong lịch sử nhúng.
 #[derive(Debug, Clone)]
 pub struct EmbeddingEntry {
-    /// Person ID.
+    /// ID người.
     pub person_id: u64,
-    /// Day timestamp (microseconds).
+    /// Dấu thời gian ngày (micro giây).
     pub day_us: u64,
-    /// AETHER embedding vector.
+    /// Vector nhúng AETHER.
     pub embedding: Vec<f32>,
 }
 
-/// Simplified embedding history store for longitudinal tracking.
+/// Kho lưu lịch sử nhúng đơn giản hóa cho theo dõi chiều dọc.
 ///
-/// In production, this would be backed by an HNSW index for fast
-/// nearest-neighbor search. This implementation uses brute-force
-/// cosine similarity for correctness.
+/// Trong sản xuất, kho này sẽ được hỗ trợ bởi chỉ mục HNSW cho tìm
+/// láng giềng gần nhanh. Triển khai này dùng tương đồng cosine
+/// vét cạn để đảm bảo đúng đắn.
 #[derive(Debug)]
 pub struct EmbeddingHistory {
     entries: Vec<EmbeddingEntry>,
@@ -347,7 +347,7 @@ pub struct EmbeddingHistory {
 }
 
 impl EmbeddingHistory {
-    /// Create a new embedding history store.
+    /// Tạo kho lưu lịch sử nhúng mới.
     pub fn new(embedding_dim: usize, max_entries: usize) -> Self {
         Self {
             entries: Vec::new(),
@@ -356,7 +356,7 @@ impl EmbeddingHistory {
         }
     }
 
-    /// Add an embedding entry.
+    /// Thêm một mục nhập nhúng.
     pub fn push(&mut self, entry: EmbeddingEntry) -> Result<(), LongitudinalError> {
         if entry.embedding.len() != self.embedding_dim {
             return Err(LongitudinalError::EmbeddingDimensionMismatch {
@@ -365,13 +365,13 @@ impl EmbeddingHistory {
             });
         }
         if self.entries.len() >= self.max_entries {
-            self.entries.drain(..1); // FIFO eviction — acceptable for daily-rate inserts
+            self.entries.drain(..1); // Loại bỏ FIFO — chấp nhận được cho tốc độ chèn hàng ngày
         }
         self.entries.push(entry);
         Ok(())
     }
 
-    /// Find the K nearest embeddings to a query vector (brute-force cosine).
+    /// Tìm K nhúng gần nhất với vector truy vấn (cosine vét cạn).
     pub fn search(&self, query: &[f32], k: usize) -> Vec<(usize, f32)> {
         let mut similarities: Vec<(usize, f32)> = self
             .entries
@@ -385,22 +385,22 @@ impl EmbeddingHistory {
         similarities
     }
 
-    /// Number of entries stored.
+    /// Số mục nhập đã lưu.
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
-    /// Whether the store is empty.
+    /// Kho lưu có trống hay không.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
-    /// Get entry by index.
+    /// Lấy mục nhập theo chỉ số.
     pub fn get(&self, index: usize) -> Option<&EmbeddingEntry> {
         self.entries.get(index)
     }
 
-    /// Get all entries for a specific person.
+    /// Lấy tất cả mục nhập cho một người cụ thể.
     pub fn entries_for_person(&self, person_id: u64) -> Vec<&EmbeddingEntry> {
         self.entries
             .iter()
@@ -409,7 +409,7 @@ impl EmbeddingHistory {
     }
 }
 
-/// Cosine similarity between two f32 vectors.
+/// Tương đồng cosine giữa hai vector f32.
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
@@ -423,7 +423,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -460,7 +460,7 @@ mod tests {
         for day in 0..6 {
             let summary = make_daily_summary(1, day, [0.1, 0.9, 0.15, 0.5, 0.7]);
             let reports = baseline.update_daily(&summary, day * 86_400_000_000);
-            assert!(reports.is_empty(), "No drift before 7 days");
+            assert!(reports.is_empty(), "Không nên có trôi trước 7 ngày");
         }
         assert!(!baseline.is_ready());
     }
@@ -480,13 +480,13 @@ mod tests {
     fn test_stable_metrics_no_drift() {
         let mut baseline = PersonalBaseline::new(1, 128);
 
-        // 20 days of stable metrics
+        // 20 ngày chỉ số ổn định
         for day in 0..20 {
             let summary = make_daily_summary(1, day, [0.1, 0.9, 0.15, 0.5, 0.7]);
             let reports = baseline.update_daily(&summary, day * 86_400_000_000);
             assert!(
                 reports.is_empty(),
-                "Stable metrics should not trigger drift"
+                "Chỉ số ổn định không nên kích hoạt trôi"
             );
         }
     }
@@ -495,17 +495,17 @@ mod tests {
     fn test_drift_detected_after_sustained_deviation() {
         let mut baseline = PersonalBaseline::new(1, 128);
 
-        // 30 days of very stable gait symmetry = 0.1 with tiny noise
-        // (more baseline days = stronger prior, so drift stays > 2-sigma longer)
+        // 30 ngày đối xứng dáng đi rất ổn định = 0.1 với nhiễu nhỏ
+        // (nhiều ngày cơ sở hơn = prior mạnh hơn, nên trôi giữ > 2-sigma lâu hơn)
         for day in 0..30 {
-            let noise = 0.001 * (day as f64 % 3.0 - 1.0); // tiny variation
+            let noise = 0.001 * (day as f64 % 3.0 - 1.0); // biến thiên nhỏ
             let summary = make_daily_summary(1, day, [0.1 + noise, 0.9, 0.15, 0.5, 0.7]);
             baseline.update_daily(&summary, day * 86_400_000_000);
         }
 
-        // Now inject a very large drift in gait symmetry (0.1 -> 5.0) for 5 days.
-        // Even as Welford accumulates these, the z-score should stay well above 2.0
-        // because 30 baseline days anchor the mean near 0.1 with small std dev.
+        // Bây giờ tiêm trôi rất lớn trong đối xứng dáng đi (0.1 -> 5.0) trong 5 ngày.
+        // Ngay cả khi Welford tích lũy các giá trị này, điểm z nên giữ trên 2.0
+        // vì 30 ngày cơ sở neo trung bình gần 0.1 với độ lệch chuẩn nhỏ.
         let mut any_drift = false;
         for day in 30..36 {
             let summary = make_daily_summary(1, day, [5.0, 0.9, 0.15, 0.5, 0.7]);
@@ -519,32 +519,32 @@ mod tests {
                 assert!(r.sustained_days >= 3);
             }
         }
-        assert!(any_drift, "Should detect drift after sustained deviation");
+        assert!(any_drift, "Phải phát hiện trôi sau độ lệch duy trì");
     }
 
     #[test]
     fn test_drift_resolves_when_metric_returns() {
         let mut baseline = PersonalBaseline::new(1, 128);
 
-        // Stable baseline
+        // Đường cơ sở ổn định
         for day in 0..10 {
             let summary = make_daily_summary(1, day, [0.1, 0.9, 0.15, 0.5, 0.7]);
             baseline.update_daily(&summary, day * 86_400_000_000);
         }
 
-        // Drift for 3 days
+        // Trôi trong 3 ngày
         for day in 10..13 {
             let summary = make_daily_summary(1, day, [0.9, 0.9, 0.15, 0.5, 0.7]);
             baseline.update_daily(&summary, day * 86_400_000_000);
         }
 
-        // Return to normal
+        // Trở về bình thường
         for day in 13..16 {
             let summary = make_daily_summary(1, day, [0.1, 0.9, 0.15, 0.5, 0.7]);
             let reports = baseline.update_daily(&summary, day * 86_400_000_000);
-            // After returning to normal, drift counter resets
+            // Sau khi trở về bình thường, bộ đếm trôi đặt lại
             if day == 15 {
-                assert!(reports.is_empty(), "Drift should resolve");
+                assert!(reports.is_empty(), "Trôi phải được giải quyết");
                 assert_eq!(baseline.drift_days(DriftMetric::GaitSymmetry), 0);
             }
         }
@@ -554,16 +554,16 @@ mod tests {
     fn test_monitoring_level_escalation() {
         let mut baseline = PersonalBaseline::new(1, 128);
 
-        // 30 days of stable baseline with tiny noise to anchor stats
+        // 30 ngày đường cơ sở ổn định với nhiễu nhỏ để neo thống kê
         for day in 0..30 {
             let noise = 0.001 * (day as f64 % 3.0 - 1.0);
             let summary = make_daily_summary(1, day, [0.1 + noise, 0.9, 0.15, 0.5, 0.7]);
             baseline.update_daily(&summary, day * 86_400_000_000);
         }
 
-        // Sustained massive drift for 10+ days should escalate to RiskCorrelation.
-        // Using value 10.0 (vs baseline ~0.1) to ensure z-score stays well above 2.0
-        // even as Welford accumulates the drifted values.
+        // Trôi lớn duy trì 10+ ngày phải leo thang lên RiskCorrelation.
+        // Dùng giá trị 10.0 (so với cơ sở ~0.1) để đảm bảo điểm z giữ trên 2.0
+        // ngay cả khi Welford tích lũy các giá trị trôi.
         let mut max_level = MonitoringLevel::Physiological;
         for day in 30..42 {
             let summary = make_daily_summary(1, day, [10.0, 0.9, 0.15, 0.5, 0.7]);
@@ -577,7 +577,7 @@ mod tests {
         assert_eq!(
             max_level,
             MonitoringLevel::RiskCorrelation,
-            "7+ days sustained drift should reach RiskCorrelation level"
+            "Trôi duy trì 7+ ngày phải đạt mức RiskCorrelation"
         );
     }
 
@@ -609,7 +609,7 @@ mod tests {
 
         let results = history.search(&[1.0, 0.0, 0.0, 0.0], 2);
         assert_eq!(results.len(), 2);
-        // First result should be exact match
+        // Kết quả đầu tiên phải là khớp chính xác
         assert!((results[0].1 - 1.0).abs() < 1e-5);
     }
 
@@ -619,7 +619,7 @@ mod tests {
         let result = history.push(EmbeddingEntry {
             person_id: 1,
             day_us: 0,
-            embedding: vec![1.0, 0.0], // wrong dim
+            embedding: vec![1.0, 0.0], // chiều sai
         });
         assert!(matches!(
             result,
@@ -640,7 +640,7 @@ mod tests {
                 .unwrap();
         }
         assert_eq!(history.len(), 3);
-        // First entry should be day 2 (0 and 1 evicted)
+        // Mục nhập đầu tiên phải là ngày 2 (0 và 1 đã bị loại)
         assert_eq!(history.get(0).unwrap().day_us, 2);
     }
 
@@ -684,9 +684,9 @@ mod tests {
     fn test_cosine_similarity_unit_vectors() {
         let a = vec![1.0_f32, 0.0, 0.0];
         let b = vec![0.0_f32, 1.0, 0.0];
-        assert!(cosine_similarity(&a, &b).abs() < 1e-6, "Orthogonal = 0");
+        assert!(cosine_similarity(&a, &b).abs() < 1e-6, "Trực giao = 0");
 
         let c = vec![1.0_f32, 0.0, 0.0];
-        assert!((cosine_similarity(&a, &c) - 1.0).abs() < 1e-6, "Same = 1");
+        assert!((cosine_similarity(&a, &c) - 1.0).abs() < 1e-6, "Cùng hướng = 1");
     }
 }

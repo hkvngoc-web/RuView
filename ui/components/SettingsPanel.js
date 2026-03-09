@@ -1,4 +1,4 @@
-// SettingsPanel Component for WiFi-DensePose UI
+// Thành phần SettingsPanel cho WiFi-DensePose UI
 
 import { poseService } from '../services/pose.service.js';
 import { wsService } from '../services/websocket.service.js';
@@ -9,7 +9,7 @@ export class SettingsPanel {
     this.container = document.getElementById(containerId);
     
     if (!this.container) {
-      throw new Error(`Container with ID '${containerId}' not found`);
+      throw new Error(`Không tìm thấy container với ID '${containerId}'`);
     }
 
     this.config = {
@@ -21,19 +21,19 @@ export class SettingsPanel {
     };
 
     this.settings = {
-      // Connection settings
+      // Cài đặt kết nối
       zones: ['zone_1', 'zone_2', 'zone_3'],
       currentZone: 'zone_1',
       autoReconnect: true,
       connectionTimeout: 10000,
       
-      // Pose detection settings
+      // Cài đặt phát hiện tư thế
       confidenceThreshold: 0.3,
       keypointConfidenceThreshold: 0.1,
       maxPersons: 10,
       maxFps: 30,
       
-      // Rendering settings
+      // Cài đặt kết xuất
       renderMode: 'skeleton',
       showKeypoints: true,
       showSkeleton: true,
@@ -42,29 +42,29 @@ export class SettingsPanel {
       showZones: true,
       showDebugInfo: false,
       
-      // Colors
+      // Màu sắc
       skeletonColor: '#00ff00',
       keypointColor: '#ff0000',
       boundingBoxColor: '#0000ff',
       
-      // Performance settings
+      // Cài đặt hiệu suất
       enableValidation: true,
       enablePerformanceTracking: true,
       enableDebugLogging: false,
       
-      // Advanced settings
+      // Cài đặt nâng cao
       heartbeatInterval: 30000,
       maxReconnectAttempts: 10,
       enableSmoothing: true,
 
-      // Model settings
+      // Cài đặt mô hình
       defaultModelPath: 'data/models/',
       autoLoadModel: false,
       inferenceDevice: 'CPU',
       inferenceThreads: 4,
       progressiveLoading: true,
 
-      // Training settings
+      // Cài đặt huấn luyện
       defaultEpochs: 100,
       defaultBatchSize: 32,
       defaultLearningRate: 0.0003,
@@ -84,7 +84,7 @@ export class SettingsPanel {
 
     this.logger = this.createLogger();
     
-    // Initialize component
+    // Khởi tạo thành phần
     this.initializeComponent();
   }
 
@@ -98,41 +98,41 @@ export class SettingsPanel {
   }
 
   initializeComponent() {
-    this.logger.info('Initializing SettingsPanel component', { containerId: this.containerId });
+    this.logger.info('Đang khởi tạo thành phần SettingsPanel', { containerId: this.containerId });
     
-    // Load saved settings
+    // Tải cài đặt đã lưu
     this.loadSettings();
-    
-    // Create DOM structure
+
+    // Tạo cấu trúc DOM
     this.createDOMStructure();
-    
-    // Set up event handlers
+
+    // Thiết lập bộ xử lý sự kiện
     this.setupEventHandlers();
-    
-    // Update UI with current settings
+
+    // Cập nhật UI với cài đặt hiện tại
     this.updateUI();
     
-    this.logger.info('SettingsPanel component initialized successfully');
+    this.logger.info('Thành phần SettingsPanel đã khởi tạo thành công');
   }
 
   createDOMStructure() {
     this.container.innerHTML = `
       <div class="settings-panel">
         <div class="settings-header">
-          <h3>Pose Detection Settings</h3>
+          <h3>Cài đặt Phát hiện Tư thế</h3>
           <div class="settings-actions">
-            <button class="btn btn-sm" id="reset-settings-${this.containerId}">Reset</button>
-            <button class="btn btn-sm" id="export-settings-${this.containerId}">Export</button>
-            <button class="btn btn-sm" id="import-settings-${this.containerId}">Import</button>
+            <button class="btn btn-sm" id="reset-settings-${this.containerId}">Đặt lại</button>
+            <button class="btn btn-sm" id="export-settings-${this.containerId}">Xuất</button>
+            <button class="btn btn-sm" id="import-settings-${this.containerId}">Nhập</button>
           </div>
         </div>
         
         <div class="settings-content">
-          <!-- Connection Settings -->
+          <!-- Cài đặt Kết nối -->
           <div class="settings-section">
-            <h4>Connection</h4>
+            <h4>Kết nối</h4>
             <div class="setting-row">
-              <label for="zone-select-${this.containerId}">Zone:</label>
+              <label for="zone-select-${this.containerId}">Vùng:</label>
               <select id="zone-select-${this.containerId}" class="setting-select">
                 ${this.settings.zones.map(zone => 
                   `<option value="${zone}">${zone.replace('_', ' ').toUpperCase()}</option>`
@@ -140,196 +140,196 @@ export class SettingsPanel {
               </select>
             </div>
             <div class="setting-row">
-              <label for="auto-reconnect-${this.containerId}">Auto Reconnect:</label>
+              <label for="auto-reconnect-${this.containerId}">Tự động kết nối lại:</label>
               <input type="checkbox" id="auto-reconnect-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="connection-timeout-${this.containerId}">Timeout (ms):</label>
+              <label for="connection-timeout-${this.containerId}">Thời gian chờ (ms):</label>
               <input type="number" id="connection-timeout-${this.containerId}" class="setting-input" min="1000" max="30000" step="1000">
             </div>
           </div>
 
-          <!-- Detection Settings -->
+          <!-- Cài đặt Phát hiện -->
           <div class="settings-section">
-            <h4>Detection</h4>
+            <h4>Phát hiện</h4>
             <div class="setting-row">
-              <label for="confidence-threshold-${this.containerId}">Confidence Threshold:</label>
+              <label for="confidence-threshold-${this.containerId}">Ngưỡng Độ tin cậy:</label>
               <input type="range" id="confidence-threshold-${this.containerId}" class="setting-range" min="0" max="1" step="0.1">
               <span id="confidence-value-${this.containerId}" class="setting-value">0.3</span>
             </div>
             <div class="setting-row">
-              <label for="keypoint-confidence-${this.containerId}">Keypoint Confidence:</label>
+              <label for="keypoint-confidence-${this.containerId}">Độ tin cậy Điểm khớp:</label>
               <input type="range" id="keypoint-confidence-${this.containerId}" class="setting-range" min="0" max="1" step="0.1">
               <span id="keypoint-confidence-value-${this.containerId}" class="setting-value">0.1</span>
             </div>
             <div class="setting-row">
-              <label for="max-persons-${this.containerId}">Max Persons:</label>
+              <label for="max-persons-${this.containerId}">Số người Tối đa:</label>
               <input type="number" id="max-persons-${this.containerId}" class="setting-input" min="1" max="20">
             </div>
             <div class="setting-row">
-              <label for="max-fps-${this.containerId}">Max FPS:</label>
+              <label for="max-fps-${this.containerId}">FPS Tối đa:</label>
               <input type="number" id="max-fps-${this.containerId}" class="setting-input" min="1" max="60">
             </div>
           </div>
 
-          <!-- Rendering Settings -->
+          <!-- Cài đặt Kết xuất -->
           <div class="settings-section">
-            <h4>Rendering</h4>
+            <h4>Kết xuất</h4>
             <div class="setting-row">
-              <label for="render-mode-${this.containerId}">Mode:</label>
+              <label for="render-mode-${this.containerId}">Chế độ:</label>
               <select id="render-mode-${this.containerId}" class="setting-select">
-                <option value="skeleton">Skeleton</option>
-                <option value="keypoints">Keypoints</option>
-                <option value="heatmap">Heatmap</option>
-                <option value="dense">Dense</option>
+                <option value="skeleton">Bộ xương</option>
+                <option value="keypoints">Điểm khớp</option>
+                <option value="heatmap">Bản đồ nhiệt</option>
+                <option value="dense">Dày đặc</option>
               </select>
             </div>
             <div class="setting-row">
-              <label for="show-keypoints-${this.containerId}">Show Keypoints:</label>
+              <label for="show-keypoints-${this.containerId}">Hiện Điểm khớp:</label>
               <input type="checkbox" id="show-keypoints-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="show-skeleton-${this.containerId}">Show Skeleton:</label>
+              <label for="show-skeleton-${this.containerId}">Hiện Bộ xương:</label>
               <input type="checkbox" id="show-skeleton-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="show-bounding-box-${this.containerId}">Show Bounding Box:</label>
+              <label for="show-bounding-box-${this.containerId}">Hiện Khung bao:</label>
               <input type="checkbox" id="show-bounding-box-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="show-confidence-${this.containerId}">Show Confidence:</label>
+              <label for="show-confidence-${this.containerId}">Hiện Độ tin cậy:</label>
               <input type="checkbox" id="show-confidence-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="show-zones-${this.containerId}">Show Zones:</label>
+              <label for="show-zones-${this.containerId}">Hiện Vùng:</label>
               <input type="checkbox" id="show-zones-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="show-debug-info-${this.containerId}">Show Debug Info:</label>
+              <label for="show-debug-info-${this.containerId}">Hiện Thông tin Gỡ lỗi:</label>
               <input type="checkbox" id="show-debug-info-${this.containerId}" class="setting-checkbox">
             </div>
           </div>
 
-          <!-- Color Settings -->
+          <!-- Cài đặt Màu sắc -->
           <div class="settings-section">
-            <h4>Colors</h4>
+            <h4>Màu sắc</h4>
             <div class="setting-row">
-              <label for="skeleton-color-${this.containerId}">Skeleton:</label>
+              <label for="skeleton-color-${this.containerId}">Bộ xương:</label>
               <input type="color" id="skeleton-color-${this.containerId}" class="setting-color">
             </div>
             <div class="setting-row">
-              <label for="keypoint-color-${this.containerId}">Keypoints:</label>
+              <label for="keypoint-color-${this.containerId}">Điểm khớp:</label>
               <input type="color" id="keypoint-color-${this.containerId}" class="setting-color">
             </div>
             <div class="setting-row">
-              <label for="bounding-box-color-${this.containerId}">Bounding Box:</label>
+              <label for="bounding-box-color-${this.containerId}">Khung bao:</label>
               <input type="color" id="bounding-box-color-${this.containerId}" class="setting-color">
             </div>
           </div>
 
-          <!-- Performance Settings -->
+          <!-- Cài đặt Hiệu suất -->
           <div class="settings-section">
-            <h4>Performance</h4>
+            <h4>Hiệu suất</h4>
             <div class="setting-row">
-              <label for="enable-validation-${this.containerId}">Enable Validation:</label>
+              <label for="enable-validation-${this.containerId}">Bật Xác thực:</label>
               <input type="checkbox" id="enable-validation-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="enable-performance-tracking-${this.containerId}">Performance Tracking:</label>
+              <label for="enable-performance-tracking-${this.containerId}">Theo dõi Hiệu suất:</label>
               <input type="checkbox" id="enable-performance-tracking-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="enable-debug-logging-${this.containerId}">Debug Logging:</label>
+              <label for="enable-debug-logging-${this.containerId}">Ghi nhật ký Gỡ lỗi:</label>
               <input type="checkbox" id="enable-debug-logging-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="enable-smoothing-${this.containerId}">Enable Smoothing:</label>
+              <label for="enable-smoothing-${this.containerId}">Bật Làm mịn:</label>
               <input type="checkbox" id="enable-smoothing-${this.containerId}" class="setting-checkbox">
             </div>
           </div>
 
-          <!-- Advanced Settings -->
+          <!-- Cài đặt Nâng cao -->
           <div class="settings-section advanced-section" id="advanced-section-${this.containerId}" style="display: none;">
-            <h4>Advanced</h4>
+            <h4>Nâng cao</h4>
             <div class="setting-row">
-              <label for="heartbeat-interval-${this.containerId}">Heartbeat Interval (ms):</label>
+              <label for="heartbeat-interval-${this.containerId}">Khoảng cách Heartbeat (ms):</label>
               <input type="number" id="heartbeat-interval-${this.containerId}" class="setting-input" min="5000" max="60000" step="5000">
             </div>
             <div class="setting-row">
-              <label for="max-reconnect-attempts-${this.containerId}">Max Reconnect Attempts:</label>
+              <label for="max-reconnect-attempts-${this.containerId}">Số lần Kết nối lại Tối đa:</label>
               <input type="number" id="max-reconnect-attempts-${this.containerId}" class="setting-input" min="1" max="20">
             </div>
           </div>
           
-          <!-- Model Settings -->
+          <!-- Cài đặt Mô hình -->
           <div class="settings-section">
-            <h4>Model Configuration</h4>
+            <h4>Cấu hình Mô hình</h4>
             <div class="setting-row">
-              <label for="default-model-path-${this.containerId}">Default Model Path:</label>
+              <label for="default-model-path-${this.containerId}">Đường dẫn Mô hình Mặc định:</label>
               <input type="text" id="default-model-path-${this.containerId}" class="setting-input setting-input-wide" placeholder="data/models/">
             </div>
             <div class="setting-row">
-              <label for="auto-load-model-${this.containerId}">Auto-load Model on Startup:</label>
+              <label for="auto-load-model-${this.containerId}">Tự động Tải Mô hình khi Khởi động:</label>
               <input type="checkbox" id="auto-load-model-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="inference-device-${this.containerId}">Inference Device:</label>
+              <label for="inference-device-${this.containerId}">Thiết bị Suy luận:</label>
               <select id="inference-device-${this.containerId}" class="setting-select">
                 <option value="CPU">CPU</option>
                 <option value="GPU">GPU</option>
               </select>
             </div>
             <div class="setting-row">
-              <label for="inference-threads-${this.containerId}">Inference Threads:</label>
+              <label for="inference-threads-${this.containerId}">Luồng Suy luận:</label>
               <input type="number" id="inference-threads-${this.containerId}" class="setting-input" min="1" max="16">
             </div>
             <div class="setting-row">
-              <label for="progressive-loading-${this.containerId}">Progressive Loading:</label>
+              <label for="progressive-loading-${this.containerId}">Tải Tuần tự:</label>
               <input type="checkbox" id="progressive-loading-${this.containerId}" class="setting-checkbox">
             </div>
           </div>
 
-          <!-- Training Settings -->
+          <!-- Cài đặt Huấn luyện -->
           <div class="settings-section">
-            <h4>Training Configuration</h4>
+            <h4>Cấu hình Huấn luyện</h4>
             <div class="setting-row">
-              <label for="default-epochs-${this.containerId}">Default Epochs:</label>
+              <label for="default-epochs-${this.containerId}">Số Epoch Mặc định:</label>
               <input type="number" id="default-epochs-${this.containerId}" class="setting-input" min="1" max="10000">
             </div>
             <div class="setting-row">
-              <label for="default-batch-size-${this.containerId}">Default Batch Size:</label>
+              <label for="default-batch-size-${this.containerId}">Kích thước Batch Mặc định:</label>
               <input type="number" id="default-batch-size-${this.containerId}" class="setting-input" min="1" max="512">
             </div>
             <div class="setting-row">
-              <label for="default-learning-rate-${this.containerId}">Default Learning Rate:</label>
+              <label for="default-learning-rate-${this.containerId}">Tốc độ Học Mặc định:</label>
               <input type="number" id="default-learning-rate-${this.containerId}" class="setting-input" min="0.000001" max="1" step="0.0001">
             </div>
             <div class="setting-row">
-              <label for="early-stopping-patience-${this.containerId}">Early Stopping Patience:</label>
+              <label for="early-stopping-patience-${this.containerId}">Kiên nhẫn Dừng sớm:</label>
               <input type="number" id="early-stopping-patience-${this.containerId}" class="setting-input" min="1" max="100">
             </div>
             <div class="setting-row">
-              <label for="checkpoint-directory-${this.containerId}">Checkpoint Directory:</label>
+              <label for="checkpoint-directory-${this.containerId}">Thư mục Checkpoint:</label>
               <input type="text" id="checkpoint-directory-${this.containerId}" class="setting-input setting-input-wide" placeholder="data/models/">
             </div>
             <div class="setting-row">
-              <label for="auto-export-on-completion-${this.containerId}">Auto-export on Completion:</label>
+              <label for="auto-export-on-completion-${this.containerId}">Tự động Xuất khi Hoàn thành:</label>
               <input type="checkbox" id="auto-export-on-completion-${this.containerId}" class="setting-checkbox">
             </div>
             <div class="setting-row">
-              <label for="recording-directory-${this.containerId}">Recording Directory:</label>
+              <label for="recording-directory-${this.containerId}">Thư mục Bản ghi:</label>
               <input type="text" id="recording-directory-${this.containerId}" class="setting-input setting-input-wide" placeholder="data/recordings/">
             </div>
           </div>
 
           <div class="settings-toggle">
-            <button class="btn btn-sm" id="toggle-advanced-${this.containerId}">Show Advanced</button>
+            <button class="btn btn-sm" id="toggle-advanced-${this.containerId}">Hiện Nâng cao</button>
           </div>
         </div>
         
         <div class="settings-footer">
           <div class="settings-status" id="settings-status-${this.containerId}">
-            Settings loaded
+            Đã tải cài đặt
           </div>
         </div>
       </div>
@@ -550,46 +550,46 @@ export class SettingsPanel {
   }
 
   setupEventHandlers() {
-    // Reset button
+    // Nút đặt lại
     const resetBtn = document.getElementById(`reset-settings-${this.containerId}`);
     resetBtn?.addEventListener('click', () => this.resetSettings());
 
-    // Export button
+    // Nút xuất
     const exportBtn = document.getElementById(`export-settings-${this.containerId}`);
     exportBtn?.addEventListener('click', () => this.exportSettings());
 
-    // Import button and file input
+    // Nút nhập và đầu vào tệp
     const importBtn = document.getElementById(`import-settings-${this.containerId}`);
     const importFile = document.getElementById(`import-file-${this.containerId}`);
     importBtn?.addEventListener('click', () => importFile.click());
     importFile?.addEventListener('change', (e) => this.importSettings(e));
 
-    // Advanced toggle
+    // Nút bật/tắt nâng cao
     const advancedToggle = document.getElementById(`toggle-advanced-${this.containerId}`);
     advancedToggle?.addEventListener('click', () => this.toggleAdvanced());
 
-    // Setting change handlers
+    // Bộ xử lý thay đổi cài đặt
     this.setupSettingChangeHandlers();
 
-    this.logger.debug('Event handlers set up');
+    this.logger.debug('Đã thiết lập bộ xử lý sự kiện');
   }
 
   setupSettingChangeHandlers() {
-    // Zone selector
+    // Bộ chọn vùng
     const zoneSelect = document.getElementById(`zone-select-${this.containerId}`);
     zoneSelect?.addEventListener('change', (e) => {
       this.updateSetting('currentZone', e.target.value);
       this.notifyCallback('onZoneChange', e.target.value);
     });
 
-    // Render mode
+    // Chế độ kết xuất
     const renderModeSelect = document.getElementById(`render-mode-${this.containerId}`);
     renderModeSelect?.addEventListener('change', (e) => {
       this.updateSetting('renderMode', e.target.value);
       this.notifyCallback('onRenderModeChange', e.target.value);
     });
 
-    // Range inputs with value display
+    // Đầu vào phạm vi với hiển thị giá trị
     const rangeInputs = ['confidence-threshold', 'keypoint-confidence'];
     rangeInputs.forEach(id => {
       const input = document.getElementById(`${id}-${this.containerId}`);
@@ -604,7 +604,7 @@ export class SettingsPanel {
       });
     });
 
-    // Checkbox inputs
+    // Đầu vào hộp kiểm
     const checkboxes = [
       'auto-reconnect', 'show-keypoints', 'show-skeleton', 'show-bounding-box',
       'show-confidence', 'show-zones', 'show-debug-info', 'enable-validation',
@@ -621,7 +621,7 @@ export class SettingsPanel {
       });
     });
 
-    // Number inputs (integers)
+    // Đầu vào số (số nguyên)
     const numberInputs = [
       'connection-timeout', 'max-persons', 'max-fps',
       'heartbeat-interval', 'max-reconnect-attempts',
@@ -637,7 +637,7 @@ export class SettingsPanel {
       });
     });
 
-    // Float number inputs
+    // Đầu vào số thực
     const floatInputs = ['default-learning-rate'];
     floatInputs.forEach(id => {
       const input = document.getElementById(`${id}-${this.containerId}`);
@@ -647,7 +647,7 @@ export class SettingsPanel {
       });
     });
 
-    // Text inputs
+    // Đầu vào văn bản
     const textInputs = ['default-model-path', 'checkpoint-directory', 'recording-directory'];
     textInputs.forEach(id => {
       const input = document.getElementById(`${id}-${this.containerId}`);
@@ -657,13 +657,13 @@ export class SettingsPanel {
       });
     });
 
-    // Inference device select
+    // Bộ chọn thiết bị suy luận
     const inferenceDeviceSelect = document.getElementById(`inference-device-${this.containerId}`);
     inferenceDeviceSelect?.addEventListener('change', (e) => {
       this.updateSetting('inferenceDevice', e.target.value);
     });
 
-    // Color inputs
+    // Đầu vào màu sắc
     const colorInputs = ['skeleton-color', 'keypoint-color', 'bounding-box-color'];
     colorInputs.forEach(id => {
       const input = document.getElementById(`${id}-${this.containerId}`);
@@ -682,12 +682,12 @@ export class SettingsPanel {
     this.settings[key] = value;
     this.saveSettings();
     this.notifyCallback('onSettingsChange', { key, value, settings: this.settings });
-    this.updateStatus(`Updated ${key}`);
-    this.logger.debug('Setting updated', { key, value });
+    this.updateStatus(`Đã cập nhật ${key}`);
+    this.logger.debug('Cài đặt đã cập nhật', { key, value });
   }
 
   updateUI() {
-    // Update all form elements with current settings
+    // Cập nhật tất cả phần tử biểu mẫu với cài đặt hiện tại
     Object.entries(this.settings).forEach(([key, value]) => {
       this.updateUIElement(key, value);
     });
@@ -696,7 +696,7 @@ export class SettingsPanel {
   updateUIElement(key, value) {
     const kebabKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
     
-    // Handle special cases
+    // Xử lý trường hợp đặc biệt
     const elementId = `${kebabKey}-${this.containerId}`;
     const element = document.getElementById(elementId);
     
@@ -708,7 +708,7 @@ export class SettingsPanel {
         break;
       case 'range':
         element.value = value;
-        // Update value display
+        // Cập nhật hiển thị giá trị
         const valueSpan = document.getElementById(`${kebabKey}-value-${this.containerId}`);
         if (valueSpan) valueSpan.textContent = value.toFixed(1);
         break;
@@ -726,19 +726,19 @@ export class SettingsPanel {
     
     const isVisible = advancedSection.style.display !== 'none';
     advancedSection.style.display = isVisible ? 'none' : 'block';
-    toggleBtn.textContent = isVisible ? 'Show Advanced' : 'Hide Advanced';
-    
-    this.logger.debug('Advanced settings toggled', { visible: !isVisible });
+    toggleBtn.textContent = isVisible ? 'Hiện Nâng cao' : 'Ẩn Nâng cao';
+
+    this.logger.debug('Đã bật/tắt cài đặt nâng cao', { visible: !isVisible });
   }
 
   resetSettings() {
-    if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+    if (confirm('Đặt lại tất cả cài đặt về mặc định? Không thể hoàn tác.')) {
       this.settings = this.getDefaultSettings();
       this.updateUI();
       this.saveSettings();
       this.notifyCallback('onSettingsChange', { reset: true, settings: this.settings });
-      this.updateStatus('Settings reset to defaults');
-      this.logger.info('Settings reset to defaults');
+      this.updateStatus('Đã đặt lại cài đặt về mặc định');
+      this.logger.info('Đã đặt lại cài đặt về mặc định');
     }
   }
 
@@ -757,9 +757,9 @@ export class SettingsPanel {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.updateStatus('Settings exported');
+    this.updateStatus('Đã xuất cài đặt');
     this.notifyCallback('onExport', data);
-    this.logger.info('Settings exported');
+    this.logger.info('Đã xuất cài đặt');
   }
 
   importSettings(event) {
@@ -777,20 +777,20 @@ export class SettingsPanel {
           this.saveSettings();
           this.notifyCallback('onSettingsChange', { imported: true, settings: this.settings });
           this.notifyCallback('onImport', data);
-          this.updateStatus('Settings imported successfully');
-          this.logger.info('Settings imported successfully');
+          this.updateStatus('Đã nhập cài đặt thành công');
+          this.logger.info('Đã nhập cài đặt thành công');
         } else {
-          throw new Error('Invalid settings file format');
+          throw new Error('Định dạng tệp cài đặt không hợp lệ');
         }
       } catch (error) {
-        this.updateStatus('Error importing settings');
-        this.logger.error('Error importing settings', { error: error.message });
-        alert('Error importing settings: ' + error.message);
+        this.updateStatus('Lỗi khi nhập cài đặt');
+        this.logger.error('Lỗi khi nhập cài đặt', { error: error.message });
+        alert('Lỗi khi nhập cài đặt: ' + error.message);
       }
     };
     
     reader.readAsText(file);
-    event.target.value = ''; // Reset file input
+    event.target.value = ''; // Đặt lại đầu vào tệp
   }
 
   saveSettings() {
@@ -798,7 +798,7 @@ export class SettingsPanel {
       try {
         localStorage.setItem(`pose-settings-${this.containerId}`, JSON.stringify(this.settings));
       } catch (error) {
-        this.logger.warn('Failed to save settings to localStorage', { error: error.message });
+        this.logger.warn('Lưu cài đặt vào localStorage thất bại', { error: error.message });
       }
     }
   }
@@ -809,10 +809,10 @@ export class SettingsPanel {
         const saved = localStorage.getItem(`pose-settings-${this.containerId}`);
         if (saved) {
           this.settings = { ...this.getDefaultSettings(), ...JSON.parse(saved) };
-          this.logger.debug('Settings loaded from localStorage');
+          this.logger.debug('Đã tải cài đặt từ localStorage');
         }
       } catch (error) {
-        this.logger.warn('Failed to load settings from localStorage', { error: error.message });
+        this.logger.warn('Tải cài đặt từ localStorage thất bại', { error: error.message });
       }
     }
   }
@@ -863,14 +863,14 @@ export class SettingsPanel {
     if (statusElement) {
       statusElement.textContent = message;
       
-      // Clear status after 3 seconds
+      // Xóa trạng thái sau 3 giây
       setTimeout(() => {
-        statusElement.textContent = 'Settings ready';
+        statusElement.textContent = 'Cài đặt sẵn sàng';
       }, 3000);
     }
   }
 
-  // Public API methods
+  // Các phương thức API công khai
   getSettings() {
     return { ...this.settings };
   }
@@ -890,15 +890,15 @@ export class SettingsPanel {
       try {
         this.callbacks[eventName](data);
       } catch (error) {
-        this.logger.error('Callback error', { eventName, error: error.message });
+        this.logger.error('Lỗi callback', { eventName, error: error.message });
       }
     }
   }
 
-  // Apply settings to services
+  // Áp dụng cài đặt vào dịch vụ
   applyToServices() {
     try {
-      // Apply pose service settings
+      // Áp dụng cài đặt dịch vụ tư thế
       poseService.updateConfig({
         enableValidation: this.settings.enableValidation,
         enablePerformanceTracking: this.settings.enablePerformanceTracking,
@@ -906,7 +906,7 @@ export class SettingsPanel {
         maxPersons: this.settings.maxPersons
       });
 
-      // Apply WebSocket service settings
+      // Áp dụng cài đặt dịch vụ WebSocket
       if (wsService.updateConfig) {
         wsService.updateConfig({
           enableDebugLogging: this.settings.enableDebugLogging,
@@ -915,15 +915,15 @@ export class SettingsPanel {
         });
       }
 
-      this.updateStatus('Settings applied to services');
-      this.logger.info('Settings applied to services');
+      this.updateStatus('Đã áp dụng cài đặt vào dịch vụ');
+      this.logger.info('Đã áp dụng cài đặt vào dịch vụ');
     } catch (error) {
-      this.logger.error('Error applying settings to services', { error: error.message });
-      this.updateStatus('Error applying settings');
+      this.logger.error('Lỗi khi áp dụng cài đặt vào dịch vụ', { error: error.message });
+      this.updateStatus('Lỗi khi áp dụng cài đặt');
     }
   }
 
-  // Get render configuration for PoseRenderer
+  // Lấy cấu hình kết xuất cho PoseRenderer
   getRenderConfig() {
     return {
       mode: this.settings.renderMode,
@@ -942,7 +942,7 @@ export class SettingsPanel {
     };
   }
 
-  // Get stream configuration for PoseService
+  // Lấy cấu hình luồng cho PoseService
   getStreamConfig() {
     return {
       zoneIds: [this.settings.currentZone],
@@ -951,22 +951,22 @@ export class SettingsPanel {
     };
   }
 
-  // Cleanup
+  // Dọn dẹp
   dispose() {
-    this.logger.info('Disposing SettingsPanel component');
-    
+    this.logger.info('Đang huỷ thành phần SettingsPanel');
+
     try {
-      // Save settings before disposing
+      // Lưu cài đặt trước khi huỷ
       this.saveSettings();
-      
-      // Clear container
+
+      // Xóa container
       if (this.container) {
         this.container.innerHTML = '';
       }
       
-      this.logger.info('SettingsPanel component disposed successfully');
+      this.logger.info('Thành phần SettingsPanel đã huỷ thành công');
     } catch (error) {
-      this.logger.error('Error during disposal', { error: error.message });
+      this.logger.error('Lỗi khi huỷ', { error: error.message });
     }
   }
 }

@@ -1,41 +1,41 @@
-//! Motion Detection Module
+//! Module phát hiện chuyển động
 //!
-//! This module provides motion detection and human presence detection
-//! capabilities based on CSI features.
+//! Module này cung cấp khả năng phát hiện chuyển động và phát hiện sự hiện diện của con người
+//! dựa trên đặc trưng CSI.
 
 use crate::features::{AmplitudeFeatures, CorrelationFeatures, CsiFeatures, PhaseFeatures};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-/// Motion score with component breakdown
+/// Điểm chuyển động với phân tích thành phần
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MotionScore {
-    /// Overall motion score (0.0 to 1.0)
+    /// Điểm chuyển động tổng thể (0.0 đến 1.0)
     pub total: f64,
 
-    /// Variance-based motion component
+    /// Thành phần chuyển động dựa trên phương sai
     pub variance_component: f64,
 
-    /// Correlation-based motion component
+    /// Thành phần chuyển động dựa trên tương quan
     pub correlation_component: f64,
 
-    /// Phase-based motion component
+    /// Thành phần chuyển động dựa trên pha
     pub phase_component: f64,
 
-    /// Doppler-based motion component (if available)
+    /// Thành phần chuyển động dựa trên Doppler (nếu có)
     pub doppler_component: Option<f64>,
 }
 
 impl MotionScore {
-    /// Create a new motion score
+    /// Tạo điểm chuyển động mới
     pub fn new(
         variance_component: f64,
         correlation_component: f64,
         phase_component: f64,
         doppler_component: Option<f64>,
     ) -> Self {
-        // Calculate weighted total
+        // Tính tổng có trọng số
         let total = if let Some(doppler) = doppler_component {
             0.3 * variance_component
                 + 0.2 * correlation_component
@@ -54,111 +54,111 @@ impl MotionScore {
         }
     }
 
-    /// Check if motion is detected above threshold
+    /// Kiểm tra chuyển động có được phát hiện vượt ngưỡng không
     pub fn is_motion_detected(&self, threshold: f64) -> bool {
         self.total >= threshold
     }
 }
 
-/// Motion analysis results
+/// Kết quả phân tích chuyển động
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MotionAnalysis {
-    /// Motion score
+    /// Điểm chuyển động
     pub score: MotionScore,
 
-    /// Temporal variance of motion
+    /// Phương sai chuyển động theo thời gian
     pub temporal_variance: f64,
 
-    /// Spatial variance of motion
+    /// Phương sai chuyển động theo không gian
     pub spatial_variance: f64,
 
-    /// Estimated motion velocity (arbitrary units)
+    /// Vận tốc chuyển động ước lượng (đơn vị tùy ý)
     pub estimated_velocity: f64,
 
-    /// Motion direction estimate (radians, if available)
+    /// Ước lượng hướng chuyển động (radian, nếu có)
     pub motion_direction: Option<f64>,
 
-    /// Confidence in the analysis
+    /// Độ tin cậy của phân tích
     pub confidence: f64,
 }
 
-/// Human detection result
+/// Kết quả phát hiện con người
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HumanDetectionResult {
-    /// Whether a human was detected
+    /// Có phát hiện con người hay không
     pub human_detected: bool,
 
-    /// Detection confidence (0.0 to 1.0)
+    /// Độ tin cậy phát hiện (0.0 đến 1.0)
     pub confidence: f64,
 
-    /// Motion score
+    /// Điểm chuyển động
     pub motion_score: f64,
 
-    /// Raw (unsmoothed) confidence
+    /// Độ tin cậy thô (chưa làm mượt)
     pub raw_confidence: f64,
 
-    /// Timestamp of detection
+    /// Thời điểm phát hiện
     pub timestamp: DateTime<Utc>,
 
-    /// Detection threshold used
+    /// Ngưỡng phát hiện đã sử dụng
     pub threshold: f64,
 
-    /// Detailed motion analysis
+    /// Phân tích chuyển động chi tiết
     pub motion_analysis: MotionAnalysis,
 
-    /// Additional metadata
+    /// Siêu dữ liệu bổ sung
     #[serde(default)]
     pub metadata: DetectionMetadata,
 }
 
-/// Metadata for detection results
+/// Siêu dữ liệu cho kết quả phát hiện
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DetectionMetadata {
-    /// Number of features used
+    /// Số đặc trưng đã sử dụng
     pub features_used: usize,
 
-    /// Processing time in milliseconds
+    /// Thời gian xử lý tính bằng mili giây
     pub processing_time_ms: Option<f64>,
 
-    /// Whether Doppler was available
+    /// Doppler có khả dụng hay không
     pub doppler_available: bool,
 
-    /// History length used
+    /// Độ dài lịch sử đã sử dụng
     pub history_length: usize,
 }
 
-/// Configuration for motion detector
+/// Cấu hình cho bộ phát hiện chuyển động
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MotionDetectorConfig {
-    /// Human detection threshold (0.0 to 1.0)
+    /// Ngưỡng phát hiện con người (0.0 đến 1.0)
     pub human_detection_threshold: f64,
 
-    /// Motion detection threshold (0.0 to 1.0)
+    /// Ngưỡng phát hiện chuyển động (0.0 đến 1.0)
     pub motion_threshold: f64,
 
-    /// Temporal smoothing factor (0.0 to 1.0)
-    /// Higher values give more weight to previous detections
+    /// Hệ số làm mượt theo thời gian (0.0 đến 1.0)
+    /// Giá trị cao hơn cho trọng số lớn hơn cho các phát hiện trước
     pub smoothing_factor: f64,
 
-    /// Minimum amplitude indicator threshold
+    /// Ngưỡng chỉ thị biên độ tối thiểu
     pub amplitude_threshold: f64,
 
-    /// Minimum phase indicator threshold
+    /// Ngưỡng chỉ thị pha tối thiểu
     pub phase_threshold: f64,
 
-    /// History size for temporal analysis
+    /// Kích thước lịch sử cho phân tích theo thời gian
     pub history_size: usize,
 
-    /// Enable adaptive thresholding
+    /// Bật ngưỡng thích ứng
     pub adaptive_threshold: bool,
 
-    /// Weight for amplitude indicator
+    /// Trọng số cho chỉ thị biên độ
     pub amplitude_weight: f64,
 
-    /// Weight for phase indicator
+    /// Trọng số cho chỉ thị pha
     pub phase_weight: f64,
 
-    /// Weight for motion indicator
+    /// Trọng số cho chỉ thị chuyển động
     pub motion_weight: f64,
 }
 
@@ -180,69 +180,69 @@ impl Default for MotionDetectorConfig {
 }
 
 impl MotionDetectorConfig {
-    /// Create a new builder
+    /// Tạo builder mới
     pub fn builder() -> MotionDetectorConfigBuilder {
         MotionDetectorConfigBuilder::new()
     }
 }
 
-/// Builder for MotionDetectorConfig
+/// Builder cho MotionDetectorConfig
 #[derive(Debug, Default)]
 pub struct MotionDetectorConfigBuilder {
     config: MotionDetectorConfig,
 }
 
 impl MotionDetectorConfigBuilder {
-    /// Create new builder
+    /// Tạo builder mới
     pub fn new() -> Self {
         Self {
             config: MotionDetectorConfig::default(),
         }
     }
 
-    /// Set human detection threshold
+    /// Đặt ngưỡng phát hiện con người
     pub fn human_detection_threshold(mut self, threshold: f64) -> Self {
         self.config.human_detection_threshold = threshold;
         self
     }
 
-    /// Set motion threshold
+    /// Đặt ngưỡng chuyển động
     pub fn motion_threshold(mut self, threshold: f64) -> Self {
         self.config.motion_threshold = threshold;
         self
     }
 
-    /// Set smoothing factor
+    /// Đặt hệ số làm mượt
     pub fn smoothing_factor(mut self, factor: f64) -> Self {
         self.config.smoothing_factor = factor;
         self
     }
 
-    /// Set amplitude threshold
+    /// Đặt ngưỡng biên độ
     pub fn amplitude_threshold(mut self, threshold: f64) -> Self {
         self.config.amplitude_threshold = threshold;
         self
     }
 
-    /// Set phase threshold
+    /// Đặt ngưỡng pha
     pub fn phase_threshold(mut self, threshold: f64) -> Self {
         self.config.phase_threshold = threshold;
         self
     }
 
-    /// Set history size
+    /// Đặt kích thước lịch sử
     pub fn history_size(mut self, size: usize) -> Self {
         self.config.history_size = size;
         self
     }
 
-    /// Enable adaptive thresholding
+    /// Bật ngưỡng thích ứng
     pub fn adaptive_threshold(mut self, enable: bool) -> Self {
         self.config.adaptive_threshold = enable;
         self
     }
 
-    /// Set indicator weights
+    /// Đặt trọng số các chỉ thị
     pub fn weights(mut self, amplitude: f64, phase: f64, motion: f64) -> Self {
         self.config.amplitude_weight = amplitude;
         self.config.phase_weight = phase;
@@ -250,13 +250,13 @@ impl MotionDetectorConfigBuilder {
         self
     }
 
-    /// Build configuration
+    /// Xây dựng cấu hình
     pub fn build(self) -> MotionDetectorConfig {
         self.config
     }
 }
 
-/// Motion detector for human presence detection
+/// Bộ phát hiện chuyển động để phát hiện sự hiện diện của con người
 #[derive(Debug)]
 pub struct MotionDetector {
     config: MotionDetectorConfig,
@@ -268,7 +268,7 @@ pub struct MotionDetector {
 }
 
 impl MotionDetector {
-    /// Create a new motion detector
+    /// Tạo bộ phát hiện chuyển động mới
     pub fn new(config: MotionDetectorConfig) -> Self {
         Self {
             motion_history: VecDeque::with_capacity(config.history_size),
@@ -280,48 +280,48 @@ impl MotionDetector {
         }
     }
 
-    /// Create with default configuration
+    /// Tạo với cấu hình mặc định
     pub fn default_config() -> Self {
         Self::new(MotionDetectorConfig::default())
     }
 
-    /// Get configuration
+    /// Lấy cấu hình
     pub fn config(&self) -> &MotionDetectorConfig {
         &self.config
     }
 
-    /// Analyze motion patterns from CSI features
+    /// Phân tích mẫu chuyển động từ đặc trưng CSI
     pub fn analyze_motion(&self, features: &CsiFeatures) -> MotionAnalysis {
-        // Calculate variance-based motion score
+        // Tính điểm chuyển động dựa trên phương sai
         let variance_score = self.calculate_variance_score(&features.amplitude);
 
-        // Calculate correlation-based motion score
+        // Tính điểm chuyển động dựa trên tương quan
         let correlation_score = self.calculate_correlation_score(&features.correlation);
 
-        // Calculate phase-based motion score
+        // Tính điểm chuyển động dựa trên pha
         let phase_score = self.calculate_phase_score(&features.phase);
 
-        // Calculate Doppler-based score if available
+        // Tính điểm dựa trên Doppler nếu có
         let doppler_score = features.doppler.as_ref().map(|d| {
-            // Normalize Doppler magnitude to 0-1 range
+            // Chuẩn hóa biên độ Doppler về phạm vi 0-1
             (d.mean_magnitude / 100.0).clamp(0.0, 1.0)
         });
 
         let motion_score = MotionScore::new(variance_score, correlation_score, phase_score, doppler_score);
 
-        // Calculate temporal and spatial variance
+        // Tính phương sai theo thời gian và không gian
         let temporal_variance = self.calculate_temporal_variance();
         let spatial_variance = features.amplitude.variance.iter().sum::<f64>()
             / features.amplitude.variance.len() as f64;
 
-        // Estimate velocity from Doppler if available
+        // Ước lượng vận tốc từ Doppler nếu có
         let estimated_velocity = features
             .doppler
             .as_ref()
             .map(|d| d.mean_magnitude)
             .unwrap_or(0.0);
 
-        // Motion direction from phase gradient
+        // Hướng chuyển động từ gradient pha
         let motion_direction = if features.phase.gradient.len() > 0 {
             let mean_grad: f64 =
                 features.phase.gradient.iter().sum::<f64>() / features.phase.gradient.len() as f64;
@@ -330,7 +330,7 @@ impl MotionDetector {
             None
         };
 
-        // Calculate confidence based on signal quality indicators
+        // Tính độ tin cậy dựa trên các chỉ thị chất lượng tín hiệu
         let confidence = self.calculate_motion_confidence(features);
 
         MotionAnalysis {
@@ -343,28 +343,28 @@ impl MotionDetector {
         }
     }
 
-    /// Calculate variance-based motion score
+    /// Tính điểm chuyển động dựa trên phương sai
     fn calculate_variance_score(&self, amplitude: &AmplitudeFeatures) -> f64 {
         let mean_variance = amplitude.variance.iter().sum::<f64>() / amplitude.variance.len() as f64;
 
-        // Normalize using baseline if available
+        // Chuẩn hóa sử dụng đường cơ sở nếu có
         if let Some(baseline) = self.baseline_variance {
             let ratio = mean_variance / (baseline + 1e-10);
             (ratio - 1.0).max(0.0).tanh()
         } else {
-            // Use heuristic normalization
+            // Sử dụng chuẩn hóa kinh nghiệm
             (mean_variance / 0.5).clamp(0.0, 1.0)
         }
     }
 
-    /// Calculate correlation-based motion score
+    /// Tính điểm chuyển động dựa trên tương quan
     fn calculate_correlation_score(&self, correlation: &CorrelationFeatures) -> f64 {
         let n = correlation.matrix.dim().0;
         if n < 2 {
             return 0.0;
         }
 
-        // Calculate mean deviation from identity matrix
+        // Tính độ lệch trung bình so với ma trận đơn vị
         let mut deviation_sum = 0.0;
         let mut count = 0;
 
@@ -380,18 +380,18 @@ impl MotionDetector {
         mean_deviation.clamp(0.0, 1.0)
     }
 
-    /// Calculate phase-based motion score
+    /// Tính điểm chuyển động dựa trên pha
     fn calculate_phase_score(&self, phase: &PhaseFeatures) -> f64 {
-        // Use phase variance and coherence
+        // Sử dụng phương sai pha và tương hợp
         let mean_variance = phase.variance.iter().sum::<f64>() / phase.variance.len() as f64;
         let coherence_factor = 1.0 - phase.coherence.abs();
 
-        // Combine factors
+        // Kết hợp các yếu tố
         let score = 0.5 * (mean_variance / 0.5).clamp(0.0, 1.0) + 0.5 * coherence_factor;
         score.clamp(0.0, 1.0)
     }
 
-    /// Calculate temporal variance from motion history
+    /// Tính phương sai theo thời gian từ lịch sử chuyển động
     fn calculate_temporal_variance(&self) -> f64 {
         if self.motion_history.len() < 2 {
             return 0.0;
@@ -403,27 +403,27 @@ impl MotionDetector {
         variance.sqrt()
     }
 
-    /// Calculate confidence in motion detection
+    /// Tính độ tin cậy trong phát hiện chuyển động
     fn calculate_motion_confidence(&self, features: &CsiFeatures) -> f64 {
         let mut confidence = 0.0;
         let mut weight_sum = 0.0;
 
-        // Amplitude quality indicator
+        // Chỉ thị chất lượng biên độ
         let amp_quality = (features.amplitude.dynamic_range / 2.0).clamp(0.0, 1.0);
         confidence += amp_quality * 0.3;
         weight_sum += 0.3;
 
-        // Phase coherence indicator
+        // Chỉ thị tương hợp pha
         let phase_quality = features.phase.coherence.abs();
         confidence += phase_quality * 0.3;
         weight_sum += 0.3;
 
-        // Correlation consistency indicator
+        // Chỉ thị tính nhất quán tương quan
         let corr_quality = (1.0 - features.correlation.correlation_spread).clamp(0.0, 1.0);
         confidence += corr_quality * 0.2;
         weight_sum += 0.2;
 
-        // Doppler quality if available
+        // Chất lượng Doppler nếu có
         if let Some(ref doppler) = features.doppler {
             let doppler_quality = (doppler.spread / doppler.mean_magnitude.max(1.0)).clamp(0.0, 1.0);
             confidence += (1.0 - doppler_quality) * 0.2;
@@ -437,9 +437,9 @@ impl MotionDetector {
         }
     }
 
-    /// Calculate detection confidence from features and motion score
+    /// Tính độ tin cậy phát hiện từ đặc trưng và điểm chuyển động
     fn calculate_detection_confidence(&self, features: &CsiFeatures, motion_score: f64) -> f64 {
-        // Amplitude indicator
+        // Chỉ thị biên độ
         let amplitude_mean = features.amplitude.mean.iter().sum::<f64>()
             / features.amplitude.mean.len() as f64;
         let amplitude_indicator = if amplitude_mean > self.config.amplitude_threshold {
@@ -448,7 +448,7 @@ impl MotionDetector {
             0.0
         };
 
-        // Phase indicator
+        // Chỉ thị pha
         let phase_std = features.phase.variance.iter().sum::<f64>().sqrt()
             / features.phase.variance.len() as f64;
         let phase_indicator = if phase_std > self.config.phase_threshold {
@@ -457,14 +457,14 @@ impl MotionDetector {
             0.0
         };
 
-        // Motion indicator
+        // Chỉ thị chuyển động
         let motion_indicator = if motion_score > self.config.motion_threshold {
             1.0
         } else {
             0.0
         };
 
-        // Weighted combination
+        // Kết hợp có trọng số
         let confidence = self.config.amplitude_weight * amplitude_indicator
             + self.config.phase_weight * phase_indicator
             + self.config.motion_weight * motion_indicator;
@@ -472,7 +472,7 @@ impl MotionDetector {
         confidence.clamp(0.0, 1.0)
     }
 
-    /// Apply temporal smoothing (exponential moving average)
+    /// Áp dụng làm mượt theo thời gian (trung bình trượt hàm mũ)
     fn apply_temporal_smoothing(&mut self, raw_confidence: f64) -> f64 {
         let smoothed = self.config.smoothing_factor * self.previous_confidence
             + (1.0 - self.config.smoothing_factor) * raw_confidence;
@@ -480,32 +480,32 @@ impl MotionDetector {
         smoothed
     }
 
-    /// Detect human presence from CSI features
+    /// Phát hiện sự hiện diện con người từ đặc trưng CSI
     pub fn detect_human(&mut self, features: &CsiFeatures) -> HumanDetectionResult {
-        // Analyze motion
+        // Phân tích chuyển động
         let motion_analysis = self.analyze_motion(features);
 
-        // Add to history
+        // Thêm vào lịch sử
         if self.motion_history.len() >= self.config.history_size {
             self.motion_history.pop_front();
         }
         self.motion_history.push_back(motion_analysis.score.clone());
 
-        // Calculate detection confidence
+        // Tính độ tin cậy phát hiện
         let raw_confidence =
             self.calculate_detection_confidence(features, motion_analysis.score.total);
 
-        // Apply temporal smoothing
+        // Áp dụng làm mượt theo thời gian
         let smoothed_confidence = self.apply_temporal_smoothing(raw_confidence);
 
-        // Get effective threshold (adaptive if enabled)
+        // Lấy ngưỡng hiệu quả (thích ứng nếu được bật)
         let threshold = if self.config.adaptive_threshold {
             self.calculate_adaptive_threshold()
         } else {
             self.config.human_detection_threshold
         };
 
-        // Determine detection
+        // Xác định phát hiện
         let human_detected = smoothed_confidence >= threshold;
 
         self.total_detections += 1;
@@ -514,7 +514,7 @@ impl MotionDetector {
         }
 
         let metadata = DetectionMetadata {
-            features_used: 4, // amplitude, phase, correlation, psd
+            features_used: 4, // biên độ, pha, tương quan, psd
             processing_time_ms: None,
             doppler_available: features.doppler.is_some(),
             history_length: self.motion_history.len(),
@@ -532,7 +532,7 @@ impl MotionDetector {
         }
     }
 
-    /// Calculate adaptive threshold based on recent history
+    /// Tính ngưỡng thích ứng dựa trên lịch sử gần đây
     fn calculate_adaptive_threshold(&self) -> f64 {
         if self.motion_history.len() < 10 {
             return self.config.human_detection_threshold;
@@ -545,23 +545,23 @@ impl MotionDetector {
             var.sqrt()
         };
 
-        // Threshold is mean + 1 std deviation, clamped to reasonable range
+        // Ngưỡng là trung bình + 1 độ lệch chuẩn, giới hạn trong phạm vi hợp lý
         (mean + std).clamp(0.3, 0.95)
     }
 
-    /// Update baseline variance (for calibration)
+    /// Cập nhật phương sai đường cơ sở (cho hiệu chuẩn)
     pub fn calibrate(&mut self, features: &CsiFeatures) {
         let mean_variance =
             features.amplitude.variance.iter().sum::<f64>() / features.amplitude.variance.len() as f64;
         self.baseline_variance = Some(mean_variance);
     }
 
-    /// Clear calibration
+    /// Xóa hiệu chuẩn
     pub fn clear_calibration(&mut self) {
         self.baseline_variance = None;
     }
 
-    /// Get detection statistics
+    /// Lấy thống kê phát hiện
     pub fn get_statistics(&self) -> DetectionStatistics {
         DetectionStatistics {
             total_detections: self.total_detections,
@@ -576,7 +576,7 @@ impl MotionDetector {
         }
     }
 
-    /// Reset detector state
+    /// Đặt lại trạng thái bộ phát hiện
     pub fn reset(&mut self) {
         self.previous_confidence = 0.0;
         self.motion_history.clear();
@@ -584,28 +584,28 @@ impl MotionDetector {
         self.total_detections = 0;
     }
 
-    /// Get previous confidence value
+    /// Lấy giá trị độ tin cậy trước đó
     pub fn previous_confidence(&self) -> f64 {
         self.previous_confidence
     }
 }
 
-/// Detection statistics
+/// Thống kê phát hiện
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectionStatistics {
-    /// Total number of detection attempts
+    /// Tổng số lần thử phát hiện
     pub total_detections: usize,
 
-    /// Number of positive detections
+    /// Số lần phát hiện dương tính
     pub positive_detections: usize,
 
-    /// Detection rate (0.0 to 1.0)
+    /// Tỷ lệ phát hiện (0.0 đến 1.0)
     pub detection_rate: f64,
 
-    /// Current history size
+    /// Kích thước lịch sử hiện tại
     pub history_size: usize,
 
-    /// Whether detector is calibrated
+    /// Bộ phát hiện đã được hiệu chuẩn chưa
     pub is_calibrated: bool,
 }
 
@@ -695,15 +695,15 @@ mod tests {
             .build();
         let mut detector = MotionDetector::new(config);
 
-        // First detection with low confidence
+        // Phát hiện đầu tiên với độ tin cậy thấp
         let features_low = create_test_features(0.1);
         let result1 = detector.detect_human(&features_low);
 
-        // Second detection with high confidence should be smoothed
+        // Phát hiện thứ hai với độ tin cậy cao sẽ được làm mượt
         let features_high = create_test_features(0.9);
         let result2 = detector.detect_human(&features_high);
 
-        // Due to smoothing, result2.confidence should be between result1 and raw
+        // Do làm mượt, result2.confidence nên nằm giữa result1 và giá trị thô
         assert!(result2.confidence >= result1.confidence);
     }
 
@@ -759,18 +759,18 @@ mod tests {
             .build();
         let mut detector = MotionDetector::new(config);
 
-        // Build up history
+        // Tích lũy lịch sử
         for i in 0..15 {
             let features = create_test_features((i as f64 % 5.0) / 5.0);
             let _ = detector.detect_human(&features);
         }
 
-        // The adaptive threshold should now be calculated
+        // Ngưỡng thích ứng bây giờ nên được tính
         let features = create_test_features(0.5);
         let result = detector.detect_human(&features);
 
-        // Threshold should be different from default
-        // (this is a weak assertion, mainly checking it runs)
+        // Ngưỡng nên khác với mặc định
+        // (đây là assertion yếu, chủ yếu kiểm tra chạy được)
         assert!(result.threshold > 0.0);
     }
 
@@ -803,16 +803,16 @@ mod tests {
     fn test_low_motion_no_detection() {
         let config = MotionDetectorConfig::builder()
             .human_detection_threshold(0.8)
-            .smoothing_factor(0.0) // No smoothing for clear test
+            .smoothing_factor(0.0) // Không làm mượt cho kiểm thử rõ ràng
             .build();
         let mut detector = MotionDetector::new(config);
 
-        // Very low motion should not trigger detection
+        // Chuyển động rất thấp không nên kích hoạt phát hiện
         let features = create_test_features(0.01);
         let result = detector.detect_human(&features);
 
-        // With very low motion, detection should likely be false
-        // (depends on thresholds, but confidence should be low)
+        // Với chuyển động rất thấp, phát hiện có khả năng là false
+        // (phụ thuộc vào ngưỡng, nhưng độ tin cậy nên thấp)
         assert!(result.motion_score < 0.5);
     }
 
@@ -829,6 +829,6 @@ mod tests {
         }
 
         let stats = detector.get_statistics();
-        assert_eq!(stats.history_size, 10); // Should not exceed max
+        assert_eq!(stats.history_size, 10); // Không nên vượt quá tối đa
     }
 }

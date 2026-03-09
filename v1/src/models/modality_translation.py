@@ -1,4 +1,4 @@
-"""Modality translation network for WiFi-DensePose system."""
+"""Mạng dịch chuyển phương thức cho hệ thống WiFi-DensePose."""
 
 import torch
 import torch.nn as nn
@@ -7,24 +7,24 @@ from typing import Dict, Any, List
 
 
 class ModalityTranslationError(Exception):
-    """Exception raised for modality translation errors."""
+    """Ngoại lệ phát sinh khi gặp lỗi dịch chuyển phương thức."""
     pass
 
 
 class ModalityTranslationNetwork(nn.Module):
-    """Neural network for translating CSI data to visual feature space."""
-    
+    """Mạng nơ-ron để dịch chuyển dữ liệu CSI sang không gian đặc trưng trực quan."""
+
     def __init__(self, config: Dict[str, Any]):
-        """Initialize modality translation network.
-        
+        """Khởi tạo mạng dịch chuyển phương thức.
+
         Args:
-            config: Configuration dictionary with network parameters
+            config: Từ điển cấu hình với các tham số mạng
         """
         super().__init__()
-        
+
         self._validate_config(config)
         self.config = config
-        
+
         self.input_channels = config['input_channels']
         self.hidden_channels = config['hidden_channels']
         self.output_channels = config['output_channels']
@@ -36,43 +36,43 @@ class ModalityTranslationNetwork(nn.Module):
         self.normalization = config.get('normalization', 'batch')
         self.use_attention = config.get('use_attention', False)
         self.attention_heads = config.get('attention_heads', 8)
-        
-        # Encoder: CSI -> Feature space
+
+        # Bộ mã hóa: CSI -> Không gian đặc trưng
         self.encoder = self._build_encoder()
-        
-        # Decoder: Feature space -> Visual-like features
+
+        # Bộ giải mã: Không gian đặc trưng -> Đặc trưng dạng trực quan
         self.decoder = self._build_decoder()
-        
-        # Attention mechanism
+
+        # Cơ chế chú ý
         if self.use_attention:
             self.attention = self._build_attention()
-        
-        # Initialize weights
+
+        # Khởi tạo trọng số
         self._initialize_weights()
-    
+
     def _validate_config(self, config: Dict[str, Any]):
-        """Validate configuration parameters."""
+        """Xác thực tham số cấu hình."""
         required_fields = ['input_channels', 'hidden_channels', 'output_channels']
         for field in required_fields:
             if field not in config:
-                raise ValueError(f"Missing required field: {field}")
-        
+                raise ValueError(f"Thiếu trường bắt buộc: {field}")
+
         if config['input_channels'] <= 0:
-            raise ValueError("input_channels must be positive")
-        
+            raise ValueError("input_channels phải là số dương")
+
         if not config['hidden_channels'] or len(config['hidden_channels']) == 0:
-            raise ValueError("hidden_channels must be a non-empty list")
-        
+            raise ValueError("hidden_channels phải là danh sách không rỗng")
+
         if config['output_channels'] <= 0:
-            raise ValueError("output_channels must be positive")
-    
+            raise ValueError("output_channels phải là số dương")
+
     def _build_encoder(self) -> nn.ModuleList:
-        """Build encoder network."""
+        """Xây dựng mạng bộ mã hóa."""
         layers = nn.ModuleList()
-        
-        # Initial convolution
+
+        # Tích chập ban đầu
         in_channels = self.input_channels
-        
+
         for i, out_channels in enumerate(self.hidden_channels):
             layer_block = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels,
@@ -85,17 +85,17 @@ class ModalityTranslationNetwork(nn.Module):
             )
             layers.append(layer_block)
             in_channels = out_channels
-        
+
         return layers
-    
+
     def _build_decoder(self) -> nn.ModuleList:
-        """Build decoder network."""
+        """Xây dựng mạng bộ giải mã."""
         layers = nn.ModuleList()
-        
-        # Start with the last hidden channel size
+
+        # Bắt đầu với kích thước kênh ẩn cuối cùng
         in_channels = self.hidden_channels[-1]
-        
-        # Progressive upsampling (reverse of encoder)
+
+        # Tăng mẫu tiến bộ (ngược lại bộ mã hóa)
         for i, out_channels in enumerate(reversed(self.hidden_channels[:-1])):
             layer_block = nn.Sequential(
                 nn.ConvTranspose2d(in_channels, out_channels,
@@ -109,20 +109,20 @@ class ModalityTranslationNetwork(nn.Module):
             )
             layers.append(layer_block)
             in_channels = out_channels
-        
-        # Final output layer
+
+        # Lớp đầu ra cuối cùng
         final_layer = nn.Sequential(
             nn.Conv2d(in_channels, self.output_channels,
                      kernel_size=self.kernel_size,
                      padding=self.padding),
-            nn.Tanh()  # Normalize output
+            nn.Tanh()  # Chuẩn hóa đầu ra
         )
         layers.append(final_layer)
-        
+
         return layers
-    
+
     def _get_normalization(self, channels: int) -> nn.Module:
-        """Get normalization layer."""
+        """Lấy lớp chuẩn hóa."""
         if self.normalization == 'batch':
             return nn.BatchNorm2d(channels)
         elif self.normalization == 'instance':
@@ -131,9 +131,9 @@ class ModalityTranslationNetwork(nn.Module):
             return nn.GroupNorm(1, channels)
         else:
             return nn.Identity()
-    
+
     def _get_activation(self) -> nn.Module:
-        """Get activation function."""
+        """Lấy hàm kích hoạt."""
         if self.activation == 'relu':
             return nn.ReLU(inplace=True)
         elif self.activation == 'leaky_relu':
@@ -142,18 +142,18 @@ class ModalityTranslationNetwork(nn.Module):
             return nn.GELU()
         else:
             return nn.ReLU(inplace=True)
-    
+
     def _build_attention(self) -> nn.Module:
-        """Build attention mechanism."""
+        """Xây dựng cơ chế chú ý."""
         return nn.MultiheadAttention(
             embed_dim=self.hidden_channels[-1],
             num_heads=self.attention_heads,
             dropout=self.dropout_rate,
             batch_first=True
         )
-    
+
     def _initialize_weights(self):
-        """Initialize network weights."""
+        """Khởi tạo trọng số mạng."""
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -162,82 +162,82 @@ class ModalityTranslationNetwork(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the network.
-        
+        """Lan truyền tiến qua mạng.
+
         Args:
-            x: Input CSI tensor of shape (batch_size, channels, height, width)
-            
+            x: Tensor CSI đầu vào có hình dạng (batch_size, channels, height, width)
+
         Returns:
-            Translated features tensor
+            Tensor đặc trưng đã dịch chuyển
         """
-        # Validate input shape
+        # Xác thực hình dạng đầu vào
         if x.shape[1] != self.input_channels:
-            raise ModalityTranslationError(f"Expected {self.input_channels} input channels, got {x.shape[1]}")
-        
-        # Encode CSI data
+            raise ModalityTranslationError(f"Mong đợi {self.input_channels} kênh đầu vào, nhận được {x.shape[1]}")
+
+        # Mã hóa dữ liệu CSI
         encoded_features = self.encode(x)
-        
-        # Decode to visual-like features
+
+        # Giải mã sang đặc trưng dạng trực quan
         decoded = self.decode(encoded_features)
-        
+
         return decoded
-    
+
     def encode(self, x: torch.Tensor) -> List[torch.Tensor]:
-        """Encode input through encoder layers.
-        
+        """Mã hóa đầu vào qua các lớp bộ mã hóa.
+
         Args:
-            x: Input tensor
-            
+            x: Tensor đầu vào
+
         Returns:
-            List of feature maps from each encoder layer
+            Danh sách bản đồ đặc trưng từ mỗi lớp bộ mã hóa
         """
         features = []
         current = x
-        
+
         for layer in self.encoder:
             current = layer(current)
             features.append(current)
-        
+
         return features
-    
+
     def decode(self, encoded_features: List[torch.Tensor]) -> torch.Tensor:
-        """Decode features through decoder layers.
-        
+        """Giải mã đặc trưng qua các lớp bộ giải mã.
+
         Args:
-            encoded_features: List of encoded feature maps
-            
+            encoded_features: Danh sách bản đồ đặc trưng đã mã hóa
+
         Returns:
-            Decoded output tensor
+            Tensor đầu ra đã giải mã
         """
-        # Start with the last encoded feature
+        # Bắt đầu với đặc trưng đã mã hóa cuối cùng
         current = encoded_features[-1]
-        
-        # Apply attention if enabled
+
+        # Áp dụng chú ý nếu được bật
         if self.use_attention:
             batch_size, channels, height, width = current.shape
-            # Reshape for attention: (batch, seq_len, embed_dim)
+            # Thay đổi hình dạng cho chú ý: (batch, seq_len, embed_dim)
             current_flat = current.view(batch_size, channels, -1).transpose(1, 2)
             attended, _ = self.attention(current_flat, current_flat, current_flat)
             current = attended.transpose(1, 2).view(batch_size, channels, height, width)
-        
-        # Apply decoder layers
+
+        # Áp dụng các lớp bộ giải mã
         for layer in self.decoder:
             current = layer(current)
-        
+
         return current
-    
+
     def compute_translation_loss(self, predicted: torch.Tensor, target: torch.Tensor, loss_type: str = 'mse') -> torch.Tensor:
-        """Compute translation loss between predicted and target features.
-        
+        """Tính tổn thất dịch chuyển giữa đặc trưng dự đoán và mục tiêu.
+
         Args:
-            predicted: Predicted feature tensor
-            target: Target feature tensor
-            loss_type: Type of loss ('mse', 'l1', 'smooth_l1')
-            
+            predicted: Tensor đặc trưng dự đoán
+            target: Tensor đặc trưng mục tiêu
+            loss_type: Loại tổn thất ('mse', 'l1', 'smooth_l1')
+
         Returns:
-            Computed loss tensor
+            Tensor tổn thất đã tính
         """
         if loss_type == 'mse':
             return F.mse_loss(predicted, target)
@@ -247,15 +247,15 @@ class ModalityTranslationNetwork(nn.Module):
             return F.smooth_l1_loss(predicted, target)
         else:
             return F.mse_loss(predicted, target)
-    
+
     def get_feature_statistics(self, features: torch.Tensor) -> Dict[str, float]:
-        """Get statistics of feature tensor.
-        
+        """Lấy thống kê của tensor đặc trưng.
+
         Args:
-            features: Feature tensor to analyze
-            
+            features: Tensor đặc trưng cần phân tích
+
         Returns:
-            Dictionary of feature statistics
+            Từ điển thống kê đặc trưng
         """
         with torch.no_grad():
             return {
@@ -265,37 +265,37 @@ class ModalityTranslationNetwork(nn.Module):
                 'max': features.max().item(),
                 'sparsity': (features == 0).float().mean().item()
             }
-    
+
     def get_intermediate_features(self, x: torch.Tensor) -> Dict[str, Any]:
-        """Get intermediate features for visualization.
-        
+        """Lấy đặc trưng trung gian để trực quan hóa.
+
         Args:
-            x: Input tensor
-            
+            x: Tensor đầu vào
+
         Returns:
-            Dictionary containing intermediate features
+            Từ điển chứa các đặc trưng trung gian
         """
         result = {}
-        
-        # Get encoder features
+
+        # Lấy đặc trưng bộ mã hóa
         encoder_features = self.encode(x)
         result['encoder_features'] = encoder_features
-        
-        # Get decoder features
+
+        # Lấy đặc trưng bộ giải mã
         decoder_features = []
         current = encoder_features[-1]
-        
+
         if self.use_attention:
             batch_size, channels, height, width = current.shape
             current_flat = current.view(batch_size, channels, -1).transpose(1, 2)
             attended, attention_weights = self.attention(current_flat, current_flat, current_flat)
             current = attended.transpose(1, 2).view(batch_size, channels, height, width)
             result['attention_weights'] = attention_weights
-        
+
         for layer in self.decoder:
             current = layer(current)
             decoder_features.append(current)
-        
+
         result['decoder_features'] = decoder_features
-        
+
         return result

@@ -1,61 +1,61 @@
-//! Adversarial detection: physically impossible signal identification.
+//! Phát hiện đối kháng: nhận dạng tín hiệu vật lý bất khả thi.
 //!
-//! Detects spoofed or injected WiFi signals by checking multi-link
-//! consistency, field model constraint violations, and physical
-//! plausibility. A single-link injection cannot fool a multistatic
-//! mesh because it would violate geometric constraints across links.
+//! Phát hiện tín hiệu WiFi giả mạo hoặc tiêm bằng cách kiểm tra
+//! tính nhất quán đa liên kết, vi phạm ràng buộc mô hình trường, và
+//! tính hợp lý vật lý. Một lần tiêm đơn liên kết không thể đánh lừa lưới
+//! đa tĩnh vì nó sẽ vi phạm ràng buộc hình học giữa các liên kết.
 //!
-//! # Checks
-//! 1. **Multi-link consistency**: A real body perturbs all links that
-//!    traverse its location. An injection affects only the targeted link.
-//! 2. **Field model constraints**: Perturbation must be consistent with
-//!    the room's eigenmode structure.
-//! 3. **Temporal continuity**: Real movement is smooth; injections cause
-//!    discontinuities in embedding space.
-//! 4. **Energy conservation**: Total perturbation energy across links
-//!    must be consistent with the number and size of bodies present.
+//! # Kiểm Tra
+//! 1. **Nhất quán đa liên kết**: Cơ thể thực gây nhiễu loạn tất cả liên kết
+//!    đi qua vị trí của nó. Tiêm chỉ ảnh hưởng liên kết mục tiêu.
+//! 2. **Ràng buộc mô hình trường**: Nhiễu loạn phải nhất quán với
+//!    cấu trúc eigenmode của phòng.
+//! 3. **Liên tục thời gian**: Chuyển động thực mượt mà; tiêm gây ra
+//!    bất liên tục trong không gian nhúng.
+//! 4. **Bảo toàn năng lượng**: Tổng năng lượng nhiễu loạn giữa các liên kết
+//!    phải nhất quán với số lượng và kích thước cơ thể hiện diện.
 //!
-//! # References
-//! - ADR-030 Tier 7: Adversarial Detection
+//! # Tham Khảo
+//! - ADR-030 Tầng 7: Phát Hiện Đối Kháng
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from adversarial detection.
+/// Các lỗi từ phát hiện đối kháng.
 #[derive(Debug, thiserror::Error)]
 pub enum AdversarialError {
-    /// Insufficient links for multi-link consistency check.
-    #[error("Insufficient links: need >= {needed}, got {got}")]
+    /// Không đủ liên kết cho kiểm tra nhất quán đa liên kết.
+    #[error("Không đủ liên kết: cần >= {needed}, có {got}")]
     InsufficientLinks { needed: usize, got: usize },
 
-    /// Dimension mismatch.
-    #[error("Dimension mismatch: expected {expected}, got {got}")]
+    /// Chiều không khớp.
+    #[error("Chiều không khớp: kỳ vọng {expected}, nhận được {got}")]
     DimensionMismatch { expected: usize, got: usize },
 
-    /// No baseline available for constraint checking.
-    #[error("No baseline available — calibrate field model first")]
+    /// Không có đường cơ sở cho kiểm tra ràng buộc.
+    #[error("Không có đường cơ sở — hiệu chuẩn mô hình trường trước")]
     NoBaseline,
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for adversarial detection.
+/// Cấu hình cho phát hiện đối kháng.
 #[derive(Debug, Clone)]
 pub struct AdversarialConfig {
-    /// Number of links in the mesh.
+    /// Số liên kết trong lưới.
     pub n_links: usize,
-    /// Minimum links for multi-link consistency (default 4).
+    /// Số liên kết tối thiểu cho nhất quán đa liên kết (mặc định 4).
     pub min_links: usize,
-    /// Consistency threshold: fraction of links that must agree (0.0-1.0).
+    /// Ngưỡng nhất quán: tỷ lệ liên kết phải đồng thuận (0.0-1.0).
     pub consistency_threshold: f64,
-    /// Maximum allowed energy ratio between any single link and total.
+    /// Tỷ lệ năng lượng tối đa cho phép giữa bất kỳ liên kết đơn nào và tổng.
     pub max_single_link_energy_ratio: f64,
-    /// Maximum allowed temporal discontinuity in embedding space.
+    /// Bất liên tục thời gian tối đa cho phép trong không gian nhúng.
     pub max_temporal_discontinuity: f64,
-    /// Maximum allowed perturbation energy per body.
+    /// Năng lượng nhiễu loạn tối đa cho phép mỗi cơ thể.
     pub max_energy_per_body: f64,
 }
 
@@ -73,26 +73,26 @@ impl Default for AdversarialConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Detection results
+// Kết quả phát hiện
 // ---------------------------------------------------------------------------
 
-/// Type of adversarial anomaly detected.
+/// Loại bất thường đối kháng được phát hiện.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnomalyType {
-    /// Single link shows perturbation inconsistent with other links.
+    /// Liên kết đơn có nhiễu loạn không nhất quán với các liên kết khác.
     SingleLinkInjection,
-    /// Perturbation violates field model eigenmode structure.
+    /// Nhiễu loạn vi phạm cấu trúc eigenmode mô hình trường.
     FieldModelViolation,
-    /// Sudden discontinuity in embedding trajectory.
+    /// Bất liên tục đột ngột trong quỹ đạo nhúng.
     TemporalDiscontinuity,
-    /// Total perturbation energy inconsistent with occupancy.
+    /// Tổng năng lượng nhiễu loạn không nhất quán với mức chiếm dụng.
     EnergyViolation,
-    /// Multiple anomaly types detected simultaneously.
+    /// Nhiều loại bất thường được phát hiện đồng thời.
     MultipleViolations,
 }
 
 impl AnomalyType {
-    /// Human-readable name.
+    /// Tên đọc được.
     pub fn name(&self) -> &'static str {
         match self {
             AnomalyType::SingleLinkInjection => "single_link_injection",
@@ -104,60 +104,60 @@ impl AnomalyType {
     }
 }
 
-/// Result of adversarial detection on one frame.
+/// Kết quả phát hiện đối kháng trên một khung.
 #[derive(Debug, Clone)]
 pub struct AdversarialResult {
-    /// Whether any anomaly was detected.
+    /// Có phát hiện bất thường nào hay không.
     pub anomaly_detected: bool,
-    /// Type of anomaly (if detected).
+    /// Loại bất thường (nếu được phát hiện).
     pub anomaly_type: Option<AnomalyType>,
-    /// Anomaly score (0.0 = clean, 1.0 = definitely adversarial).
+    /// Điểm bất thường (0.0 = sạch, 1.0 = chắc chắn đối kháng).
     pub anomaly_score: f64,
-    /// Per-check results.
+    /// Kết quả từng kiểm tra.
     pub checks: CheckResults,
-    /// Affected link indices (if single-link injection).
+    /// Chỉ số liên kết bị ảnh hưởng (nếu tiêm đơn liên kết).
     pub affected_links: Vec<usize>,
-    /// Timestamp (microseconds).
+    /// Dấu thời gian (micro giây).
     pub timestamp_us: u64,
 }
 
-/// Results of individual checks.
+/// Kết quả của từng kiểm tra riêng lẻ.
 #[derive(Debug, Clone)]
 pub struct CheckResults {
-    /// Multi-link consistency score (0.0 = inconsistent, 1.0 = fully consistent).
+    /// Điểm nhất quán đa liên kết (0.0 = không nhất quán, 1.0 = hoàn toàn nhất quán).
     pub consistency_score: f64,
-    /// Field model residual score (lower = more consistent with modes).
+    /// Điểm phần dư mô hình trường (thấp hơn = nhất quán hơn với mode).
     pub field_model_residual: f64,
-    /// Temporal continuity score (lower = smoother).
+    /// Điểm liên tục thời gian (thấp hơn = mượt hơn).
     pub temporal_continuity: f64,
-    /// Energy conservation score (closer to 1.0 = consistent).
+    /// Điểm bảo toàn năng lượng (gần 1.0 hơn = nhất quán).
     pub energy_ratio: f64,
 }
 
 // ---------------------------------------------------------------------------
-// Adversarial detector
+// Bộ phát hiện đối kháng
 // ---------------------------------------------------------------------------
 
-/// Adversarial signal detector for the multistatic mesh.
+/// Bộ phát hiện tín hiệu đối kháng cho lưới đa tĩnh.
 ///
-/// Checks each frame for physical plausibility across multiple
-/// independent criteria. A spoofed signal that passes one check
-/// is unlikely to pass all of them.
+/// Kiểm tra mỗi khung về tính hợp lý vật lý trên nhiều
+/// tiêu chí độc lập. Tín hiệu giả mạo vượt qua một kiểm tra
+/// khó có khả năng vượt qua tất cả.
 #[derive(Debug)]
 pub struct AdversarialDetector {
     config: AdversarialConfig,
-    /// Previous frame's per-link energies (for temporal continuity).
+    /// Năng lượng mỗi liên kết của khung trước (cho liên tục thời gian).
     prev_energies: Option<Vec<f64>>,
-    /// Previous frame's total energy.
+    /// Tổng năng lượng của khung trước.
     prev_total_energy: Option<f64>,
-    /// Total frames processed.
+    /// Tổng số khung đã xử lý.
     total_frames: u64,
-    /// Total anomalies detected.
+    /// Tổng số bất thường đã phát hiện.
     anomaly_count: u64,
 }
 
 impl AdversarialDetector {
-    /// Create a new adversarial detector.
+    /// Tạo bộ phát hiện đối kháng mới.
     pub fn new(config: AdversarialConfig) -> Result<Self, AdversarialError> {
         if config.n_links < config.min_links {
             return Err(AdversarialError::InsufficientLinks {
@@ -174,11 +174,11 @@ impl AdversarialDetector {
         })
     }
 
-    /// Check a frame for adversarial anomalies.
+    /// Kiểm tra một khung về bất thường đối kháng.
     ///
-    /// `link_energies`: per-link perturbation energy (from field model).
-    /// `n_bodies`: estimated number of bodies present.
-    /// `timestamp_us`: frame timestamp.
+    /// `link_energies`: năng lượng nhiễu loạn mỗi liên kết (từ mô hình trường).
+    /// `n_bodies`: số cơ thể ước lượng hiện diện.
+    /// `timestamp_us`: dấu thời gian khung.
     pub fn check(
         &mut self,
         link_energies: &[f64],
@@ -196,19 +196,19 @@ impl AdversarialDetector {
 
         let total_energy: f64 = link_energies.iter().sum();
 
-        // Check 1: Multi-link consistency
+        // Kiểm tra 1: Nhất quán đa liên kết
         let consistency = self.check_consistency(link_energies, total_energy);
 
-        // Check 2: Field model residual (simplified — check energy distribution)
+        // Kiểm tra 2: Phần dư mô hình trường (đơn giản — kiểm tra phân bố năng lượng)
         let field_residual = self.check_field_model(link_energies, total_energy);
 
-        // Check 3: Temporal continuity
+        // Kiểm tra 3: Liên tục thời gian
         let temporal = self.check_temporal(link_energies, total_energy);
 
-        // Check 4: Energy conservation
+        // Kiểm tra 4: Bảo toàn năng lượng
         let energy_ratio = self.check_energy(total_energy, n_bodies);
 
-        // Store for next frame
+        // Lưu cho khung tiếp theo
         self.prev_energies = Some(link_energies.to_vec());
         self.prev_total_energy = Some(total_energy);
 
@@ -219,7 +219,7 @@ impl AdversarialDetector {
             energy_ratio,
         };
 
-        // Aggregate anomaly score
+        // Tổng hợp điểm bất thường
         let mut violations = Vec::new();
 
         if consistency < self.config.consistency_threshold {
@@ -242,14 +242,14 @@ impl AdversarialDetector {
             _ => Some(AnomalyType::MultipleViolations),
         };
 
-        // Score: weighted combination
+        // Điểm: kết hợp có trọng số
         let anomaly_score = ((1.0 - consistency) * 0.4
             + field_residual * 0.2
             + (temporal / self.config.max_temporal_discontinuity).min(1.0) * 0.2
             + ((energy_ratio - 1.0).abs() / 2.0).min(1.0) * 0.2)
             .clamp(0.0, 1.0);
 
-        // Find affected links (highest single-link energy ratio)
+        // Tìm liên kết bị ảnh hưởng (tỷ lệ năng lượng đơn liên kết cao nhất)
         let affected_links = if anomaly_detected {
             self.find_anomalous_links(link_energies, total_energy)
         } else {
@@ -270,32 +270,32 @@ impl AdversarialDetector {
         })
     }
 
-    /// Multi-link consistency: what fraction of links have correlated energy?
+    /// Nhất quán đa liên kết: tỷ lệ liên kết có năng lượng tương quan?
     ///
-    /// A real body perturbs many links. An injection affects few.
+    /// Cơ thể thực gây nhiễu loạn nhiều liên kết. Tiêm ảnh hưởng ít liên kết.
     fn check_consistency(&self, energies: &[f64], total: f64) -> f64 {
         if total < 1e-15 {
-            return 1.0; // No perturbation = consistent (empty room)
+            return 1.0; // Không có nhiễu loạn = nhất quán (phòng trống)
         }
 
         let mean = total / energies.len() as f64;
-        let threshold = mean * 0.1; // link must have at least 10% of mean energy
+        let threshold = mean * 0.1; // liên kết phải có ít nhất 10% năng lượng trung bình
 
         let active_count = energies.iter().filter(|&&e| e > threshold).count();
         active_count as f64 / energies.len() as f64
     }
 
-    /// Field model check: is energy distribution consistent with physical propagation?
+    /// Kiểm tra mô hình trường: phân bố năng lượng có nhất quán với truyền vật lý không?
     ///
-    /// In a real scenario, energy should be distributed across links
-    /// based on geometry. A concentrated injection scores high residual.
+    /// Trong kịch bản thực, năng lượng nên phân bố giữa các liên kết
+    /// dựa trên hình học. Tiêm tập trung cho điểm phần dư cao.
     fn check_field_model(&self, energies: &[f64], total: f64) -> f64 {
         if total < 1e-15 {
             return 0.0;
         }
 
-        // Compute Gini coefficient of energy distribution
-        // Gini = 0 → perfectly uniform, Gini = 1 → all in one link
+        // Tính hệ số Gini của phân bố năng lượng
+        // Gini = 0 → phân bố đều hoàn hảo, Gini = 1 → tất cả trong một liên kết
         let n = energies.len() as f64;
         let mut sorted: Vec<f64> = energies.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -310,10 +310,10 @@ impl AdversarialDetector {
         gini.clamp(0.0, 1.0)
     }
 
-    /// Temporal continuity: how much did per-link energies change from previous frame?
+    /// Liên tục thời gian: năng lượng mỗi liên kết thay đổi bao nhiêu so với khung trước?
     fn check_temporal(&self, energies: &[f64], _total: f64) -> f64 {
         match &self.prev_energies {
-            None => 0.0, // First frame, no temporal check
+            None => 0.0, // Khung đầu tiên, không kiểm tra thời gian
             Some(prev) => {
                 let diff_energy: f64 = energies
                     .iter()
@@ -326,10 +326,10 @@ impl AdversarialDetector {
         }
     }
 
-    /// Energy conservation: is total energy consistent with body count?
+    /// Bảo toàn năng lượng: tổng năng lượng có nhất quán với số cơ thể không?
     fn check_energy(&self, total_energy: f64, n_bodies: usize) -> f64 {
         if n_bodies == 0 {
-            // No bodies: any energy is suspicious
+            // Không có cơ thể: bất kỳ năng lượng nào đều đáng ngờ
             return if total_energy > 1e-10 {
                 total_energy
             } else {
@@ -343,7 +343,7 @@ impl AdversarialDetector {
         total_energy / expected
     }
 
-    /// Find links that are anomalously high relative to the mean.
+    /// Tìm liên kết có năng lượng bất thường cao so với trung bình.
     fn find_anomalous_links(&self, energies: &[f64], total: f64) -> Vec<usize> {
         if total < 1e-15 {
             return Vec::new();
@@ -357,17 +357,17 @@ impl AdversarialDetector {
             .collect()
     }
 
-    /// Total frames processed.
+    /// Tổng số khung đã xử lý.
     pub fn total_frames(&self) -> u64 {
         self.total_frames
     }
 
-    /// Total anomalies detected.
+    /// Tổng số bất thường đã phát hiện.
     pub fn anomaly_count(&self) -> u64 {
         self.anomaly_count
     }
 
-    /// Anomaly rate (anomalies / total frames).
+    /// Tỷ lệ bất thường (bất thường / tổng khung).
     pub fn anomaly_rate(&self) -> f64 {
         if self.total_frames == 0 {
             0.0
@@ -376,7 +376,7 @@ impl AdversarialDetector {
         }
     }
 
-    /// Reset detector state.
+    /// Đặt lại trạng thái bộ phát hiện.
     pub fn reset(&mut self) {
         self.prev_energies = None;
         self.prev_total_energy = None;
@@ -386,7 +386,7 @@ impl AdversarialDetector {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -428,13 +428,13 @@ mod tests {
     fn test_clean_frame_no_anomaly() {
         let mut det = AdversarialDetector::new(default_config()).unwrap();
 
-        // Uniform energy across all links (real body)
+        // Năng lượng đồng đều giữa tất cả liên kết (cơ thể thực)
         let energies = vec![1.0, 1.1, 0.9, 1.0, 1.05, 0.95];
         let result = det.check(&energies, 1, 0).unwrap();
 
         assert!(
             !result.anomaly_detected,
-            "Uniform energy should not trigger anomaly"
+            "Năng lượng đồng đều không nên kích hoạt bất thường"
         );
         assert!(result.anomaly_score < 0.5);
     }
@@ -443,13 +443,13 @@ mod tests {
     fn test_single_link_injection_detected() {
         let mut det = AdversarialDetector::new(default_config()).unwrap();
 
-        // All energy on one link (injection)
+        // Tất cả năng lượng trên một liên kết (tiêm)
         let energies = vec![10.0, 0.0, 0.0, 0.0, 0.0, 0.0];
         let result = det.check(&energies, 0, 0).unwrap();
 
         assert!(
             result.anomaly_detected,
-            "Single-link injection should be detected"
+            "Tiêm đơn liên kết phải được phát hiện"
         );
         assert!(result.affected_links.contains(&0));
     }
@@ -467,22 +467,22 @@ mod tests {
     #[test]
     fn test_temporal_discontinuity() {
         let mut det = AdversarialDetector::new(AdversarialConfig {
-            max_temporal_discontinuity: 1.0, // strict
+            max_temporal_discontinuity: 1.0, // nghiêm ngặt
             ..default_config()
         })
         .unwrap();
 
-        // Frame 1: low energy
+        // Khung 1: năng lượng thấp
         let energies1 = vec![0.1; 6];
         det.check(&energies1, 0, 0).unwrap();
 
-        // Frame 2: sudden massive energy (discontinuity)
+        // Khung 2: năng lượng lớn đột ngột (bất liên tục)
         let energies2 = vec![100.0; 6];
         let result = det.check(&energies2, 0, 50_000).unwrap();
 
         assert!(
             result.anomaly_detected,
-            "Temporal discontinuity should be detected"
+            "Bất liên tục thời gian phải được phát hiện"
         );
     }
 
@@ -490,13 +490,13 @@ mod tests {
     fn test_energy_violation_too_high() {
         let mut det = AdversarialDetector::new(default_config()).unwrap();
 
-        // Way more energy than 1 body should produce
-        let energies = vec![100.0; 6]; // total = 600, max_per_body = 10
+        // Năng lượng vượt xa mức 1 cơ thể nên tạo ra
+        let energies = vec![100.0; 6]; // tổng = 600, max_per_body = 10
         let result = det.check(&energies, 1, 0).unwrap();
 
         assert!(
             result.anomaly_detected,
-            "Excessive energy should trigger anomaly"
+            "Năng lượng quá mức phải kích hoạt bất thường"
         );
     }
 
@@ -514,11 +514,11 @@ mod tests {
     fn test_anomaly_rate() {
         let mut det = AdversarialDetector::new(default_config()).unwrap();
 
-        // 2 clean frames
+        // 2 khung sạch
         det.check(&vec![1.0; 6], 1, 0).unwrap();
         det.check(&vec![1.0; 6], 1, 50_000).unwrap();
 
-        // 1 anomalous frame
+        // 1 khung bất thường
         det.check(&vec![10.0, 0.0, 0.0, 0.0, 0.0, 0.0], 0, 100_000)
             .unwrap();
 
@@ -566,7 +566,7 @@ mod tests {
         let gini = det.check_field_model(&energies, total);
         assert!(
             gini < 0.1,
-            "Uniform distribution should have low Gini: {}",
+            "Phân bố đồng đều phải có Gini thấp: {}",
             gini
         );
     }
@@ -579,7 +579,7 @@ mod tests {
         let gini = det.check_field_model(&energies, total);
         assert!(
             gini > 0.5,
-            "Concentrated distribution should have high Gini: {}",
+            "Phân bố tập trung phải có Gini cao: {}",
             gini
         );
     }

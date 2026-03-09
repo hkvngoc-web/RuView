@@ -1,71 +1,71 @@
-//! Gesture classification from per-person CSI perturbation patterns.
+//! Phân loại cử chỉ từ mẫu nhiễu loạn CSI mỗi người.
 //!
-//! Classifies gestures by comparing per-person CSI perturbation time
-//! series against a library of gesture templates using Dynamic Time
-//! Warping (DTW). Works through walls and darkness because it operates
-//! on RF perturbations, not visual features.
+//! Phân loại cử chỉ bằng cách so sánh chuỗi thời gian nhiễu loạn CSI
+//! mỗi người với thư viện mẫu cử chỉ sử dụng Xoắn Thời Gian Động
+//! (DTW). Hoạt động xuyên tường và trong bóng tối vì hoạt động
+//! trên nhiễu loạn RF, không phải đặc trưng thị giác.
 //!
-//! # Algorithm
-//! 1. Collect per-person CSI perturbation over a gesture window (~1s)
-//! 2. Normalize and project onto principal components
-//! 3. Compare against stored gesture templates using DTW distance
-//! 4. Classify as the nearest template if distance < threshold
+//! # Thuật Toán
+//! 1. Thu thập nhiễu loạn CSI mỗi người trong cửa sổ cử chỉ (~1s)
+//! 2. Chuẩn hóa và chiếu lên các thành phần chính
+//! 3. So sánh với các mẫu cử chỉ đã lưu bằng khoảng cách DTW
+//! 4. Phân loại là mẫu gần nhất nếu khoảng cách < ngưỡng
 //!
-//! # Supported Gestures
-//! Wave, point, beckon, push, circle, plus custom user-defined templates.
+//! # Cử Chỉ Hỗ Trợ
+//! Vẫy, chỉ, vẫy gọi, đẩy, vòng tròn, cộng mẫu tùy chỉnh do người dùng định nghĩa.
 //!
-//! # References
-//! - ADR-030 Tier 6: Invisible Interaction Layer
+//! # Tham Khảo
+//! - ADR-030 Tầng 6: Lớp Tương Tác Vô Hình
 //! - Sakoe & Chiba (1978), "Dynamic programming algorithm optimization
 //!   for spoken word recognition" IEEE TASSP
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from gesture classification.
+/// Các lỗi từ phân loại cử chỉ.
 #[derive(Debug, thiserror::Error)]
 pub enum GestureError {
-    /// Gesture sequence too short.
-    #[error("Sequence too short: need >= {needed} frames, got {got}")]
+    /// Chuỗi cử chỉ quá ngắn.
+    #[error("Chuỗi quá ngắn: cần >= {needed} khung, có {got}")]
     SequenceTooShort { needed: usize, got: usize },
 
-    /// No templates registered for classification.
-    #[error("No gesture templates registered")]
+    /// Không có mẫu nào được đăng ký cho phân loại.
+    #[error("Không có mẫu cử chỉ nào được đăng ký")]
     NoTemplates,
 
-    /// Feature dimension mismatch.
-    #[error("Feature dimension mismatch: expected {expected}, got {got}")]
+    /// Chiều đặc trưng không khớp.
+    #[error("Chiều đặc trưng không khớp: kỳ vọng {expected}, nhận được {got}")]
     DimensionMismatch { expected: usize, got: usize },
 
-    /// Invalid template name.
-    #[error("Invalid template name: {0}")]
+    /// Tên mẫu không hợp lệ.
+    #[error("Tên mẫu không hợp lệ: {0}")]
     InvalidTemplateName(String),
 }
 
 // ---------------------------------------------------------------------------
-// Domain types
+// Kiểu miền
 // ---------------------------------------------------------------------------
 
-/// Built-in gesture categories.
+/// Các danh mục cử chỉ tích hợp.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GestureType {
-    /// Waving hand (side to side).
+    /// Vẫy tay (qua lại).
     Wave,
-    /// Pointing at a target.
+    /// Chỉ vào mục tiêu.
     Point,
-    /// Beckoning (come here).
+    /// Vẫy gọi (lại đây).
     Beckon,
-    /// Push forward motion.
+    /// Chuyển động đẩy về phía trước.
     Push,
-    /// Circular motion.
+    /// Chuyển động vòng tròn.
     Circle,
-    /// User-defined custom gesture.
+    /// Cử chỉ tùy chỉnh do người dùng định nghĩa.
     Custom,
 }
 
 impl GestureType {
-    /// Human-readable name.
+    /// Tên đọc được.
     pub fn name(&self) -> &'static str {
         match self {
             GestureType::Wave => "wave",
@@ -78,52 +78,52 @@ impl GestureType {
     }
 }
 
-/// A gesture template: a reference time series for a known gesture.
+/// Mẫu cử chỉ: chuỗi thời gian tham chiếu cho cử chỉ đã biết.
 #[derive(Debug, Clone)]
 pub struct GestureTemplate {
-    /// Unique template name (e.g., "wave_right", "push_forward").
+    /// Tên mẫu duy nhất (ví dụ: "wave_right", "push_forward").
     pub name: String,
-    /// Gesture category.
+    /// Danh mục cử chỉ.
     pub gesture_type: GestureType,
-    /// Template feature sequence: `[n_frames][feature_dim]`.
+    /// Chuỗi đặc trưng mẫu: `[n_khung][chiều_đặc_trưng]`.
     pub sequence: Vec<Vec<f64>>,
-    /// Feature dimension.
+    /// Chiều đặc trưng.
     pub feature_dim: usize,
 }
 
-/// Result of gesture classification.
+/// Kết quả phân loại cử chỉ.
 #[derive(Debug, Clone)]
 pub struct GestureResult {
-    /// Whether a gesture was recognized.
+    /// Cử chỉ có được nhận dạng hay không.
     pub recognized: bool,
-    /// Matched gesture type (if recognized).
+    /// Loại cử chỉ đã khớp (nếu được nhận dạng).
     pub gesture_type: Option<GestureType>,
-    /// Matched template name (if recognized).
+    /// Tên mẫu đã khớp (nếu được nhận dạng).
     pub template_name: Option<String>,
-    /// DTW distance to best match.
+    /// Khoảng cách DTW đến đối chiếu tốt nhất.
     pub distance: f64,
-    /// Confidence (0.0 to 1.0, based on relative distances).
+    /// Độ tin cậy (0.0 đến 1.0, dựa trên khoảng cách tương đối).
     pub confidence: f64,
-    /// Person ID this gesture belongs to.
+    /// ID người mà cử chỉ này thuộc về.
     pub person_id: u64,
-    /// Timestamp (microseconds).
+    /// Dấu thời gian (micro giây).
     pub timestamp_us: u64,
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for the gesture classifier.
+/// Cấu hình cho bộ phân loại cử chỉ.
 #[derive(Debug, Clone)]
 pub struct GestureConfig {
-    /// Feature dimension of perturbation vectors.
+    /// Chiều đặc trưng của vector nhiễu loạn.
     pub feature_dim: usize,
-    /// Minimum sequence length (frames) for a valid gesture.
+    /// Độ dài chuỗi tối thiểu (khung) cho cử chỉ hợp lệ.
     pub min_sequence_len: usize,
-    /// Maximum DTW distance for a match (lower = stricter).
+    /// Khoảng cách DTW tối đa cho đối chiếu (thấp hơn = nghiêm ngặt hơn).
     pub max_distance: f64,
-    /// DTW Sakoe-Chiba band width (constrains warping).
+    /// Độ rộng dải Sakoe-Chiba DTW (hạn chế xoắn).
     pub band_width: usize,
 }
 
@@ -139,13 +139,13 @@ impl Default for GestureConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Gesture classifier
+// Bộ phân loại cử chỉ
 // ---------------------------------------------------------------------------
 
-/// Gesture classifier using DTW template matching.
+/// Bộ phân loại cử chỉ sử dụng đối chiếu mẫu DTW.
 ///
-/// Maintains a library of gesture templates and classifies new
-/// perturbation sequences by finding the nearest template.
+/// Duy trì thư viện mẫu cử chỉ và phân loại các chuỗi
+/// nhiễu loạn mới bằng cách tìm mẫu gần nhất.
 #[derive(Debug)]
 pub struct GestureClassifier {
     config: GestureConfig,
@@ -153,7 +153,7 @@ pub struct GestureClassifier {
 }
 
 impl GestureClassifier {
-    /// Create a new gesture classifier.
+    /// Tạo bộ phân loại cử chỉ mới.
     pub fn new(config: GestureConfig) -> Self {
         Self {
             config,
@@ -161,11 +161,11 @@ impl GestureClassifier {
         }
     }
 
-    /// Register a gesture template.
+    /// Đăng ký mẫu cử chỉ.
     pub fn add_template(&mut self, template: GestureTemplate) -> Result<(), GestureError> {
         if template.name.is_empty() {
             return Err(GestureError::InvalidTemplateName(
-                "Template name cannot be empty".into(),
+                "Tên mẫu không được rỗng".into(),
             ));
         }
         if template.feature_dim != self.config.feature_dim {
@@ -184,14 +184,14 @@ impl GestureClassifier {
         Ok(())
     }
 
-    /// Number of registered templates.
+    /// Số mẫu đã đăng ký.
     pub fn template_count(&self) -> usize {
         self.templates.len()
     }
 
-    /// Classify a perturbation sequence against registered templates.
+    /// Phân loại chuỗi nhiễu loạn so với các mẫu đã đăng ký.
     ///
-    /// `sequence` is `[n_frames][feature_dim]` of perturbation features.
+    /// `sequence` là `[n_khung][chiều_đặc_trưng]` các đặc trưng nhiễu loạn.
     pub fn classify(
         &self,
         sequence: &[Vec<f64>],
@@ -207,7 +207,7 @@ impl GestureClassifier {
                 got: sequence.len(),
             });
         }
-        // Validate feature dimension
+        // Xác thực chiều đặc trưng
         for frame in sequence {
             if frame.len() != self.config.feature_dim {
                 return Err(GestureError::DimensionMismatch {
@@ -217,7 +217,7 @@ impl GestureClassifier {
             }
         }
 
-        // Compute DTW distance to each template
+        // Tính khoảng cách DTW đến mỗi mẫu
         let mut best_dist = f64::INFINITY;
         let mut second_best_dist = f64::INFINITY;
         let mut best_idx: Option<usize> = None;
@@ -235,7 +235,7 @@ impl GestureClassifier {
 
         let recognized = best_dist <= self.config.max_distance;
 
-        // Confidence: how much better is the best match vs second best
+        // Độ tin cậy: đối chiếu tốt nhất tốt hơn bao nhiêu so với tốt nhì
         let confidence = if recognized && second_best_dist.is_finite() && second_best_dist > 1e-10 {
             (1.0 - best_dist / second_best_dist).clamp(0.0, 1.0)
         } else if recognized {
@@ -278,13 +278,13 @@ impl GestureClassifier {
 }
 
 // ---------------------------------------------------------------------------
-// Dynamic Time Warping
+// Xoắn Thời Gian Động
 // ---------------------------------------------------------------------------
 
-/// Compute DTW distance between two multivariate time series.
+/// Tính khoảng cách DTW giữa hai chuỗi thời gian đa biến.
 ///
-/// Uses the Sakoe-Chiba band constraint to limit warping.
-/// Each frame is a vector of `feature_dim` dimensions.
+/// Sử dụng ràng buộc dải Sakoe-Chiba để hạn chế xoắn.
+/// Mỗi khung là một vector `feature_dim` chiều.
 fn dtw_distance(seq_a: &[Vec<f64>], seq_b: &[Vec<f64>], band_width: usize) -> f64 {
     let n = seq_a.len();
     let m = seq_b.len();
@@ -293,7 +293,7 @@ fn dtw_distance(seq_a: &[Vec<f64>], seq_b: &[Vec<f64>], band_width: usize) -> f6
         return f64::INFINITY;
     }
 
-    // Cost matrix (only need 2 rows for memory efficiency)
+    // Ma trận chi phí (chỉ cần 2 hàng cho hiệu quả bộ nhớ)
     let mut prev = vec![f64::INFINITY; m + 1];
     let mut curr = vec![f64::INFINITY; m + 1];
     prev[0] = 0.0;
@@ -316,9 +316,9 @@ fn dtw_distance(seq_a: &[Vec<f64>], seq_b: &[Vec<f64>], band_width: usize) -> f6
 
             let cost = euclidean_distance(&seq_a[i - 1], &seq_b[j - 1]);
             curr[j] = cost
-                + prev[j] // insertion
-                    .min(curr[j - 1]) // deletion
-                    .min(prev[j - 1]); // match
+                + prev[j] // chèn
+                    .min(curr[j - 1]) // xóa
+                    .min(prev[j - 1]); // khớp
         }
 
         std::mem::swap(&mut prev, &mut curr);
@@ -327,7 +327,7 @@ fn dtw_distance(seq_a: &[Vec<f64>], seq_b: &[Vec<f64>], band_width: usize) -> f6
     prev[m]
 }
 
-/// Euclidean distance between two feature vectors.
+/// Khoảng cách Euclid giữa hai vector đặc trưng.
 fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
     a.iter()
         .zip(b.iter())
@@ -337,7 +337,7 @@ fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -447,7 +447,7 @@ mod tests {
         let template = make_template("wave", GestureType::Wave, 10, 4, wave_pattern);
         classifier.add_template(template).unwrap();
 
-        // Feed the exact same pattern
+        // Nạp mẫu giống hệt
         let seq: Vec<Vec<f64>> = (0..10)
             .map(|t| (0..4).map(|d| wave_pattern(t, d)).collect())
             .collect();
@@ -457,7 +457,7 @@ mod tests {
         assert_eq!(result.gesture_type, Some(GestureType::Wave));
         assert!(
             result.distance < 1e-10,
-            "Exact match should have zero distance"
+            "Khớp chính xác phải có khoảng cách bằng 0"
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
             ))
             .unwrap();
 
-        // Feed a wave-like pattern
+        // Nạp mẫu giống vẫy
         let seq: Vec<Vec<f64>> = (0..10)
             .map(|t| (0..4).map(|d| wave_pattern(t, d) + 0.01).collect())
             .collect();
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn test_classify_no_match_high_distance() {
         let mut classifier = GestureClassifier::new(GestureConfig {
-            max_distance: 0.001, // very strict
+            max_distance: 0.001, // rất nghiêm ngặt
             ..small_config()
         });
         classifier
@@ -512,7 +512,7 @@ mod tests {
             ))
             .unwrap();
 
-        // Random-ish sequence
+        // Chuỗi ngẫu nhiên
         let seq: Vec<Vec<f64>> = (0..10)
             .map(|t| vec![t as f64 * 10.0, 0.0, 0.0, 0.0])
             .collect();
@@ -528,7 +528,7 @@ mod tests {
         let dist = dtw_distance(&seq, &seq, 3);
         assert!(
             dist < 1e-10,
-            "Identical sequences should have zero DTW distance"
+            "Chuỗi giống hệt phải có khoảng cách DTW bằng 0"
         );
     }
 
@@ -539,13 +539,13 @@ mod tests {
         let dist = dtw_distance(&a, &b, 3);
         assert!(
             dist > 0.0,
-            "Different sequences should have non-zero DTW distance"
+            "Chuỗi khác nhau phải có khoảng cách DTW khác 0"
         );
     }
 
     #[test]
     fn test_dtw_time_warped() {
-        // Same shape but different speed
+        // Cùng hình dạng nhưng tốc độ khác
         let a: Vec<Vec<f64>> = vec![vec![0.0], vec![1.0], vec![2.0], vec![3.0]];
         let b: Vec<Vec<f64>> = vec![
             vec![0.0],
@@ -557,8 +557,8 @@ mod tests {
             vec![3.0],
         ];
         let dist = dtw_distance(&a, &b, 4);
-        // DTW should be relatively small despite different lengths
-        assert!(dist < 2.0, "DTW should handle time warping, got {}", dist);
+        // DTW phải tương đối nhỏ dù độ dài khác nhau
+        assert!(dist < 2.0, "DTW phải xử lý được xoắn thời gian, nhận được {}", dist);
     }
 
     #[test]

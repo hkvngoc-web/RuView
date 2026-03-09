@@ -1,66 +1,66 @@
-//! Pre-movement intention lead signal detector.
+//! Bộ phát hiện tín hiệu dẫn trước ý định chuyển động.
 //!
-//! Detects anticipatory postural adjustments (APAs) 200-500ms before
-//! visible movement onset. Works by analyzing the trajectory of AETHER
-//! embeddings in embedding space: before a person initiates a step or
-//! reach, their weight shifts create subtle CSI changes that appear as
-//! velocity and acceleration in embedding space.
+//! Phát hiện điều chỉnh tư thế dự báo (APA) 200-500ms trước khi
+//! chuyển động bắt đầu nhìn thấy được. Hoạt động bằng cách phân tích
+//! quỹ đạo nhúng AETHER trong không gian nhúng: trước khi một người
+//! bắt đầu bước hoặc vươn tay, việc chuyển trọng lượng tạo ra thay đổi
+//! CSI tinh tế xuất hiện dưới dạng vận tốc và gia tốc trong không gian nhúng.
 //!
-//! # Algorithm
-//! 1. Maintain a rolling window of recent embeddings (2 seconds at 20 Hz)
-//! 2. Compute velocity (first derivative) and acceleration (second derivative)
-//!    in embedding space
-//! 3. Detect when acceleration exceeds a threshold while velocity is still low
-//!    (the body is loading/shifting but hasn't moved yet)
-//! 4. Output a lead signal with estimated time-to-movement
+//! # Thuật toán
+//! 1. Duy trì cửa sổ trượt của các nhúng gần đây (2 giây ở 20 Hz)
+//! 2. Tính vận tốc (đạo hàm bậc nhất) và gia tốc (đạo hàm bậc hai)
+//!    trong không gian nhúng
+//! 3. Phát hiện khi gia tốc vượt ngưỡng trong khi vận tốc vẫn thấp
+//!    (cơ thể đang nạp/chuyển nhưng chưa di chuyển)
+//! 4. Xuất tín hiệu dẫn trước với thời gian ước lượng đến chuyển động
 //!
-//! # References
-//! - ADR-030 Tier 3: Intention Lead Signals
+//! # Tài liệu tham khảo
+//! - ADR-030 Tier 3: Tín hiệu dẫn trước ý định
 //! - Massion (1992), "Movement, posture and equilibrium: Interaction
 //!   and coordination" Progress in Neurobiology
 
 use std::collections::VecDeque;
 
 // ---------------------------------------------------------------------------
-// Error types
+// Kiểu lỗi
 // ---------------------------------------------------------------------------
 
-/// Errors from intention detection operations.
+/// Các lỗi từ thao tác phát hiện ý định.
 #[derive(Debug, thiserror::Error)]
 pub enum IntentionError {
-    /// Not enough embedding history to compute derivatives.
-    #[error("Insufficient history: need >= {needed} frames, got {got}")]
+    /// Không đủ lịch sử nhúng để tính đạo hàm.
+    #[error("Không đủ lịch sử: cần >= {needed} khung, có {got}")]
     InsufficientHistory { needed: usize, got: usize },
 
-    /// Embedding dimension mismatch.
-    #[error("Embedding dimension mismatch: expected {expected}, got {got}")]
+    /// Chiều nhúng không khớp.
+    #[error("Chiều nhúng không khớp: kỳ vọng {expected}, nhận được {got}")]
     DimensionMismatch { expected: usize, got: usize },
 
-    /// Invalid configuration.
-    #[error("Invalid configuration: {0}")]
+    /// Cấu hình không hợp lệ.
+    #[error("Cấu hình không hợp lệ: {0}")]
     InvalidConfig(String),
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Cấu hình
 // ---------------------------------------------------------------------------
 
-/// Configuration for the intention detector.
+/// Cấu hình cho bộ phát hiện ý định.
 #[derive(Debug, Clone)]
 pub struct IntentionConfig {
-    /// Embedding dimension (typically 128).
+    /// Chiều nhúng (thường là 128).
     pub embedding_dim: usize,
-    /// Rolling window size in frames (2s at 20Hz = 40 frames).
+    /// Kích thước cửa sổ trượt theo khung (2 giây ở 20Hz = 40 khung).
     pub window_size: usize,
-    /// Sampling rate in Hz.
+    /// Tần số lấy mẫu tính bằng Hz.
     pub sample_rate_hz: f64,
-    /// Acceleration threshold for pre-movement detection (embedding space units/s^2).
+    /// Ngưỡng gia tốc cho phát hiện tiền chuyển động (đơn vị không gian nhúng/s^2).
     pub acceleration_threshold: f64,
-    /// Maximum velocity for a pre-movement signal (below this = still preparing).
+    /// Vận tốc tối đa cho tín hiệu tiền chuyển động (dưới mức này = vẫn đang chuẩn bị).
     pub max_pre_movement_velocity: f64,
-    /// Minimum frames of sustained acceleration to trigger a lead signal.
+    /// Số khung gia tốc duy trì tối thiểu để kích hoạt tín hiệu dẫn trước.
     pub min_sustained_frames: usize,
-    /// Lead time window: max seconds before movement that we flag.
+    /// Cửa sổ thời gian dẫn trước: số giây tối đa trước chuyển động mà ta đánh dấu.
     pub max_lead_time_s: f64,
 }
 
@@ -79,31 +79,31 @@ impl Default for IntentionConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Lead signal result
+// Kết quả tín hiệu dẫn trước
 // ---------------------------------------------------------------------------
 
-/// Pre-movement lead signal.
+/// Tín hiệu dẫn trước tiền chuyển động.
 #[derive(Debug, Clone)]
 pub struct LeadSignal {
-    /// Whether a pre-movement signal was detected.
+    /// Tín hiệu tiền chuyển động có được phát hiện hay không.
     pub detected: bool,
-    /// Confidence in the detection (0.0 to 1.0).
+    /// Độ tin cậy trong phát hiện (0.0 đến 1.0).
     pub confidence: f64,
-    /// Estimated time until movement onset (seconds).
+    /// Thời gian ước lượng đến khi chuyển động bắt đầu (giây).
     pub estimated_lead_time_s: f64,
-    /// Current velocity magnitude in embedding space.
+    /// Biên độ vận tốc hiện tại trong không gian nhúng.
     pub velocity_magnitude: f64,
-    /// Current acceleration magnitude in embedding space.
+    /// Biên độ gia tốc hiện tại trong không gian nhúng.
     pub acceleration_magnitude: f64,
-    /// Number of consecutive frames of sustained acceleration.
+    /// Số khung liên tiếp có gia tốc duy trì.
     pub sustained_frames: usize,
-    /// Timestamp (microseconds) of this detection.
+    /// Dấu thời gian (micro giây) của phát hiện này.
     pub timestamp_us: u64,
-    /// Dominant direction of acceleration (unit vector in embedding space, first 3 dims).
+    /// Hướng gia tốc chủ đạo (vector đơn vị trong không gian nhúng, 3 chiều đầu).
     pub direction_hint: [f64; 3],
 }
 
-/// Trajectory state for one frame.
+/// Trạng thái quỹ đạo cho một khung.
 #[derive(Debug, Clone)]
 struct TrajectoryPoint {
     embedding: Vec<f64>,
@@ -111,36 +111,36 @@ struct TrajectoryPoint {
 }
 
 // ---------------------------------------------------------------------------
-// Intention detector
+// Bộ phát hiện ý định
 // ---------------------------------------------------------------------------
 
-/// Pre-movement intention lead signal detector.
+/// Bộ phát hiện tín hiệu dẫn trước ý định tiền chuyển động.
 ///
-/// Maintains a rolling window of embeddings and computes velocity
-/// and acceleration in embedding space to detect anticipatory
-/// postural adjustments before movement onset.
+/// Duy trì cửa sổ trượt của các nhúng và tính vận tốc
+/// cùng gia tốc trong không gian nhúng để phát hiện điều chỉnh
+/// tư thế dự báo trước khi chuyển động bắt đầu.
 #[derive(Debug)]
 pub struct IntentionDetector {
     config: IntentionConfig,
-    /// Rolling window of recent trajectory points.
+    /// Cửa sổ trượt các điểm quỹ đạo gần đây.
     history: VecDeque<TrajectoryPoint>,
-    /// Count of consecutive frames with pre-movement signature.
+    /// Đếm số khung liên tiếp có dấu hiệu tiền chuyển động.
     sustained_count: usize,
-    /// Total frames processed.
+    /// Tổng số khung đã xử lý.
     total_frames: u64,
 }
 
 impl IntentionDetector {
-    /// Create a new intention detector.
+    /// Tạo bộ phát hiện ý định mới.
     pub fn new(config: IntentionConfig) -> Result<Self, IntentionError> {
         if config.embedding_dim == 0 {
             return Err(IntentionError::InvalidConfig(
-                "embedding_dim must be > 0".into(),
+                "embedding_dim phải > 0".into(),
             ));
         }
         if config.window_size < 3 {
             return Err(IntentionError::InvalidConfig(
-                "window_size must be >= 3 for second derivative".into(),
+                "window_size phải >= 3 cho đạo hàm bậc hai".into(),
             ));
         }
         Ok(Self {
@@ -151,10 +151,10 @@ impl IntentionDetector {
         })
     }
 
-    /// Feed a new embedding and check for pre-movement signals.
+    /// Nạp một nhúng mới và kiểm tra tín hiệu tiền chuyển động.
     ///
-    /// `embedding` is the AETHER embedding for the current frame.
-    /// Returns a lead signal result.
+    /// `embedding` là nhúng AETHER cho khung hiện tại.
+    /// Trả về kết quả tín hiệu dẫn trước.
     pub fn update(
         &mut self,
         embedding: &[f32],
@@ -169,10 +169,10 @@ impl IntentionDetector {
 
         self.total_frames += 1;
 
-        // Convert to f64 for trajectory analysis
+        // Chuyển sang f64 cho phân tích quỹ đạo
         let emb_f64: Vec<f64> = embedding.iter().map(|&x| x as f64).collect();
 
-        // Add to history
+        // Thêm vào lịch sử
         if self.history.len() >= self.config.window_size {
             self.history.pop_front();
         }
@@ -181,7 +181,7 @@ impl IntentionDetector {
             timestamp_us,
         });
 
-        // Need at least 3 points for second derivative
+        // Cần ít nhất 3 điểm cho đạo hàm bậc hai
         if self.history.len() < 3 {
             return Ok(LeadSignal {
                 detected: false,
@@ -195,11 +195,11 @@ impl IntentionDetector {
             });
         }
 
-        // Compute velocity and acceleration
+        // Tính vận tốc và gia tốc
         let n = self.history.len();
         let dt = 1.0 / self.config.sample_rate_hz;
 
-        // Velocity: (embedding[n-1] - embedding[n-2]) / dt
+        // Vận tốc: (embedding[n-1] - embedding[n-2]) / dt
         let velocity = embedding_diff(
             &self.history[n - 1].embedding,
             &self.history[n - 2].embedding,
@@ -207,8 +207,8 @@ impl IntentionDetector {
         );
         let velocity_mag = l2_norm_f64(&velocity);
 
-        // Acceleration: (velocity[n-1] - velocity[n-2]) / dt
-        // Approximate: (emb[n-1] - 2*emb[n-2] + emb[n-3]) / dt^2
+        // Gia tốc: (velocity[n-1] - velocity[n-2]) / dt
+        // Xấp xỉ: (emb[n-1] - 2*emb[n-2] + emb[n-3]) / dt^2
         let acceleration = embedding_second_diff(
             &self.history[n - 1].embedding,
             &self.history[n - 2].embedding,
@@ -217,8 +217,8 @@ impl IntentionDetector {
         );
         let accel_mag = l2_norm_f64(&acceleration);
 
-        // Pre-movement detection:
-        // High acceleration + low velocity = body is loading/shifting but hasn't moved
+        // Phát hiện tiền chuyển động:
+        // Gia tốc cao + vận tốc thấp = cơ thể đang nạp/chuyển nhưng chưa di chuyển
         let is_pre_movement = accel_mag > self.config.acceleration_threshold
             && velocity_mag < self.config.max_pre_movement_velocity;
 
@@ -230,16 +230,16 @@ impl IntentionDetector {
 
         let detected = self.sustained_count >= self.config.min_sustained_frames;
 
-        // Estimate lead time based on current acceleration and velocity
+        // Ước lượng thời gian dẫn trước dựa trên gia tốc và vận tốc hiện tại
         let estimated_lead = if detected && accel_mag > 1e-10 {
-            // Time until velocity reaches threshold: t = (v_thresh - v) / a
+            // Thời gian cho đến khi vận tốc đạt ngưỡng: t = (v_ngưỡng - v) / a
             let remaining = (self.config.max_pre_movement_velocity - velocity_mag) / accel_mag;
             remaining.clamp(0.0, self.config.max_lead_time_s)
         } else {
             0.0
         };
 
-        // Confidence based on how clearly the acceleration exceeds threshold
+        // Độ tin cậy dựa trên mức gia tốc vượt ngưỡng rõ ràng đến đâu
         let confidence = if detected {
             let ratio = accel_mag / self.config.acceleration_threshold;
             (ratio - 1.0).clamp(0.0, 1.0)
@@ -248,7 +248,7 @@ impl IntentionDetector {
             0.0
         };
 
-        // Direction hint from first 3 dimensions of acceleration
+        // Gợi ý hướng từ 3 chiều đầu của gia tốc
         let direction_hint = [
             acceleration.first().copied().unwrap_or(0.0),
             acceleration.get(1).copied().unwrap_or(0.0),
@@ -267,28 +267,28 @@ impl IntentionDetector {
         })
     }
 
-    /// Reset the detector state.
+    /// Đặt lại trạng thái bộ phát hiện.
     pub fn reset(&mut self) {
         self.history.clear();
         self.sustained_count = 0;
     }
 
-    /// Number of frames in the history.
+    /// Số khung trong lịch sử.
     pub fn history_len(&self) -> usize {
         self.history.len()
     }
 
-    /// Total frames processed.
+    /// Tổng số khung đã xử lý.
     pub fn total_frames(&self) -> u64 {
         self.total_frames
     }
 }
 
 // ---------------------------------------------------------------------------
-// Utility functions
+// Hàm tiện ích
 // ---------------------------------------------------------------------------
 
-/// First difference of two embedding vectors, divided by dt.
+/// Hiệu bậc nhất của hai vector nhúng, chia cho dt.
 fn embedding_diff(a: &[f64], b: &[f64], dt: f64) -> Vec<f64> {
     a.iter()
         .zip(b.iter())
@@ -296,7 +296,7 @@ fn embedding_diff(a: &[f64], b: &[f64], dt: f64) -> Vec<f64> {
         .collect()
 }
 
-/// Second difference: (a - 2b + c) / dt^2.
+/// Hiệu bậc hai: (a - 2b + c) / dt^2.
 fn embedding_second_diff(a: &[f64], b: &[f64], c: &[f64], dt: f64) -> Vec<f64> {
     let dt2 = dt * dt;
     a.iter()
@@ -306,13 +306,13 @@ fn embedding_second_diff(a: &[f64], b: &[f64], c: &[f64], dt: f64) -> Vec<f64> {
         .collect()
 }
 
-/// L2 norm of an f64 slice.
+/// Chuẩn L2 của một lát f64.
 fn l2_norm_f64(v: &[f64]) -> f64 {
     v.iter().map(|x| x * x).sum::<f64>().sqrt()
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Kiểm thử
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -389,7 +389,7 @@ mod tests {
                 .unwrap();
             assert!(
                 !signal.detected,
-                "Static scene should not trigger detection"
+                "Cảnh tĩnh không nên kích hoạt phát hiện"
             );
         }
     }
@@ -397,18 +397,18 @@ mod tests {
     #[test]
     fn test_gradual_acceleration_detected() {
         let mut config = make_config();
-        config.acceleration_threshold = 100.0; // low threshold for test
+        config.acceleration_threshold = 100.0; // ngưỡng thấp cho kiểm thử
         config.max_pre_movement_velocity = 100000.0;
         config.min_sustained_frames = 2;
 
         let mut detector = IntentionDetector::new(config).unwrap();
 
-        // Feed gradually accelerating embeddings
-        // Position = 0.5 * a * t^2, so embedding shifts quadratically
+        // Nạp các nhúng gia tốc dần
+        // Vị trí = 0.5 * a * t^2, nên nhúng dịch theo bậc hai
         let mut any_detected = false;
         for frame in 0..30_u64 {
             let t = frame as f32 * 0.05;
-            let pos = 50.0 * t * t; // acceleration = 100 units/s^2
+            let pos = 50.0 * t * t; // gia tốc = 100 đơn vị/s^2
             let emb = vec![1.0 + pos, 0.0, 0.0, 0.0];
             let signal = detector.update(&emb, frame * 50_000).unwrap();
             if signal.detected {
@@ -417,7 +417,7 @@ mod tests {
                 assert!(signal.acceleration_magnitude > 0.0);
             }
         }
-        assert!(any_detected, "Accelerating signal should trigger detection");
+        assert!(any_detected, "Tín hiệu gia tốc phải kích hoạt phát hiện");
     }
 
     #[test]
@@ -425,14 +425,14 @@ mod tests {
         let config = make_config();
         let mut detector = IntentionDetector::new(config).unwrap();
 
-        // Constant velocity = zero acceleration → no pre-movement
+        // Vận tốc không đổi = gia tốc bằng 0 → không có tiền chuyển động
         for frame in 0..20_u64 {
-            let pos = frame as f32 * 0.01; // constant velocity
+            let pos = frame as f32 * 0.01; // vận tốc không đổi
             let emb = vec![1.0 + pos, 0.0, 0.0, 0.0];
             let signal = detector.update(&emb, frame * 50_000).unwrap();
             assert!(
                 !signal.detected,
-                "Constant velocity should not trigger pre-movement"
+                "Vận tốc không đổi không nên kích hoạt tiền chuyển động"
             );
         }
     }
@@ -458,7 +458,7 @@ mod tests {
         let config = make_config();
         let mut detector = IntentionDetector::new(config).unwrap();
 
-        // Need at least 3 frames for derivatives
+        // Cần ít nhất 3 khung cho đạo hàm
         for frame in 0..3_u64 {
             let signal = detector
                 .update(&static_embedding(), frame * 50_000)
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_embedding_second_diff() {
-        // Quadratic sequence: 1, 4, 9 → second diff = 2
+        // Chuỗi bậc hai: 1, 4, 9 → hiệu bậc hai = 2
         let a = vec![9.0];
         let b = vec![4.0];
         let c = vec![1.0];

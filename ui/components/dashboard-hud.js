@@ -1,5 +1,5 @@
-// Dashboard HUD Overlay - WiFi DensePose 3D Visualization
-// Connection status, FPS counter, detection confidence, person count, sensing mode
+// Lớp phủ HUD Bảng điều khiển - Trực quan hoá 3D WiFi DensePose
+// Trạng thái kết nối, bộ đếm FPS, độ tin cậy phát hiện, số người, chế độ cảm biến
 
 export class DashboardHUD {
   constructor(container) {
@@ -7,7 +7,7 @@ export class DashboardHUD {
       ? document.getElementById(container)
       : container;
 
-    // State
+    // Trạng thái
     this.state = {
       connectionStatus: 'disconnected', // connected, disconnected, connecting, error
       isRealData: false,
@@ -27,7 +27,7 @@ export class DashboardHUD {
   }
 
   _build() {
-    // Create HUD overlay container
+    // Tạo container lớp phủ HUD
     this.hudElement = document.createElement('div');
     this.hudElement.id = 'viz-hud';
     this.hudElement.innerHTML = `
@@ -47,7 +47,7 @@ export class DashboardHUD {
           pointer-events: none;
         }
 
-        /* Data source banner */
+        /* Banner nguồn dữ liệu */
         .hud-banner {
           position: absolute;
           top: 0;
@@ -77,7 +77,7 @@ export class DashboardHUD {
           50% { border-bottom-color: #00cc44; }
         }
 
-        /* Top-left: connection info */
+        /* Trên-trái: thông tin kết nối */
         .hud-top-left {
           position: absolute;
           top: 40px;
@@ -106,7 +106,7 @@ export class DashboardHUD {
           font-size: 12px;
         }
 
-        /* Status dot */
+        /* Chấm trạng thái */
         .hud-status-dot {
           width: 8px;
           height: 8px;
@@ -135,7 +135,7 @@ export class DashboardHUD {
           50% { opacity: 0.3; }
         }
 
-        /* Top-right: performance */
+        /* Trên-phải: hiệu suất */
         .hud-top-right {
           position: absolute;
           top: 40px;
@@ -155,7 +155,7 @@ export class DashboardHUD {
         .hud-fps.mid { color: #ffaa00; }
         .hud-fps.high { color: #00ff88; }
 
-        /* Bottom-left: detection info */
+        /* Dưới-trái: thông tin phát hiện */
         .hud-bottom-left {
           position: absolute;
           bottom: 12px;
@@ -183,7 +183,7 @@ export class DashboardHUD {
           transition: width 0.3s ease, background 0.3s ease;
         }
 
-        /* Bottom-right: sensing mode */
+        /* Dưới-phải: chế độ cảm biến */
         .hud-bottom-right {
           position: absolute;
           bottom: 12px;
@@ -217,7 +217,7 @@ export class DashboardHUD {
           color: #ffddaa;
         }
 
-        /* Corner brackets decoration */
+        /* Trang trí ngoặc góc */
         .hud-corner {
           position: absolute;
           width: 20px;
@@ -230,7 +230,7 @@ export class DashboardHUD {
         .hud-corner.bl { bottom: 4px; left: 4px; border-width: 0 0 1px 1px; }
         .hud-corner.br { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
 
-        /* Controls hint */
+        /* Gợi ý điều khiển */
         .hud-controls-hint {
           position: absolute;
           bottom: 50px;
@@ -243,52 +243,52 @@ export class DashboardHUD {
         }
       </style>
 
-      <!-- Data source banner -->
-      <div class="hud-banner mock" id="hud-banner">MOCK DATA</div>
+      <!-- Banner nguồn dữ liệu -->
+      <div class="hud-banner mock" id="hud-banner">DỮ LIỆU GIẢ LẬP</div>
 
-      <!-- Corner decorations -->
+      <!-- Trang trí góc -->
       <div class="hud-corner tl"></div>
       <div class="hud-corner tr"></div>
       <div class="hud-corner bl"></div>
       <div class="hud-corner br"></div>
 
-      <!-- Top-left: connection info -->
+      <!-- Trên-trái: thông tin kết nối -->
       <div class="hud-top-left">
         <div class="hud-row">
           <span class="hud-status-dot disconnected" id="hud-status-dot"></span>
-          <span class="hud-value" id="hud-conn-status">Disconnected</span>
+          <span class="hud-value" id="hud-conn-status">Ngắt kết nối</span>
         </div>
         <div class="hud-row">
-          <span class="hud-label">Latency</span>
+          <span class="hud-label">Độ trễ</span>
           <span class="hud-value" id="hud-latency">-- ms</span>
         </div>
         <div class="hud-row">
-          <span class="hud-label">Messages</span>
+          <span class="hud-label">Tin nhắn</span>
           <span class="hud-value" id="hud-msg-count">0</span>
         </div>
         <div class="hud-row">
-          <span class="hud-label">Uptime</span>
+          <span class="hud-label">Thời gian hoạt động</span>
           <span class="hud-value" id="hud-uptime">0s</span>
         </div>
       </div>
 
-      <!-- Top-right: FPS -->
+      <!-- Trên-phải: FPS -->
       <div class="hud-top-right">
         <div class="hud-fps high" id="hud-fps">-- FPS</div>
         <div class="hud-row">
-          <span class="hud-label">Frame</span>
+          <span class="hud-label">Khung hình</span>
           <span class="hud-value" id="hud-frame-time">-- ms</span>
         </div>
       </div>
 
-      <!-- Bottom-left: detection info -->
+      <!-- Dưới-trái: thông tin phát hiện -->
       <div class="hud-bottom-left">
         <div class="hud-row">
-          <span class="hud-label">Persons</span>
+          <span class="hud-label">Số người</span>
           <span class="hud-person-count hud-value" id="hud-person-count">0</span>
         </div>
         <div class="hud-row">
-          <span class="hud-label">Confidence</span>
+          <span class="hud-label">Độ tin cậy</span>
           <span class="hud-value" id="hud-confidence">0%</span>
         </div>
         <div class="hud-confidence-bar">
@@ -296,7 +296,7 @@ export class DashboardHUD {
         </div>
       </div>
 
-      <!-- Bottom-right: sensing mode -->
+      <!-- Dưới-phải: chế độ cảm biến -->
       <div class="hud-bottom-right">
         <div class="hud-mode-badge mock" id="hud-mode-badge">MOCK</div>
         <div class="hud-row" style="margin-top: 4px;">
@@ -304,16 +304,16 @@ export class DashboardHUD {
         </div>
       </div>
 
-      <!-- Controls hint -->
+      <!-- Gợi ý điều khiển -->
       <div class="hud-controls-hint">
-        Drag to orbit | Scroll to zoom | Right-click to pan
+        Kéo để xoay | Cuộn để phóng | Nhấp phải để dịch chuyển
       </div>
     `;
 
     this.container.style.position = 'relative';
     this.container.appendChild(this.hudElement);
 
-    // Cache DOM references
+    // Lưu cache tham chiếu DOM
     this._els = {
       banner: this.hudElement.querySelector('#hud-banner'),
       statusDot: this.hudElement.querySelector('#hud-status-dot'),
@@ -330,23 +330,23 @@ export class DashboardHUD {
     };
   }
 
-  // Update state from external data
+  // Cập nhật trạng thái từ dữ liệu bên ngoài
   updateState(newState) {
     Object.assign(this.state, newState);
     this._render();
   }
 
-  // Track FPS - call each frame
+  // Theo dõi FPS - gọi mỗi khung hình
   tickFPS() {
     const now = performance.now();
     this._fpsFrames.push(now);
 
-    // Keep only last second of frames
+    // Chỉ giữ khung hình trong giây cuối
     while (this._fpsFrames.length > 0 && this._fpsFrames[0] < now - 1000) {
       this._fpsFrames.shift();
     }
 
-    // Update FPS display at most 4 times per second
+    // Cập nhật hiển thị FPS tối đa 4 lần mỗi giây
     if (now - this._lastFpsUpdate > 250) {
       this.state.fps = this._fpsFrames.length;
       const frameTime = this._fpsFrames.length > 1
@@ -354,7 +354,7 @@ export class DashboardHUD {
         : 0;
       this._lastFpsUpdate = now;
 
-      // Update FPS elements
+      // Cập nhật phần tử FPS
       this._els.fps.textContent = `${this.state.fps} FPS`;
       this._els.fps.className = 'hud-fps ' + (
         this.state.fps >= 50 ? 'high' : this.state.fps >= 25 ? 'mid' : 'low'
@@ -368,30 +368,30 @@ export class DashboardHUD {
 
     // Banner
     if (state.isRealData) {
-      this._els.banner.textContent = 'REAL DATA - LIVE STREAM';
+      this._els.banner.textContent = 'DỮ LIỆU THỰC - LUỒNG TRỰC TIẾP';
       this._els.banner.className = 'hud-banner real';
     } else {
-      this._els.banner.textContent = 'MOCK DATA - DEMO MODE';
+      this._els.banner.textContent = 'DỮ LIỆU GIẢ LẬP - CHẾ ĐỘ DEMO';
       this._els.banner.className = 'hud-banner mock';
     }
 
-    // Connection status
+    // Trạng thái kết nối
     this._els.statusDot.className = `hud-status-dot ${state.connectionStatus}`;
     const statusText = {
-      connected: 'Connected',
-      disconnected: 'Disconnected',
-      connecting: 'Connecting...',
-      error: 'Error'
+      connected: 'Đã kết nối',
+      disconnected: 'Ngắt kết nối',
+      connecting: 'Đang kết nối...',
+      error: 'Lỗi'
     };
-    this._els.connStatus.textContent = statusText[state.connectionStatus] || 'Unknown';
+    this._els.connStatus.textContent = statusText[state.connectionStatus] || 'Không xác định';
 
-    // Latency
+    // Độ trễ
     this._els.latency.textContent = state.latency > 0 ? `${state.latency.toFixed(0)} ms` : '-- ms';
 
-    // Messages
+    // Tin nhắn
     this._els.msgCount.textContent = state.messageCount.toLocaleString();
 
-    // Uptime
+    // Thời gian hoạt động
     const uptimeSec = Math.floor(state.uptime);
     if (uptimeSec < 60) {
       this._els.uptime.textContent = `${uptimeSec}s`;
@@ -403,19 +403,19 @@ export class DashboardHUD {
       this._els.uptime.textContent = `${h}h ${m}m`;
     }
 
-    // Person count
+    // Số người
     this._els.personCount.textContent = state.personCount;
     this._els.personCount.style.color = state.personCount > 0 ? '#00ff88' : '#556677';
 
-    // Confidence
+    // Độ tin cậy
     const confPct = (state.confidence * 100).toFixed(1);
     this._els.confidence.textContent = `${confPct}%`;
     this._els.confidenceFill.style.width = `${state.confidence * 100}%`;
-    // Color temperature: red (low) -> yellow (mid) -> green (high)
+    // Nhiệt màu: đỏ (thấp) -> vàng (trung bình) -> xanh (cao)
     const confHue = state.confidence * 120; // 0=red, 60=yellow, 120=green
     this._els.confidenceFill.style.background = `hsl(${confHue}, 100%, 45%)`;
 
-    // Sensing mode
+    // Chế độ cảm biến
     const modeLower = (state.sensingMode || 'Mock').toLowerCase();
     this._els.modeBadge.textContent = state.sensingMode.toUpperCase();
     this._els.modeBadge.className = `hud-mode-badge ${modeLower}`;
