@@ -1,4 +1,4 @@
-// WebSocket Service for WiFi-DensePose UI
+// Dịch vụ WebSocket cho Giao diện WiFi-DensePose
 
 import { API_CONFIG, buildWsUrl } from '../config/api.config.js';
 import { backendDetector } from '../utils/backend-detector.js';
@@ -11,12 +11,12 @@ export class WebSocketService {
     this.connectionStateCallbacks = new Map();
     this.logger = this.createLogger();
     
-    // Configuration
+    // Cấu hình
     this.config = {
-      heartbeatInterval: 30000, // 30 seconds
-      connectionTimeout: 10000, // 10 seconds
+      heartbeatInterval: 30000, // 30 giây
+      connectionTimeout: 10000, // 10 giây
       maxReconnectAttempts: 10,
-      reconnectDelays: [1000, 2000, 4000, 8000, 16000, 30000], // Exponential backoff with max 30s
+      reconnectDelays: [1000, 2000, 4000, 8000, 16000, 30000], // Backoff hàm mũ, tối đa 30 giây
       enableDebugLogging: true
     };
   }
@@ -34,31 +34,31 @@ export class WebSocketService {
     };
   }
 
-  // Connect to WebSocket endpoint
+  // Kết nối đến endpoint WebSocket
   async connect(endpoint, params = {}, handlers = {}) {
     this.logger.debug('Attempting to connect to WebSocket', { endpoint, params });
     
-    // Determine if we should use mock WebSockets
+    // Xác định xem có nên dùng WebSocket giả lập không
     const useMock = await backendDetector.shouldUseMockServer();
     
     let url;
     if (useMock) {
-      // Use mock WebSocket URL (served from same origin as UI)
+      // Dùng URL WebSocket giả lập (phục vụ cùng origin với UI)
       url = buildWsUrl(endpoint, params).replace('localhost:8000', window.location.host);
       this.logger.info('Using mock WebSocket server', { url });
     } else {
-      // Use real backend WebSocket URL
+      // Dùng URL WebSocket backend thật
       url = buildWsUrl(endpoint, params);
       this.logger.info('Using real backend WebSocket server', { url });
     }
     
-    // Check if already connected
+    // Kiểm tra xem đã kết nối chưa
     if (this.connections.has(url)) {
       this.logger.warn(`Already connected to ${url}`);
       return this.connections.get(url).id;
     }
 
-    // Create connection data structure first
+    // Tạo cấu trúc dữ liệu kết nối trước
     const connectionId = this.generateId();
     const connectionData = {
       id: connectionId,
@@ -79,11 +79,11 @@ export class WebSocketService {
     this.connections.set(url, connectionData);
 
     try {
-      // Create WebSocket connection with timeout
+      // Tạo kết nối WebSocket với timeout
       const ws = await this.createWebSocketWithTimeout(url);
       connectionData.ws = ws;
 
-      // Set up event handlers (replaces onopen/onmessage/etc.)
+      // Thiết lập trình xử lý sự kiện (thay thế onopen/onmessage/etc.)
       this.setupEventHandlers(url, ws, handlers);
 
       // The WebSocket is already open at this point (createWebSocketWithTimeout
@@ -101,7 +101,7 @@ export class WebSocketService {
         }
       }
 
-      // Start heartbeat
+      // Bắt đầu heartbeat
       this.startHeartbeat(url);
 
       this.logger.info('WebSocket connection initiated', { connectionId, url });
@@ -134,7 +134,7 @@ export class WebSocketService {
     });
   }
 
-  // Set up WebSocket event handlers
+  // Thiết lập trình xử lý sự kiện WebSocket
   setupEventHandlers(url, ws, handlers) {
     const connection = this.connections.get(url);
 
@@ -166,7 +166,7 @@ export class WebSocketService {
       try {
         const data = JSON.parse(event.data);
         
-        // Handle different message types
+        // Xử lý các loại tin nhắn khác nhau
         this.handleMessage(url, data);
         
         if (handlers.onMessage) {
@@ -213,7 +213,7 @@ export class WebSocketService {
       
       connection.status = 'closed';
       
-      // Clear timers
+      // Xoá bộ đếm giờ
       this.clearConnectionTimers(url);
       
       this.notifyConnectionState(url, 'closed', event);
@@ -226,7 +226,7 @@ export class WebSocketService {
         }
       }
       
-      // Attempt reconnection if not intentionally closed
+      // Thử kết nối lại nếu không phải đóng có chủ đích
       if (!wasClean && this.shouldReconnect(url)) {
         this.scheduleReconnect(url);
       } else {
@@ -235,31 +235,31 @@ export class WebSocketService {
     };
   }
 
-  // Handle incoming messages
+  // Xử lý tin nhắn đến
   handleMessage(url, data) {
     const { type, payload } = data;
 
-    // Handle system messages
+    // Xử lý tin nhắn hệ thống
     switch (type) {
       case 'pong':
         this.handlePong(url);
         break;
       
       case 'connection_established':
-        console.log('Connection established:', payload);
+        console.log('Đã thiết lập kết nối:', payload);
         break;
       
       case 'error':
-        console.error('WebSocket error message:', payload);
+        console.error('Tin nhắn lỗi WebSocket:', payload);
         break;
     }
 
-    // Call registered message handlers
+    // Gọi các trình xử lý tin nhắn đã đăng ký
     const handlers = this.messageHandlers.get(url) || [];
     handlers.forEach(handler => handler(data));
   }
 
-  // Send message through WebSocket
+  // Gửi tin nhắn qua WebSocket
   send(connectionId, message) {
     const connection = this.findConnectionById(connectionId);
     
@@ -278,7 +278,7 @@ export class WebSocketService {
     connection.ws.send(data);
   }
 
-  // Send command message
+  // Gửi tin nhắn lệnh
   sendCommand(connectionId, command, payload = {}) {
     this.send(connectionId, {
       type: command,
@@ -287,7 +287,7 @@ export class WebSocketService {
     });
   }
 
-  // Register message handler
+  // Đăng ký trình xử lý tin nhắn
   onMessage(connectionId, handler) {
     const connection = this.findConnectionById(connectionId);
     
@@ -301,7 +301,7 @@ export class WebSocketService {
 
     this.messageHandlers.get(connection.url).push(handler);
 
-    // Return unsubscribe function
+    // Trả về hàm huỷ đăng ký
     return () => {
       const handlers = this.messageHandlers.get(connection.url);
       const index = handlers.indexOf(handler);
@@ -311,7 +311,7 @@ export class WebSocketService {
     };
   }
 
-  // Disconnect WebSocket
+  // Ngắt kết nối WebSocket
   disconnect(connectionId) {
     const connection = this.findConnectionById(connectionId);
     
@@ -319,35 +319,35 @@ export class WebSocketService {
       return;
     }
 
-    // Clear reconnection timer
+    // Xoá bộ đếm kết nối lại
     if (connection.reconnectTimer) {
       clearTimeout(connection.reconnectTimer);
     }
 
-    // Clear heartbeat timer
+    // Xoá bộ đếm heartbeat
     if (connection.heartbeatTimer) {
       clearInterval(connection.heartbeatTimer);
       connection.heartbeatTimer = null;
     }
 
-    // Close WebSocket
+    // Đóng WebSocket
     if (connection.ws.readyState === WebSocket.OPEN) {
       connection.ws.close(1000, 'Client disconnect');
     }
 
-    // Clean up
+    // Dọn dẹp
     this.connections.delete(connection.url);
     this.messageHandlers.delete(connection.url);
     this.reconnectAttempts.delete(connection.url);
   }
 
-  // Disconnect all WebSockets
+  // Ngắt kết nối tất cả WebSocket
   disconnectAll() {
     const connectionIds = Array.from(this.connections.values()).map(c => c.id);
     connectionIds.forEach(id => this.disconnect(id));
   }
 
-  // Heartbeat handling (replaces ping/pong)
+  // Xử lý heartbeat (thay thế ping/pong)
   startHeartbeat(url) {
     const connection = this.connections.get(url);
     if (!connection) {
@@ -382,7 +382,7 @@ export class WebSocketService {
       this.logger.debug('Heartbeat sent', { url, timestamp: connection.lastPing });
     } catch (error) {
       this.logger.error('Failed to send heartbeat', { url, error: error.message });
-      // Heartbeat failure indicates connection issues
+      // Heartbeat thất bại cho thấy có vấn đề kết nối
       if (connection.ws.readyState !== WebSocket.OPEN) {
         this.logger.warn('Heartbeat failed - connection not open', { url, readyState: connection.ws.readyState });
       }
@@ -395,12 +395,12 @@ export class WebSocketService {
       const latency = Date.now() - connection.lastPing;
       this.logger.debug('Pong received', { url, latency });
       
-      // Update connection health metrics
+      // Cập nhật chỉ số sức khoẻ kết nối
       connection.lastActivity = Date.now();
     }
   }
 
-  // Reconnection logic
+  // Logic kết nối lại
   shouldReconnect(url) {
     const attempts = this.reconnectAttempts.get(url) || 0;
     const maxAttempts = this.config.maxReconnectAttempts;
@@ -430,19 +430,19 @@ export class WebSocketService {
       this.reconnectAttempts.set(url, attempts + 1);
       
       try {
-        // Get original parameters
+        // Lấy tham số gốc
         const urlObj = new URL(url);
         const params = Object.fromEntries(urlObj.searchParams);
         const endpoint = urlObj.pathname;
         
         this.logger.debug('Attempting reconnection', { url, endpoint, params });
         
-        // Attempt reconnection
+        // Thử kết nối lại
         await this.connect(endpoint, params, connection.handlers);
       } catch (error) {
         this.logger.error('Reconnection failed', { url, error: error.message });
         
-        // Schedule next reconnect if we haven't exceeded max attempts
+        // Lên lịch kết nối lại tiếp theo nếu chưa vượt quá số lần tối đa
         if (this.shouldReconnect(url)) {
           this.scheduleReconnect(url);
         } else {
@@ -453,7 +453,7 @@ export class WebSocketService {
     }, delay);
   }
 
-  // Connection state management
+  // Quản lý trạng thái kết nối
   notifyConnectionState(url, state, data = null) {
     this.logger.debug('Connection state changed', { url, state });
     
@@ -479,7 +479,7 @@ export class WebSocketService {
 
     this.connectionStateCallbacks.get(connection.url).push(callback);
 
-    // Return unsubscribe function
+    // Trả về hàm huỷ đăng ký
     return () => {
       const callbacks = this.connectionStateCallbacks.get(connection.url);
       const index = callbacks.indexOf(callback);
@@ -489,7 +489,7 @@ export class WebSocketService {
     };
   }
 
-  // Timer management
+  // Quản lý bộ đếm giờ
   clearConnectionTimers(url) {
     const connection = this.connections.get(url);
     if (!connection) return;
@@ -520,7 +520,7 @@ export class WebSocketService {
     this.connectionStateCallbacks.delete(url);
   }
 
-  // Utility methods
+  // Phương thức tiện ích
   findConnectionById(connectionId) {
     for (const connection of this.connections.values()) {
       if (connection.id === connectionId) {
@@ -571,7 +571,7 @@ export class WebSocketService {
     };
   }
 
-  // Debug utilities
+  // Tiện ích gỡ lỗi
   enableDebugLogging() {
     this.config.enableDebugLogging = true;
     this.logger.info('Debug logging enabled');
@@ -590,7 +590,7 @@ export class WebSocketService {
     };
   }
 
-  // Force reconnection for testing
+  // Ép kết nối lại để kiểm thử
   forceReconnect(connectionId) {
     const connection = this.findConnectionById(connectionId);
     if (!connection) {
@@ -599,12 +599,12 @@ export class WebSocketService {
 
     this.logger.info('Forcing reconnection', { connectionId, url: connection.url });
     
-    // Close current connection to trigger reconnect
+    // Đóng kết nối hiện tại để kích hoạt kết nối lại
     if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
       connection.ws.close(1000, 'Force reconnect');
     }
   }
 }
 
-// Create singleton instance
+// Tạo thể hiện singleton
 export const wsService = new WebSocketService();

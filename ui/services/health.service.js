@@ -1,4 +1,4 @@
-// Health Service for WiFi-DensePose UI
+// Dịch vụ Sức khoẻ cho Giao diện WiFi-DensePose
 
 import { API_CONFIG } from '../config/api.config.js';
 import { apiService } from './api.service.js';
@@ -10,7 +10,7 @@ export class HealthService {
     this.lastHealthStatus = null;
   }
 
-  // Get system health
+  // Lấy sức khoẻ hệ thống
   async getSystemHealth() {
     const health = await apiService.get(API_CONFIG.ENDPOINTS.HEALTH.SYSTEM);
     this.lastHealthStatus = health;
@@ -18,50 +18,50 @@ export class HealthService {
     return health;
   }
 
-  // Check readiness
+  // Kiểm tra sẵn sàng
   async checkReadiness() {
     return apiService.get(API_CONFIG.ENDPOINTS.HEALTH.READY);
   }
 
-  // Check liveness
+  // Kiểm tra hoạt động
   async checkLiveness() {
     return apiService.get(API_CONFIG.ENDPOINTS.HEALTH.LIVE);
   }
 
-  // Get system metrics
+  // Lấy chỉ số hệ thống
   async getSystemMetrics() {
     return apiService.get(API_CONFIG.ENDPOINTS.HEALTH.METRICS);
   }
 
-  // Get version info
+  // Lấy thông tin phiên bản
   async getVersion() {
     return apiService.get(API_CONFIG.ENDPOINTS.HEALTH.VERSION);
   }
 
-  // Get API info
+  // Lấy thông tin API
   async getApiInfo() {
     return apiService.get(API_CONFIG.ENDPOINTS.INFO);
   }
 
-  // Get API status
+  // Lấy trạng thái API
   async getApiStatus() {
     return apiService.get(API_CONFIG.ENDPOINTS.STATUS);
   }
 
-  // Start periodic health checks
+  // Bắt đầu kiểm tra sức khoẻ định kỳ
   startHealthMonitoring(intervalMs = 30000) {
     if (this.healthCheckInterval) {
-      console.warn('Health monitoring already active');
+      console.warn('Giám sát sức khoẻ đã hoạt động');
       return;
     }
 
-    // Initial check (silent on failure — DensePose API may not be running)
+    // Kiểm tra ban đầu (im lặng khi thất bại — API DensePose có thể không chạy)
     this.getSystemHealth().catch(() => {
-      // DensePose API not running — sensing-only mode, skip polling
+      // API DensePose không chạy — chế độ chỉ cảm biến, bỏ qua bỏ phiếu
       this._backendUnavailable = true;
     });
 
-    // Set up periodic checks only if backend was reachable
+    // Thiết lập kiểm tra định kỳ chỉ khi backend có thể truy cập
     this.healthCheckInterval = setInterval(() => {
       if (this._backendUnavailable) return;
       this.getSystemHealth().catch(error => {
@@ -74,7 +74,7 @@ export class HealthService {
     }, intervalMs);
   }
 
-  // Stop health monitoring
+  // Dừng giám sát sức khoẻ
   stopHealthMonitoring() {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
@@ -82,16 +82,16 @@ export class HealthService {
     }
   }
 
-  // Subscribe to health updates
+  // Đăng ký cập nhật sức khoẻ
   subscribeToHealth(callback) {
     this.healthSubscribers.push(callback);
     
-    // Send last known status if available
+    // Gửi trạng thái đã biết cuối cùng nếu có
     if (this.lastHealthStatus) {
       callback(this.lastHealthStatus);
     }
     
-    // Return unsubscribe function
+    // Trả về hàm huỷ đăng ký
     return () => {
       const index = this.healthSubscribers.indexOf(callback);
       if (index > -1) {
@@ -100,18 +100,18 @@ export class HealthService {
     };
   }
 
-  // Notify subscribers
+  // Thông báo cho người đăng ký
   notifySubscribers(health) {
     this.healthSubscribers.forEach(callback => {
       try {
         callback(health);
       } catch (error) {
-        console.error('Error in health subscriber:', error);
+        console.error('Lỗi trong người đăng ký sức khoẻ:', error);
       }
     });
   }
 
-  // Check if system is healthy
+  // Kiểm tra hệ thống có khoẻ mạnh không
   isSystemHealthy() {
     if (!this.lastHealthStatus) {
       return null;
@@ -119,7 +119,7 @@ export class HealthService {
     return this.lastHealthStatus.status === 'healthy';
   }
 
-  // Get component status
+  // Lấy trạng thái thành phần
   getComponentStatus(componentName) {
     if (!this.lastHealthStatus?.components) {
       return null;
@@ -127,7 +127,7 @@ export class HealthService {
     return this.lastHealthStatus.components[componentName];
   }
 
-  // Clean up
+  // Dọn dẹp
   dispose() {
     this.stopHealthMonitoring();
     this.healthSubscribers = [];
@@ -135,5 +135,5 @@ export class HealthService {
   }
 }
 
-// Create singleton instance
+// Tạo thể hiện singleton
 export const healthService = new HealthService();

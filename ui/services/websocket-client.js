@@ -1,14 +1,14 @@
-// WebSocket Client for Three.js Visualization - WiFi DensePose
-// Connects to ws://localhost:8000/ws/pose and manages real-time data flow
+// Máy khách WebSocket cho Trực quan hoá Three.js - WiFi DensePose
+// Kết nối đến ws://localhost:8000/ws/pose và quản lý luồng dữ liệu thời gian thực
 
 export class WebSocketClient {
   constructor(options = {}) {
     this.url = options.url || 'ws://localhost:8000/ws/pose';
     this.ws = null;
-    this.state = 'disconnected'; // disconnected, connecting, connected, error
+    this.state = 'disconnected'; // ngắt_kết_nối, đang_kết_nối, đã_kết_nối, lỗi
     this.isRealData = false;
 
-    // Reconnection settings
+    // Cài đặt kết nối lại
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = options.maxReconnectAttempts || 15;
     this.reconnectDelays = [500, 1000, 2000, 4000, 8000, 15000, 30000];
@@ -20,7 +20,7 @@ export class WebSocketClient {
     this.heartbeatFrequency = options.heartbeatFrequency || 25000;
     this.lastPong = 0;
 
-    // Metrics
+    // Chỉ số
     this.metrics = {
       messageCount: 0,
       errorCount: 0,
@@ -30,21 +30,21 @@ export class WebSocketClient {
       bytesReceived: 0
     };
 
-    // Callbacks
+    // Callback
     this._onMessage = options.onMessage || (() => {});
     this._onStateChange = options.onStateChange || (() => {});
     this._onError = options.onError || (() => {});
   }
 
-  // Attempt to connect
+  // Thử kết nối
   connect() {
     if (this.state === 'connecting' || this.state === 'connected') {
-      console.warn('[WS-VIZ] Already connected or connecting');
+      console.warn('[WS-VIZ] Đã kết nối hoặc đang kết nối');
       return;
     }
 
     this._setState('connecting');
-    console.log(`[WS-VIZ] Connecting to ${this.url}`);
+    console.log(`[WS-VIZ] Đang kết nối đến ${this.url}`);
 
     try {
       this.ws = new WebSocket(this.url);
@@ -55,10 +55,10 @@ export class WebSocketClient {
       this.ws.onerror = (event) => this._handleError(event);
       this.ws.onclose = (event) => this._handleClose(event);
 
-      // Connection timeout
+      // Timeout kết nối
       this._connectTimeout = setTimeout(() => {
         if (this.state === 'connecting') {
-          console.warn('[WS-VIZ] Connection timeout');
+          console.warn('[WS-VIZ] Hết thời gian kết nối');
           this.ws.close();
           this._setState('error');
           this._scheduleReconnect();
@@ -66,7 +66,7 @@ export class WebSocketClient {
       }, 8000);
 
     } catch (err) {
-      console.error('[WS-VIZ] Failed to create WebSocket:', err);
+      console.error('[WS-VIZ] Không thể tạo WebSocket:', err);
       this._setState('error');
       this._onError(err);
       this._scheduleReconnect();
@@ -78,7 +78,7 @@ export class WebSocketClient {
     this._clearTimers();
 
     if (this.ws) {
-      this.ws.onclose = null; // Prevent reconnect on intentional close
+      this.ws.onclose = null; // Ngăn kết nối lại khi đóng có chủ đích
       if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
         this.ws.close(1000, 'Client disconnect');
       }
@@ -87,13 +87,13 @@ export class WebSocketClient {
 
     this._setState('disconnected');
     this.isRealData = false;
-    console.log('[WS-VIZ] Disconnected');
+    console.log('[WS-VIZ] Đã ngắt kết nối');
   }
 
-  // Send a message
+  // Gửi tin nhắn
   send(data) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('[WS-VIZ] Cannot send - not connected');
+      console.warn('[WS-VIZ] Không thể gửi - chưa kết nối');
       return false;
     }
 
@@ -107,12 +107,12 @@ export class WebSocketClient {
     this.reconnectAttempts = 0;
     this.metrics.connectTime = Date.now();
     this._setState('connected');
-    console.log('[WS-VIZ] Connected successfully');
+    console.log('[WS-VIZ] Đã kết nối thành công');
 
-    // Start heartbeat
+    // Bắt đầu heartbeat
     this._startHeartbeat();
 
-    // Request initial state
+    // Yêu cầu trạng thái ban đầu
     this.send({ type: 'get_status', timestamp: Date.now() });
   }
 
@@ -126,7 +126,7 @@ export class WebSocketClient {
     try {
       const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
 
-      // Handle pong
+      // Xử lý pong
       if (data.type === 'pong') {
         this.lastPong = Date.now();
         if (data.timestamp) {
@@ -135,20 +135,20 @@ export class WebSocketClient {
         return;
       }
 
-      // Handle connection_established
+      // Xử lý connection_established
       if (data.type === 'connection_established') {
-        console.log('[WS-VIZ] Server confirmed connection:', data.payload);
+        console.log('[WS-VIZ] Máy chủ xác nhận kết nối:', data.payload);
         return;
       }
 
-      // Detect real vs mock data from metadata
+      // Phát hiện dữ liệu thật vs giả lập từ metadata
       if (data.data && data.data.metadata) {
         this.isRealData = data.data.metadata.mock_data === false && data.data.metadata.source !== 'mock';
       } else if (data.metadata) {
         this.isRealData = data.metadata.mock_data === false;
       }
 
-      // Calculate latency from message timestamp
+      // Tính độ trễ từ dấu thời gian tin nhắn
       if (data.timestamp) {
         const msgTime = new Date(data.timestamp).getTime();
         if (!isNaN(msgTime)) {
@@ -156,18 +156,18 @@ export class WebSocketClient {
         }
       }
 
-      // Forward to callback
+      // Chuyển tiếp đến callback
       this._onMessage(data);
 
     } catch (err) {
       this.metrics.errorCount++;
-      console.error('[WS-VIZ] Failed to parse message:', err);
+      console.error('[WS-VIZ] Không thể phân tích tin nhắn:', err);
     }
   }
 
   _handleError(event) {
     this.metrics.errorCount++;
-    console.error('[WS-VIZ] WebSocket error:', event);
+    console.error('[WS-VIZ] Lỗi WebSocket:', event);
     this._onError(event);
   }
 
@@ -213,7 +213,7 @@ export class WebSocketClient {
   _scheduleReconnect() {
     if (!this.autoReconnect) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[WS-VIZ] Max reconnect attempts reached');
+      console.error('[WS-VIZ] Đã đạt số lần kết nối lại tối đa');
       this._setState('error');
       return;
     }
