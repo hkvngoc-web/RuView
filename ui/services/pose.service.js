@@ -46,7 +46,7 @@ export class PoseService {
     };
   }
 
-  // Get current pose estimation
+  // Lấy ước lượng tư thế hiện tại
   async getCurrentPose(options = {}) {
     const params = {
       zone_ids: options.zoneIds?.join(','),
@@ -56,61 +56,51 @@ export class PoseService {
       include_segmentation: options.includeSegmentation
     };
 
-    // Remove undefined values
-    Object.keys(params).forEach(key => 
-      params[key] === undefined && delete params[key]
-    );
-
-    return apiService.get(API_CONFIG.ENDPOINTS.POSE.CURRENT, params);
+    // Loại bỏ giá trị undefined
   }
 
-  // Analyze pose (requires auth)
+  // Phân tích tư thế (yêu cầu xác thực)
   async analyzePose(request) {
     return apiService.post(API_CONFIG.ENDPOINTS.POSE.ANALYZE, request);
   }
 
-  // Get zone occupancy
+  // Lấy mật độ vùng
   async getZoneOccupancy(zoneId) {
     const endpoint = API_CONFIG.ENDPOINTS.POSE.ZONE_OCCUPANCY.replace('{zone_id}', zoneId);
     return apiService.get(endpoint);
   }
 
-  // Get zones summary
+  // Lấy tổng hợp các vùng
   async getZonesSummary() {
     return apiService.get(API_CONFIG.ENDPOINTS.POSE.ZONES_SUMMARY);
   }
 
-  // Get historical data (requires auth)
+  // Lấy dữ liệu lịch sử (yêu cầu xác thực)
   async getHistoricalData(request) {
     return apiService.post(API_CONFIG.ENDPOINTS.POSE.HISTORICAL, request);
   }
 
-  // Get recent activities
+  // Lấy hoạt động gần đây
   async getActivities(options = {}) {
     const params = {
       zone_id: options.zoneId,
       limit: options.limit || 50
     };
 
-    // Remove undefined values
-    Object.keys(params).forEach(key => 
-      params[key] === undefined && delete params[key]
-    );
-
-    return apiService.get(API_CONFIG.ENDPOINTS.POSE.ACTIVITIES, params);
+    // Loại bỏ giá trị undefined
   }
 
-  // Calibrate system (requires auth)
+  // Hiệu chuẩn hệ thống (yêu cầu xác thực)
   async calibrate() {
     return apiService.post(API_CONFIG.ENDPOINTS.POSE.CALIBRATE);
   }
 
-  // Get calibration status (requires auth)
+  // Lấy trạng thái hiệu chuẩn (yêu cầu xác thực)
   async getCalibrationStatus() {
     return apiService.get(API_CONFIG.ENDPOINTS.POSE.CALIBRATION_STATUS);
   }
 
-  // Get pose statistics
+  // Lấy thống kê tư thế
   async getStats(hours = 24) {
     return apiService.get(API_CONFIG.ENDPOINTS.POSE.STATS, { hours });
   }
