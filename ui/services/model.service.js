@@ -66,26 +66,26 @@ export class ModelService {
 
   async loadModel(modelId) {
     try {
-      this.logger.info('Loading model', { modelId });
+      this.logger.info('Đang tải mô hình', { modelId });
       const data = await apiService.post('/api/v1/models/load', { model_id: modelId });
       this.activeModel = { model_id: modelId };
       this.emit('model-loaded', { model_id: modelId });
       return data;
     } catch (error) {
-      this.logger.error('Failed to load model', { modelId, error: error.message });
+      this.logger.error('Không thể tải mô hình', { modelId, error: error.message });
       throw error;
     }
   }
 
   async unloadModel() {
     try {
-      this.logger.info('Unloading model');
+      this.logger.info('Đang gỡ mô hình');
       const data = await apiService.post('/api/v1/models/unload', {});
       this.activeModel = null;
       this.emit('model-unloaded', {});
       return data;
     } catch (error) {
-      this.logger.error('Failed to unload model', { error: error.message });
+      this.logger.error('Không thể gỡ mô hình', { error: error.message });
       throw error;
     }
   }
@@ -100,14 +100,14 @@ export class ModelService {
         this.activeModel = null;
         return null;
       }
-      this.logger.error('Failed to get active model', { error: error.message });
+      this.logger.error('Không thể lấy mô hình đang hoạt động', { error: error.message });
       throw error;
     }
   }
 
   async activateLoraProfile(modelId, profileName) {
     try {
-      this.logger.info('Activating LoRA profile', { modelId, profileName });
+      this.logger.info('Đang kích hoạt hồ sơ LoRA', { modelId, profileName });
       const data = await apiService.post(
         '/api/v1/models/lora/activate',
         { model_id: modelId, profile_name: profileName }
@@ -115,7 +115,7 @@ export class ModelService {
       this.emit('lora-activated', { model_id: modelId, profile: profileName });
       return data;
     } catch (error) {
-      this.logger.error('Failed to activate LoRA', { modelId, profileName, error: error.message });
+      this.logger.error('Không thể kích hoạt LoRA', { modelId, profileName, error: error.message });
       throw error;
     }
   }
