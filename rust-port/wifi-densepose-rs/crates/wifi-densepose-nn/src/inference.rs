@@ -1,7 +1,7 @@
-//! Inference engine abstraction for neural network backends.
+//! Trừu tượng hóa bộ suy luận cho các backend mạng nơ-ron.
 //!
-//! This module provides a unified interface for running inference across
-//! different backends (ONNX Runtime, tch-rs, Candle).
+//! Mô-đun này cung cấp giao diện thống nhất để chạy suy luận trên
+//! các backend khác nhau (ONNX Runtime, tch-rs, Candle).
 
 use crate::densepose::{DensePoseConfig, DensePoseOutput};
 use crate::error::{NnError, NnResult};
@@ -13,28 +13,28 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, instrument};
 
-/// Options for inference execution
+/// Tùy chọn thực thi suy luận
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceOptions {
-    /// Batch size for inference
+    /// Kích thước lô cho suy luận
     #[serde(default = "default_batch_size")]
     pub batch_size: usize,
-    /// Whether to use GPU acceleration
+    /// Có sử dụng tăng tốc GPU hay không
     #[serde(default)]
     pub use_gpu: bool,
-    /// GPU device ID (if using GPU)
+    /// ID thiết bị GPU (nếu dùng GPU)
     #[serde(default)]
     pub gpu_device_id: usize,
-    /// Number of CPU threads for inference
+    /// Số luồng CPU cho suy luận
     #[serde(default = "default_num_threads")]
     pub num_threads: usize,
-    /// Enable model optimization/fusion
+    /// Bật tối ưu/hợp nhất mô hình
     #[serde(default = "default_optimize")]
     pub optimize: bool,
-    /// Memory limit in bytes (0 = unlimited)
+    /// Giới hạn bộ nhớ tính bằng byte (0 = không giới hạn)
     #[serde(default)]
     pub memory_limit: usize,
-    /// Enable profiling
+    /// Bật phân tích hiệu năng
     #[serde(default)]
     pub profiling: bool,
 }
@@ -66,12 +66,12 @@ impl Default for InferenceOptions {
 }
 
 impl InferenceOptions {
-    /// Create options for CPU inference
+    /// Tạo tùy chọn cho suy luận CPU
     pub fn cpu() -> Self {
         Self::default()
     }
 
-    /// Create options for GPU inference
+    /// Tạo tùy chọn cho suy luận GPU
     pub fn gpu(device_id: usize) -> Self {
         Self {
             use_gpu: true,
@@ -80,52 +80,52 @@ impl InferenceOptions {
         }
     }
 
-    /// Set batch size
+    /// Đặt kích thước lô
     pub fn with_batch_size(mut self, batch_size: usize) -> Self {
         self.batch_size = batch_size;
         self
     }
 
-    /// Set number of threads
+    /// Đặt số luồng
     pub fn with_threads(mut self, num_threads: usize) -> Self {
         self.num_threads = num_threads;
         self
     }
 }
 
-/// Backend trait for different inference engines
+/// Trait backend cho các bộ suy luận khác nhau
 pub trait Backend: Send + Sync {
-    /// Get the backend name
+    /// Lấy tên backend
     fn name(&self) -> &str;
 
-    /// Check if the backend is available
+    /// Kiểm tra backend có khả dụng không
     fn is_available(&self) -> bool;
 
-    /// Get input names
+    /// Lấy tên đầu vào
     fn input_names(&self) -> Vec<String>;
 
-    /// Get output names
+    /// Lấy tên đầu ra
     fn output_names(&self) -> Vec<String>;
 
-    /// Get input shape for a given input name
+    /// Lấy hình dạng đầu vào cho tên cho trước
     fn input_shape(&self, name: &str) -> Option<TensorShape>;
 
-    /// Get output shape for a given output name
+    /// Lấy hình dạng đầu ra cho tên cho trước
     fn output_shape(&self, name: &str) -> Option<TensorShape>;
 
-    /// Run inference
+    /// Chạy suy luận
     fn run(&self, inputs: HashMap<String, Tensor>) -> NnResult<HashMap<String, Tensor>>;
 
-    /// Run inference on a single input
+    /// Chạy suy luận trên một đầu vào duy nhất
     fn run_single(&self, input: &Tensor) -> NnResult<Tensor> {
         let input_names = self.input_names();
         let output_names = self.output_names();
 
         if input_names.is_empty() {
-            return Err(NnError::inference("No input names defined"));
+            return Err(NnError::inference("Không có tên đầu vào được định nghĩa"));
         }
         if output_names.is_empty() {
-            return Err(NnError::inference("No output names defined"));
+            return Err(NnError::inference("Không có tên đầu ra được định nghĩa"));
         }
 
         let mut inputs = HashMap::new();
@@ -136,21 +136,21 @@ pub trait Backend: Send + Sync {
             .into_iter()
             .next()
             .map(|(_, v)| v)
-            .ok_or_else(|| NnError::inference("No outputs returned"))
+            .ok_or_else(|| NnError::inference("Không có đầu ra được trả về"))
     }
 
-    /// Warm up the model (optional pre-run for optimization)
+    /// Khởi động mô hình (chạy trước tùy chọn để tối ưu)
     fn warmup(&self) -> NnResult<()> {
         Ok(())
     }
 
-    /// Get memory usage in bytes
+    /// Lấy mức sử dụng bộ nhớ tính bằng byte
     fn memory_usage(&self) -> usize {
         0
     }
 }
 
-/// Mock backend for testing
+/// Backend giả lập cho kiểm thử
 #[derive(Debug)]
 pub struct MockBackend {
     name: String,
@@ -159,7 +159,7 @@ pub struct MockBackend {
 }
 
 impl MockBackend {
-    /// Create a new mock backend
+    /// Tạo backend giả lập mới
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -168,13 +168,13 @@ impl MockBackend {
         }
     }
 
-    /// Add an input definition
+    /// Thêm định nghĩa đầu vào
     pub fn with_input(mut self, name: impl Into<String>, shape: TensorShape) -> Self {
         self.input_shapes.insert(name.into(), shape);
         self
     }
 
-    /// Add an output definition
+    /// Thêm định nghĩa đầu ra
     pub fn with_output(mut self, name: impl Into<String>, shape: TensorShape) -> Self {
         self.output_shapes.insert(name.into(), shape);
         self
@@ -223,33 +223,33 @@ impl Backend for MockBackend {
     }
 }
 
-/// Unified inference engine that supports multiple backends
+/// Bộ suy luận thống nhất hỗ trợ nhiều backend
 pub struct InferenceEngine<B: Backend> {
     backend: B,
     options: InferenceOptions,
-    /// Inference statistics
+    /// Thống kê suy luận
     stats: Arc<RwLock<InferenceStats>>,
 }
 
-/// Statistics for inference performance
+/// Thống kê hiệu năng suy luận
 #[derive(Debug, Default, Clone)]
 pub struct InferenceStats {
-    /// Total number of inferences
+    /// Tổng số lần suy luận
     pub total_inferences: u64,
-    /// Total inference time in milliseconds
+    /// Tổng thời gian suy luận tính bằng mili giây
     pub total_time_ms: f64,
-    /// Average inference time
+    /// Thời gian suy luận trung bình
     pub avg_time_ms: f64,
-    /// Min inference time
+    /// Thời gian suy luận tối thiểu
     pub min_time_ms: f64,
-    /// Max inference time
+    /// Thời gian suy luận tối đa
     pub max_time_ms: f64,
-    /// Last inference time
+    /// Thời gian suy luận lần cuối
     pub last_time_ms: f64,
 }
 
 impl InferenceStats {
-    /// Record a new inference timing
+    /// Ghi nhận một lần đo thời gian suy luận mới
     pub fn record(&mut self, time_ms: f64) {
         self.total_inferences += 1;
         self.total_time_ms += time_ms;
@@ -267,7 +267,7 @@ impl InferenceStats {
 }
 
 impl<B: Backend> InferenceEngine<B> {
-    /// Create a new inference engine with a backend
+    /// Tạo bộ suy luận mới với backend
     pub fn new(backend: B, options: InferenceOptions) -> Self {
         Self {
             backend,
@@ -276,28 +276,28 @@ impl<B: Backend> InferenceEngine<B> {
         }
     }
 
-    /// Get the backend
+    /// Lấy backend
     pub fn backend(&self) -> &B {
         &self.backend
     }
 
-    /// Get the options
+    /// Lấy tùy chọn
     pub fn options(&self) -> &InferenceOptions {
         &self.options
     }
 
-    /// Check if GPU is being used
+    /// Kiểm tra có đang dùng GPU không
     pub fn uses_gpu(&self) -> bool {
         self.options.use_gpu && self.backend.is_available()
     }
 
-    /// Warm up the engine
+    /// Khởi động bộ suy luận
     pub fn warmup(&self) -> NnResult<()> {
-        info!("Warming up inference engine: {}", self.backend.name());
+        info!("Đang khởi động bộ suy luận: {}", self.backend.name());
         self.backend.warmup()
     }
 
-    /// Run inference on a single input
+    /// Chạy suy luận trên một đầu vào duy nhất
     #[instrument(skip(self, input))]
     pub fn infer(&self, input: &Tensor) -> NnResult<Tensor> {
         let start = std::time::Instant::now();
@@ -305,9 +305,9 @@ impl<B: Backend> InferenceEngine<B> {
         let result = self.backend.run_single(input)?;
 
         let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        debug!(elapsed_ms = %elapsed_ms, "Inference completed");
+        debug!(elapsed_ms = %elapsed_ms, "Suy luận hoàn tất");
 
-        // Update stats asynchronously (best effort)
+        // Cập nhật thống kê bất đồng bộ (nỗ lực tốt nhất)
         let stats = self.stats.clone();
         tokio::spawn(async move {
             let mut stats = stats.write().await;
@@ -317,7 +317,7 @@ impl<B: Backend> InferenceEngine<B> {
         Ok(result)
     }
 
-    /// Run inference with named inputs
+    /// Chạy suy luận với đầu vào có tên
     #[instrument(skip(self, inputs))]
     pub fn infer_named(&self, inputs: HashMap<String, Tensor>) -> NnResult<HashMap<String, Tensor>> {
         let start = std::time::Instant::now();
@@ -325,49 +325,49 @@ impl<B: Backend> InferenceEngine<B> {
         let result = self.backend.run(inputs)?;
 
         let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        debug!(elapsed_ms = %elapsed_ms, "Named inference completed");
+        debug!(elapsed_ms = %elapsed_ms, "Suy luận có tên hoàn tất");
 
         Ok(result)
     }
 
-    /// Run batched inference
+    /// Chạy suy luận theo lô
     pub fn infer_batch(&self, inputs: &[Tensor]) -> NnResult<Vec<Tensor>> {
         inputs.iter().map(|input| self.infer(input)).collect()
     }
 
-    /// Get inference statistics
+    /// Lấy thống kê suy luận
     pub async fn stats(&self) -> InferenceStats {
         self.stats.read().await.clone()
     }
 
-    /// Reset statistics
+    /// Đặt lại thống kê
     pub async fn reset_stats(&self) {
         let mut stats = self.stats.write().await;
         *stats = InferenceStats::default();
     }
 
-    /// Get memory usage
+    /// Lấy mức sử dụng bộ nhớ
     pub fn memory_usage(&self) -> usize {
         self.backend.memory_usage()
     }
 }
 
-/// Combined pipeline for WiFi-DensePose inference
+/// Đường ống kết hợp cho suy luận WiFi-DensePose
 pub struct WiFiDensePosePipeline<B: Backend> {
-    /// Modality translator backend
+    /// Backend bộ dịch phương thức
     translator_backend: B,
-    /// DensePose backend
+    /// Backend DensePose
     densepose_backend: B,
-    /// Translator configuration
+    /// Cấu hình bộ dịch
     translator_config: TranslatorConfig,
-    /// DensePose configuration
+    /// Cấu hình DensePose
     densepose_config: DensePoseConfig,
-    /// Inference options
+    /// Tùy chọn suy luận
     options: InferenceOptions,
 }
 
 impl<B: Backend> WiFiDensePosePipeline<B> {
-    /// Create a new pipeline
+    /// Tạo đường ống mới
     pub fn new(
         translator_backend: B,
         densepose_backend: B,
@@ -384,28 +384,28 @@ impl<B: Backend> WiFiDensePosePipeline<B> {
         }
     }
 
-    /// Run the full pipeline: CSI -> Visual Features -> DensePose
+    /// Chạy toàn bộ đường ống: CSI -> Đặc trưng thị giác -> DensePose
     #[instrument(skip(self, csi_input))]
     pub fn run(&self, csi_input: &Tensor) -> NnResult<DensePoseOutput> {
-        // Step 1: Translate CSI to visual features
+        // Bước 1: Dịch CSI sang đặc trưng thị giác
         let visual_features = self.translator_backend.run_single(csi_input)?;
 
-        // Step 2: Run DensePose on visual features
+        // Bước 2: Chạy DensePose trên đặc trưng thị giác
         let mut inputs = HashMap::new();
         inputs.insert("features".to_string(), visual_features);
 
         let outputs = self.densepose_backend.run(inputs)?;
 
-        // Extract outputs
+        // Trích xuất đầu ra
         let segmentation = outputs
             .get("segmentation")
             .cloned()
-            .ok_or_else(|| NnError::inference("Missing segmentation output"))?;
+            .ok_or_else(|| NnError::inference("Thiếu đầu ra phân đoạn"))?;
 
         let uv_coordinates = outputs
             .get("uv_coordinates")
             .cloned()
-            .ok_or_else(|| NnError::inference("Missing uv_coordinates output"))?;
+            .ok_or_else(|| NnError::inference("Thiếu đầu ra tọa độ UV"))?;
 
         Ok(DensePoseOutput {
             segmentation,
@@ -414,25 +414,25 @@ impl<B: Backend> WiFiDensePosePipeline<B> {
         })
     }
 
-    /// Get translator config
+    /// Lấy cấu hình bộ dịch
     pub fn translator_config(&self) -> &TranslatorConfig {
         &self.translator_config
     }
 
-    /// Get DensePose config
+    /// Lấy cấu hình DensePose
     pub fn densepose_config(&self) -> &DensePoseConfig {
         &self.densepose_config
     }
 }
 
-/// Builder for creating inference engines
+/// Bộ tạo cho bộ suy luận
 pub struct EngineBuilder {
     options: InferenceOptions,
     model_path: Option<String>,
 }
 
 impl EngineBuilder {
-    /// Create a new builder
+    /// Tạo bộ tạo mới
     pub fn new() -> Self {
         Self {
             options: InferenceOptions::default(),
@@ -440,44 +440,44 @@ impl EngineBuilder {
         }
     }
 
-    /// Set inference options
+    /// Đặt tùy chọn suy luận
     pub fn options(mut self, options: InferenceOptions) -> Self {
         self.options = options;
         self
     }
 
-    /// Set model path
+    /// Đặt đường dẫn mô hình
     pub fn model_path(mut self, path: impl Into<String>) -> Self {
         self.model_path = Some(path.into());
         self
     }
 
-    /// Use GPU
+    /// Sử dụng GPU
     pub fn gpu(mut self, device_id: usize) -> Self {
         self.options.use_gpu = true;
         self.options.gpu_device_id = device_id;
         self
     }
 
-    /// Use CPU
+    /// Sử dụng CPU
     pub fn cpu(mut self) -> Self {
         self.options.use_gpu = false;
         self
     }
 
-    /// Set batch size
+    /// Đặt kích thước lô
     pub fn batch_size(mut self, size: usize) -> Self {
         self.options.batch_size = size;
         self
     }
 
-    /// Set number of threads
+    /// Đặt số luồng
     pub fn threads(mut self, n: usize) -> Self {
         self.options.num_threads = n;
         self
     }
 
-    /// Build with a mock backend (for testing)
+    /// Xây dựng với backend giả lập (cho kiểm thử)
     pub fn build_mock(self) -> InferenceEngine<MockBackend> {
         let backend = MockBackend::new("mock")
             .with_input("input".to_string(), TensorShape::new(vec![1, 256, 64, 64]))
@@ -486,12 +486,12 @@ impl EngineBuilder {
         InferenceEngine::new(backend, self.options)
     }
 
-    /// Build with ONNX backend
+    /// Xây dựng với backend ONNX
     #[cfg(feature = "onnx")]
     pub fn build_onnx(self) -> NnResult<InferenceEngine<crate::onnx::OnnxBackend>> {
         let model_path = self
             .model_path
-            .ok_or_else(|| NnError::config("Model path required for ONNX backend"))?;
+            .ok_or_else(|| NnError::config("Cần đường dẫn mô hình cho backend ONNX"))?;
 
         let backend = crate::onnx::OnnxBackend::from_file(&model_path)?;
         Ok(InferenceEngine::new(backend, self.options))

@@ -1,44 +1,44 @@
 #!/usr/bin/env python3
 """
-Deterministic Reference CSI Signal Generator for WiFi-DensePose Proof Bundle.
+Bộ Tạo Tín Hiệu CSI Tham Chiếu Xác Định cho Gói Bằng Chứng WiFi-DensePose.
 
-This script generates a SYNTHETIC, DETERMINISTIC CSI (Channel State Information)
-reference signal for pipeline verification. It is NOT a real WiFi capture.
+Script này tạo một tín hiệu CSI (Thông tin Trạng thái Kênh) tham chiếu
+TỔ HỢP, XÁC ĐỊNH để xác minh đường ống. Đây KHÔNG phải bản ghi WiFi thực.
 
-The signal models a 3-antenna, 56-subcarrier WiFi system with:
-  - Human breathing modulation at 0.3 Hz
-  - Walking motion modulation at 1.2 Hz
-  - Structured (deterministic) multipath propagation with known delays
-  - 10 seconds of data at 100 Hz sampling rate (1000 frames total)
+Tín hiệu mô phỏng hệ thống WiFi 3 ăng-ten, 56 sóng mang con với:
+  - Điều chế hơi thở con người tại 0.3 Hz
+  - Điều chế chuyển động đi bộ tại 1.2 Hz
+  - Truyền đa đường xác định (có cấu trúc) với độ trễ đã biết
+  - 10 giây dữ liệu ở tần số lấy mẫu 100 Hz (tổng cộng 1000 khung hình)
 
-Generation Formula
-==================
+Công Thức Tạo Tín Hiệu
+========================
 
-For each frame t (t = 0..999) at time s = t / 100.0:
+Cho mỗi khung hình t (t = 0..999) tại thời điểm s = t / 100.0:
 
-  CSI[antenna_a, subcarrier_k] = sum over P paths of:
+  CSI[ăng_ten_a, sóng_mang_con_k] = tổng trên P đường dẫn của:
       A_p * exp(j * (2*pi*f_k*tau_p + phi_p,a))
-      * (1 + alpha_breathe * sin(2*pi * 0.3 * s + psi_breathe_a))
-      * (1 + alpha_walk   * sin(2*pi * 1.2 * s + psi_walk_a))
+      * (1 + alpha_hơi_thở * sin(2*pi * 0.3 * s + psi_hơi_thở_a))
+      * (1 + alpha_đi_bộ   * sin(2*pi * 1.2 * s + psi_đi_bộ_a))
 
-Where:
-  - f_k = center_freq + (k - 28) * subcarrier_spacing  [subcarrier frequency]
-  - tau_p = deterministic path delay for path p
-  - A_p = deterministic path amplitude for path p
-  - phi_p,a = deterministic phase offset per path per antenna
-  - alpha_breathe = 0.02 (breathing modulation depth)
-  - alpha_walk = 0.08 (walking modulation depth)
-  - psi_breathe_a, psi_walk_a = deterministic per-antenna phase offsets
+Trong đó:
+  - f_k = tần_số_trung_tâm + (k - 28) * khoảng_cách_sóng_mang_con  [tần số sóng mang con]
+  - tau_p = độ trễ đường dẫn xác định cho đường dẫn p
+  - A_p = biên độ đường dẫn xác định cho đường dẫn p
+  - phi_p,a = độ lệch pha xác định theo đường dẫn theo ăng-ten
+  - alpha_hơi_thở = 0.02 (độ sâu điều chế hơi thở)
+  - alpha_đi_bộ = 0.08 (độ sâu điều chế đi bộ)
+  - psi_hơi_thở_a, psi_đi_bộ_a = độ lệch pha xác định theo ăng-ten
 
-All parameters are computed from numpy with seed=42. No randomness is used
-at generation time -- the seed is used ONLY to select fixed parameter values
-once, which are then documented in the metadata file.
+Tất cả tham số được tính từ numpy với seed=42. Không sử dụng tính ngẫu nhiên
+tại thời điểm tạo -- seed CHỈ được dùng để chọn giá trị tham số cố định
+một lần, sau đó được ghi lại trong tệp siêu dữ liệu.
 
-Output:
-  - sample_csi_data.json: All 1000 CSI frames with amplitude and phase arrays
-  - sample_csi_meta.json: Complete parameter documentation
+Đầu ra:
+  - sample_csi_data.json: Tất cả 1000 khung hình CSI với mảng biên độ và pha
+  - sample_csi_meta.json: Tài liệu tham số đầy đủ
 
-Author: WiFi-DensePose Project (synthetic test data)
+Tác giả: Dự án WiFi-DensePose (dữ liệu kiểm thử tổ hợp)
 """
 
 import json
@@ -49,41 +49,41 @@ import numpy as np
 
 
 def generate_deterministic_parameters():
-    """Generate all fixed parameters using seed=42.
+    """Tạo tất cả tham số cố định sử dụng seed=42.
 
-    These parameters define the multipath channel model and human motion
-    modulation. Once generated, they are constants -- no further randomness
-    is used.
+    Các tham số này xác định mô hình kênh đa đường và điều chế
+    chuyển động con người. Sau khi tạo, chúng là hằng số -- không
+    sử dụng thêm tính ngẫu nhiên nào.
 
     Returns:
-        dict: All channel and motion parameters.
+        dict: Tất cả tham số kênh và chuyển động.
     """
     rng = np.random.RandomState(42)
 
-    # System parameters (fixed by design, not random)
+    # Tham số hệ thống (cố định theo thiết kế, không ngẫu nhiên)
     num_antennas = 3
     num_subcarriers = 56
     sampling_rate_hz = 100
     duration_s = 10.0
-    center_freq_hz = 5.21e9  # WiFi 5 GHz channel 42
-    subcarrier_spacing_hz = 312.5e3  # Standard 802.11n/ac
+    center_freq_hz = 5.21e9  # Kênh WiFi 5 GHz số 42
+    subcarrier_spacing_hz = 312.5e3  # Chuẩn 802.11n/ac
 
-    # Multipath channel: 5 deterministic paths
+    # Kênh đa đường: 5 đường dẫn xác định
     num_paths = 5
-    # Path delays in nanoseconds (typical indoor)
+    # Độ trễ đường dẫn tính bằng nano giây (điển hình trong nhà)
     path_delays_ns = np.array([0.0, 15.0, 42.0, 78.0, 120.0])
-    # Path amplitudes (linear scale, decreasing with delay)
+    # Biên độ đường dẫn (thang tuyến tính, giảm theo độ trễ)
     path_amplitudes = np.array([1.0, 0.6, 0.35, 0.18, 0.08])
-    # Phase offsets per path per antenna (from seed=42, then fixed)
+    # Độ lệch pha theo đường dẫn theo ăng-ten (từ seed=42, sau đó cố định)
     path_phase_offsets = rng.uniform(-np.pi, np.pi, size=(num_paths, num_antennas))
 
-    # Human motion modulation parameters
+    # Tham số điều chế chuyển động con người
     breathing_freq_hz = 0.3
     walking_freq_hz = 1.2
-    breathing_depth = 0.02  # 2% amplitude modulation
-    walking_depth = 0.08    # 8% amplitude modulation
+    breathing_depth = 0.02  # Điều chế biên độ 2%
+    walking_depth = 0.08    # Điều chế biên độ 8%
 
-    # Per-antenna phase offsets for motion signals (from seed=42, then fixed)
+    # Độ lệch pha theo ăng-ten cho tín hiệu chuyển động (từ seed=42, sau đó cố định)
     breathing_phase_offsets = rng.uniform(0, 2 * np.pi, size=num_antennas)
     walking_phase_offsets = rng.uniform(0, 2 * np.pi, size=num_antennas)
 
@@ -108,14 +108,14 @@ def generate_deterministic_parameters():
 
 
 def generate_csi_frames(params):
-    """Generate all CSI frames deterministically from the given parameters.
+    """Tạo tất cả khung hình CSI một cách xác định từ các tham số đã cho.
 
     Args:
-        params: Dictionary of channel/motion parameters.
+        params: Dict các tham số kênh/chuyển động.
 
     Returns:
-        list: List of dicts, each containing amplitude and phase arrays
-              for one frame, plus timestamp.
+        list: Danh sách các dict, mỗi dict chứa mảng biên độ và pha
+              cho một khung hình, cùng dấu thời gian.
     """
     num_antennas = params["num_antennas"]
     num_subcarriers = params["num_subcarriers"]
@@ -136,22 +136,22 @@ def generate_csi_frames(params):
 
     num_frames = int(duration * sampling_rate)
 
-    # Precompute subcarrier frequencies relative to center
+    # Tính trước tần số sóng mang con so với trung tâm
     k_indices = np.arange(num_subcarriers) - num_subcarriers // 2
     subcarrier_freqs = center_freq + k_indices * subcarrier_spacing
 
-    # Convert path delays to seconds
+    # Chuyển đổi độ trễ đường dẫn sang giây
     path_delays_s = path_delays_ns * 1e-9
 
     frames = []
     for frame_idx in range(num_frames):
         t = frame_idx / sampling_rate
 
-        # Build complex CSI matrix: (num_antennas, num_subcarriers)
+        # Xây dựng ma trận CSI phức: (num_antennas, num_subcarriers)
         csi_complex = np.zeros((num_antennas, num_subcarriers), dtype=complex)
 
         for a in range(num_antennas):
-            # Human motion modulation for this antenna at this time
+            # Điều chế chuyển động con người cho ăng-ten này tại thời điểm này
             breathing_mod = 1.0 + breathing_depth * np.sin(
                 2.0 * np.pi * breathing_freq * t + breathing_phase[a]
             )
@@ -161,17 +161,17 @@ def generate_csi_frames(params):
             motion_factor = breathing_mod * walking_mod
 
             for p in range(num_paths):
-                # Phase shift from path delay across subcarriers
+                # Dịch pha từ độ trễ đường dẫn qua các sóng mang con
                 phase_from_delay = 2.0 * np.pi * subcarrier_freqs * path_delays_s[p]
-                # Add per-path per-antenna offset
+                # Cộng thêm độ lệch theo đường dẫn theo ăng-ten
                 total_phase = phase_from_delay + path_phase_offsets[p, a]
-                # Accumulate path contribution
+                # Tích lũy đóng góp đường dẫn
                 csi_complex[a, :] += (
                     path_amplitudes[p] * motion_factor * np.exp(1j * total_phase)
                 )
 
         amplitude = np.abs(csi_complex)
-        phase = np.angle(csi_complex)  # in [-pi, pi]
+        phase = np.angle(csi_complex)  # trong [-pi, pi]
 
         frames.append({
             "frame_index": frame_idx,
@@ -184,19 +184,19 @@ def generate_csi_frames(params):
 
 
 def save_data(frames, params, output_dir):
-    """Save CSI frames and metadata to JSON files.
+    """Lưu các khung hình CSI và siêu dữ liệu vào tệp JSON.
 
     Args:
-        frames: List of CSI frame dicts.
-        params: Generation parameters.
-        output_dir: Directory to write output files.
+        frames: Danh sách các dict khung hình CSI.
+        params: Tham số tạo tín hiệu.
+        output_dir: Thư mục ghi tệp đầu ra.
     """
-    # Save CSI data
+    # Lưu dữ liệu CSI
     csi_data = {
         "description": (
-            "SYNTHETIC deterministic CSI reference signal for pipeline verification. "
-            "This is NOT a real WiFi capture. Generated mathematically with known "
-            "parameters for reproducibility testing."
+            "Tín hiệu CSI tham chiếu xác định TỔ HỢP để xác minh đường ống. "
+            "Đây KHÔNG phải bản ghi WiFi thực. Được tạo toán học với các tham số "
+            "đã biết cho mục đích kiểm thử tính tái tạo."
         ),
         "generator": "generate_reference_signal.py",
         "generator_version": "1.0.0",
@@ -213,14 +213,14 @@ def save_data(frames, params, output_dir):
     data_path = os.path.join(output_dir, "sample_csi_data.json")
     with open(data_path, "w") as f:
         json.dump(csi_data, f, indent=2)
-    print(f"Wrote {len(frames)} frames to {data_path}")
+    print(f"Đã ghi {len(frames)} khung hình vào {data_path}")
 
-    # Save metadata
+    # Lưu siêu dữ liệu
     meta = {
         "description": (
-            "Metadata for the SYNTHETIC deterministic CSI reference signal. "
-            "Documents all generation parameters so the signal can be independently "
-            "reproduced and verified."
+            "Siêu dữ liệu cho tín hiệu CSI tham chiếu xác định TỔ HỢP. "
+            "Ghi lại tất cả tham số tạo tín hiệu để có thể tái tạo "
+            "và xác minh độc lập."
         ),
         "is_synthetic": True,
         "is_real_capture": False,
@@ -241,8 +241,8 @@ def save_data(frames, params, output_dir):
             "path_amplitudes": params["path_amplitudes"].tolist(),
             "path_phase_offsets_rad": params["path_phase_offsets"].tolist(),
             "description": (
-                "5-path indoor multipath model with deterministic delays and "
-                "amplitudes. Path amplitudes decrease with delay (typical indoor)."
+                "Mô hình đa đường trong nhà 5 đường dẫn với độ trễ và "
+                "biên độ xác định. Biên độ đường dẫn giảm theo độ trễ (điển hình trong nhà)."
             ),
         },
         "human_motion_signals": {
@@ -251,8 +251,8 @@ def save_data(frames, params, output_dir):
                 "modulation_depth": params["breathing_depth"],
                 "per_antenna_phase_offsets_rad": params["breathing_phase_offsets"].tolist(),
                 "description": (
-                    "Sinusoidal amplitude modulation at 0.3 Hz modeling human "
-                    "breathing (typical adult resting rate: 12-20 breaths/min = 0.2-0.33 Hz)."
+                    "Điều chế biên độ hình sin tại 0.3 Hz mô phỏng hơi thở "
+                    "con người (nhịp thở người lớn nghỉ ngơi: 12-20 lần/phút = 0.2-0.33 Hz)."
                 ),
             },
             "walking": {
@@ -260,63 +260,63 @@ def save_data(frames, params, output_dir):
                 "modulation_depth": params["walking_depth"],
                 "per_antenna_phase_offsets_rad": params["walking_phase_offsets"].tolist(),
                 "description": (
-                    "Sinusoidal amplitude modulation at 1.2 Hz modeling human "
-                    "walking motion (typical stride rate: ~1.0-1.4 Hz)."
+                    "Điều chế biên độ hình sin tại 1.2 Hz mô phỏng chuyển động "
+                    "đi bộ con người (nhịp bước chân điển hình: ~1.0-1.4 Hz)."
                 ),
             },
         },
         "generation_formula": (
             "CSI[a,k,t] = sum_p { A_p * exp(j*(2*pi*f_k*tau_p + phi_{p,a})) "
-            "* (1 + d_breathe * sin(2*pi*0.3*t + psi_breathe_a)) "
-            "* (1 + d_walk * sin(2*pi*1.2*t + psi_walk_a)) }"
+            "* (1 + d_hơi_thở * sin(2*pi*0.3*t + psi_hơi_thở_a)) "
+            "* (1 + d_đi_bộ * sin(2*pi*1.2*t + psi_đi_bộ_a)) }"
         ),
         "determinism_guarantee": (
-            "All parameters are derived from numpy.random.RandomState(42) at "
-            "script initialization. The generation loop itself uses NO randomness. "
-            "Running this script on any platform with the same numpy version will "
-            "produce bit-identical output."
+            "Tất cả tham số được dẫn xuất từ numpy.random.RandomState(42) tại "
+            "thời điểm khởi tạo script. Vòng lặp tạo tín hiệu KHÔNG sử dụng "
+            "tính ngẫu nhiên. Chạy script này trên bất kỳ nền tảng nào với cùng "
+            "phiên bản numpy sẽ tạo ra đầu ra giống hệt bit."
         ),
     }
 
     meta_path = os.path.join(output_dir, "sample_csi_meta.json")
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2)
-    print(f"Wrote metadata to {meta_path}")
+    print(f"Đã ghi siêu dữ liệu vào {meta_path}")
 
 
 def main():
-    """Main entry point."""
-    # Determine output directory
+    """Điểm vào chính."""
+    # Xác định thư mục đầu ra
     output_dir = os.path.dirname(os.path.abspath(__file__))
 
     print("=" * 70)
-    print("WiFi-DensePose: Deterministic Reference CSI Signal Generator")
+    print("WiFi-DensePose: Bộ Tạo Tín Hiệu CSI Tham Chiếu Xác Định")
     print("=" * 70)
-    print(f"Output directory: {output_dir}")
+    print(f"Thư mục đầu ra: {output_dir}")
     print()
 
-    # Step 1: Generate deterministic parameters
-    print("[1/3] Generating deterministic channel parameters (seed=42)...")
+    # Bước 1: Tạo tham số xác định
+    print("[1/3] Đang tạo tham số kênh xác định (seed=42)...")
     params = generate_deterministic_parameters()
-    print(f"  - {params['num_paths']} multipath paths")
-    print(f"  - {params['num_antennas']} antennas, {params['num_subcarriers']} subcarriers")
-    print(f"  - Breathing: {params['breathing_freq_hz']} Hz, depth={params['breathing_depth']}")
-    print(f"  - Walking: {params['walking_freq_hz']} Hz, depth={params['walking_depth']}")
+    print(f"  - {params['num_paths']} đường dẫn đa đường")
+    print(f"  - {params['num_antennas']} ăng-ten, {params['num_subcarriers']} sóng mang con")
+    print(f"  - Hơi thở: {params['breathing_freq_hz']} Hz, độ sâu={params['breathing_depth']}")
+    print(f"  - Đi bộ: {params['walking_freq_hz']} Hz, độ sâu={params['walking_depth']}")
     print()
 
-    # Step 2: Generate all frames
+    # Bước 2: Tạo tất cả khung hình
     num_frames = int(params["duration_s"] * params["sampling_rate_hz"])
-    print(f"[2/3] Generating {num_frames} CSI frames...")
-    print(f"  - Duration: {params['duration_s']}s at {params['sampling_rate_hz']} Hz")
+    print(f"[2/3] Đang tạo {num_frames} khung hình CSI...")
+    print(f"  - Thời lượng: {params['duration_s']}s ở {params['sampling_rate_hz']} Hz")
     frames = generate_csi_frames(params)
-    print(f"  - Generated {len(frames)} frames")
+    print(f"  - Đã tạo {len(frames)} khung hình")
     print()
 
-    # Step 3: Save output
-    print("[3/3] Saving output files...")
+    # Bước 3: Lưu đầu ra
+    print("[3/3] Đang lưu tệp đầu ra...")
     save_data(frames, params, output_dir)
     print()
-    print("Done. Reference signal generated successfully.")
+    print("Hoàn tất. Tín hiệu tham chiếu đã được tạo thành công.")
     print("=" * 70)
 
 

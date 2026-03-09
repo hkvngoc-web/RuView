@@ -1,1 +1,1 @@
-"""Hardware abstraction layer for WiFi-DensePose system."""
+"""Tầng trừu tượng phần cứng cho hệ thống WiFi-DensePose."""

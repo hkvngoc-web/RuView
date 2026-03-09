@@ -1,5 +1,5 @@
 """
-SQLAlchemy models for WiFi-DensePose API
+Mô hình SQLAlchemy cho WiFi-DensePose API
 """
 
 import uuid
@@ -16,25 +16,25 @@ from sqlalchemy.orm import relationship, validates
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
-# Import custom array type for compatibility
+# Import kiểu mảng tùy chỉnh cho tương thích
 from src.database.model_types import StringArray, FloatArray
 
 Base = declarative_base()
 
 
 class TimestampMixin:
-    """Mixin for timestamp fields."""
+    """Mixin cho trường dấu thời gian."""
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
 class UUIDMixin:
-    """Mixin for UUID primary key."""
+    """Mixin cho khóa chính UUID."""
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
 
 
 class DeviceStatus(str, Enum):
-    """Device status enumeration."""
+    """Liệt kê trạng thái thiết bị."""
     ACTIVE = "active"
     INACTIVE = "inactive"
     MAINTENANCE = "maintenance"
@@ -42,7 +42,7 @@ class DeviceStatus(str, Enum):
 
 
 class SessionStatus(str, Enum):
-    """Session status enumeration."""
+    """Liệt kê trạng thái phiên."""
     ACTIVE = "active"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -50,7 +50,7 @@ class SessionStatus(str, Enum):
 
 
 class ProcessingStatus(str, Enum):
-    """Processing status enumeration."""
+    """Liệt kê trạng thái xử lý."""
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -58,59 +58,59 @@ class ProcessingStatus(str, Enum):
 
 
 class Device(Base, UUIDMixin, TimestampMixin):
-    """Device model for WiFi routers and sensors."""
+    """Mô hình thiết bị cho router WiFi và cảm biến."""
     __tablename__ = "devices"
-    
-    # Basic device information
+
+    # Thông tin thiết bị cơ bản
     name = Column(String(255), nullable=False)
-    device_type = Column(String(50), nullable=False)  # router, sensor, etc.
+    device_type = Column(String(50), nullable=False)  # router, cảm biến, v.v.
     mac_address = Column(String(17), unique=True, nullable=False)
-    ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6
-    
-    # Device status and configuration
+    ip_address = Column(String(45), nullable=True)  # IPv4 hoặc IPv6
+
+    # Trạng thái và cấu hình thiết bị
     status = Column(String(20), default=DeviceStatus.INACTIVE, nullable=False)
     firmware_version = Column(String(50), nullable=True)
     hardware_version = Column(String(50), nullable=True)
-    
-    # Location information
+
+    # Thông tin vị trí
     location_name = Column(String(255), nullable=True)
     room_id = Column(String(100), nullable=True)
     coordinates_x = Column(Float, nullable=True)
     coordinates_y = Column(Float, nullable=True)
     coordinates_z = Column(Float, nullable=True)
-    
-    # Configuration
+
+    # Cấu hình
     config = Column(JSON, nullable=True)
     capabilities = Column(StringArray, nullable=True)
-    
-    # Metadata
+
+    # Siêu dữ liệu
     description = Column(Text, nullable=True)
     tags = Column(StringArray, nullable=True)
-    
-    # Relationships
+
+    # Quan hệ
     sessions = relationship("Session", back_populates="device", cascade="all, delete-orphan")
     csi_data = relationship("CSIData", back_populates="device", cascade="all, delete-orphan")
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_device_mac_address", "mac_address"),
         Index("idx_device_status", "status"),
         Index("idx_device_type", "device_type"),
         CheckConstraint("status IN ('active', 'inactive', 'maintenance', 'error')", name="check_device_status"),
     )
-    
+
     @validates('mac_address')
     def validate_mac_address(self, key, address):
-        """Validate MAC address format."""
+        """Xác thực định dạng địa chỉ MAC."""
         if address and len(address) == 17:
-            # Basic MAC address format validation
+            # Xác thực định dạng địa chỉ MAC cơ bản
             parts = address.split(':')
             if len(parts) == 6 and all(len(part) == 2 for part in parts):
                 return address.lower()
-        raise ValueError("Invalid MAC address format")
-    
+        raise ValueError("Định dạng địa chỉ MAC không hợp lệ")
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "name": self.name,
@@ -137,40 +137,40 @@ class Device(Base, UUIDMixin, TimestampMixin):
 
 
 class Session(Base, UUIDMixin, TimestampMixin):
-    """Session model for tracking data collection sessions."""
+    """Mô hình phiên để theo dõi các phiên thu thập dữ liệu."""
     __tablename__ = "sessions"
-    
-    # Session identification
+
+    # Định danh phiên
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    
-    # Session timing
+
+    # Thời gian phiên
     started_at = Column(DateTime(timezone=True), nullable=True)
     ended_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Integer, nullable=True)
-    
-    # Session status and configuration
+
+    # Trạng thái và cấu hình phiên
     status = Column(String(20), default=SessionStatus.ACTIVE, nullable=False)
     config = Column(JSON, nullable=True)
-    
-    # Device relationship
+
+    # Quan hệ thiết bị
     device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
     device = relationship("Device", back_populates="sessions")
-    
-    # Data relationships
+
+    # Quan hệ dữ liệu
     csi_data = relationship("CSIData", back_populates="session", cascade="all, delete-orphan")
     pose_detections = relationship("PoseDetection", back_populates="session", cascade="all, delete-orphan")
-    
-    # Metadata
+
+    # Siêu dữ liệu
     tags = Column(StringArray, nullable=True)
     meta_data = Column(JSON, nullable=True)
-    
-    # Statistics
+
+    # Thống kê
     total_frames = Column(Integer, default=0, nullable=False)
     processed_frames = Column(Integer, default=0, nullable=False)
     error_count = Column(Integer, default=0, nullable=False)
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_session_device_id", "device_id"),
         Index("idx_session_status", "status"),
@@ -180,9 +180,9 @@ class Session(Base, UUIDMixin, TimestampMixin):
         CheckConstraint("processed_frames >= 0", name="check_processed_frames_positive"),
         CheckConstraint("error_count >= 0", name="check_error_count_positive"),
     )
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "name": self.name,
@@ -204,48 +204,48 @@ class Session(Base, UUIDMixin, TimestampMixin):
 
 
 class CSIData(Base, UUIDMixin, TimestampMixin):
-    """CSI (Channel State Information) data model."""
+    """Mô hình dữ liệu CSI (Thông tin Trạng thái Kênh)."""
     __tablename__ = "csi_data"
-    
-    # Data identification
+
+    # Định danh dữ liệu
     sequence_number = Column(Integer, nullable=False)
-    timestamp_ns = Column(Integer, nullable=False)  # Nanosecond timestamp
-    
-    # Device and session relationships
+    timestamp_ns = Column(Integer, nullable=False)  # Dấu thời gian nano giây
+
+    # Quan hệ thiết bị và phiên
     device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
-    
+
     device = relationship("Device", back_populates="csi_data")
     session = relationship("Session", back_populates="csi_data")
-    
-    # CSI data
+
+    # Dữ liệu CSI
     amplitude = Column(FloatArray, nullable=False)
     phase = Column(FloatArray, nullable=False)
     frequency = Column(Float, nullable=False)  # MHz
     bandwidth = Column(Float, nullable=False)  # MHz
-    
-    # Signal characteristics
+
+    # Đặc tính tín hiệu
     rssi = Column(Float, nullable=True)  # dBm
     snr = Column(Float, nullable=True)   # dB
     noise_floor = Column(Float, nullable=True)  # dBm
-    
-    # Antenna information
+
+    # Thông tin ăng-ten
     tx_antenna = Column(Integer, nullable=True)
     rx_antenna = Column(Integer, nullable=True)
     num_subcarriers = Column(Integer, nullable=False)
-    
-    # Processing status
+
+    # Trạng thái xử lý
     processing_status = Column(String(20), default=ProcessingStatus.PENDING, nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Quality metrics
+
+    # Số liệu chất lượng
     quality_score = Column(Float, nullable=True)
     is_valid = Column(Boolean, default=True, nullable=False)
-    
-    # Metadata
+
+    # Siêu dữ liệu
     meta_data = Column(JSON, nullable=True)
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_csi_device_id", "device_id"),
         Index("idx_csi_session_id", "session_id"),
@@ -258,9 +258,9 @@ class CSIData(Base, UUIDMixin, TimestampMixin):
         CheckConstraint("num_subcarriers > 0", name="check_subcarriers_positive"),
         CheckConstraint("processing_status IN ('pending', 'processing', 'completed', 'failed')", name="check_processing_status"),
     )
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "sequence_number": self.sequence_number,
@@ -288,41 +288,41 @@ class CSIData(Base, UUIDMixin, TimestampMixin):
 
 
 class PoseDetection(Base, UUIDMixin, TimestampMixin):
-    """Pose detection results model."""
+    """Mô hình kết quả phát hiện tư thế."""
     __tablename__ = "pose_detections"
-    
-    # Detection identification
+
+    # Định danh phát hiện
     frame_number = Column(Integer, nullable=False)
     timestamp_ns = Column(Integer, nullable=False)
-    
-    # Session relationship
+
+    # Quan hệ phiên
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
     session = relationship("Session", back_populates="pose_detections")
-    
-    # Detection results
+
+    # Kết quả phát hiện
     person_count = Column(Integer, default=0, nullable=False)
-    keypoints = Column(JSON, nullable=True)  # Array of person keypoints
-    bounding_boxes = Column(JSON, nullable=True)  # Array of bounding boxes
-    
-    # Confidence scores
+    keypoints = Column(JSON, nullable=True)  # Mảng điểm khớp của người
+    bounding_boxes = Column(JSON, nullable=True)  # Mảng hộp bao
+
+    # Điểm tin cậy
     detection_confidence = Column(Float, nullable=True)
     pose_confidence = Column(Float, nullable=True)
     overall_confidence = Column(Float, nullable=True)
-    
-    # Processing information
+
+    # Thông tin xử lý
     processing_time_ms = Column(Float, nullable=True)
     model_version = Column(String(50), nullable=True)
     algorithm = Column(String(100), nullable=True)
-    
-    # Quality metrics
+
+    # Số liệu chất lượng
     image_quality = Column(Float, nullable=True)
     pose_quality = Column(Float, nullable=True)
     is_valid = Column(Boolean, default=True, nullable=False)
-    
-    # Metadata
+
+    # Siêu dữ liệu
     meta_data = Column(JSON, nullable=True)
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_pose_session_id", "session_id"),
         Index("idx_pose_timestamp", "timestamp_ns"),
@@ -333,9 +333,9 @@ class PoseDetection(Base, UUIDMixin, TimestampMixin):
         CheckConstraint("pose_confidence >= 0 AND pose_confidence <= 1", name="check_pose_confidence_range"),
         CheckConstraint("overall_confidence >= 0 AND overall_confidence <= 1", name="check_overall_confidence_range"),
     )
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "frame_number": self.frame_number,
@@ -360,30 +360,30 @@ class PoseDetection(Base, UUIDMixin, TimestampMixin):
 
 
 class SystemMetric(Base, UUIDMixin, TimestampMixin):
-    """System metrics model for monitoring."""
+    """Mô hình số liệu hệ thống cho giám sát."""
     __tablename__ = "system_metrics"
-    
-    # Metric identification
+
+    # Định danh số liệu
     metric_name = Column(String(255), nullable=False)
     metric_type = Column(String(50), nullable=False)  # counter, gauge, histogram
-    
-    # Metric value
+
+    # Giá trị số liệu
     value = Column(Float, nullable=False)
     unit = Column(String(50), nullable=True)
-    
-    # Labels and tags
+
+    # Nhãn và thẻ
     labels = Column(JSON, nullable=True)
     tags = Column(StringArray, nullable=True)
-    
-    # Source information
+
+    # Thông tin nguồn
     source = Column(String(255), nullable=True)
     component = Column(String(100), nullable=True)
-    
-    # Metadata
+
+    # Siêu dữ liệu
     description = Column(Text, nullable=True)
     meta_data = Column(JSON, nullable=True)
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_metric_name", "metric_name"),
         Index("idx_metric_type", "metric_type"),
@@ -391,9 +391,9 @@ class SystemMetric(Base, UUIDMixin, TimestampMixin):
         Index("idx_metric_source", "source"),
         Index("idx_metric_component", "component"),
     )
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "metric_name": self.metric_name,
@@ -412,38 +412,38 @@ class SystemMetric(Base, UUIDMixin, TimestampMixin):
 
 
 class AuditLog(Base, UUIDMixin, TimestampMixin):
-    """Audit log model for tracking system events."""
+    """Mô hình nhật ký kiểm toán để theo dõi sự kiện hệ thống."""
     __tablename__ = "audit_logs"
-    
-    # Event information
+
+    # Thông tin sự kiện
     event_type = Column(String(100), nullable=False)
     event_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    
-    # User and session information
+
+    # Thông tin người dùng và phiên
     user_id = Column(String(255), nullable=True)
     session_id = Column(String(255), nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-    
-    # Resource information
+
+    # Thông tin tài nguyên
     resource_type = Column(String(100), nullable=True)
     resource_id = Column(String(255), nullable=True)
-    
-    # Event details
+
+    # Chi tiết sự kiện
     before_state = Column(JSON, nullable=True)
     after_state = Column(JSON, nullable=True)
     changes = Column(JSON, nullable=True)
-    
-    # Result information
+
+    # Thông tin kết quả
     success = Column(Boolean, nullable=False)
     error_message = Column(Text, nullable=True)
-    
-    # Metadata
+
+    # Siêu dữ liệu
     meta_data = Column(JSON, nullable=True)
     tags = Column(StringArray, nullable=True)
-    
-    # Constraints and indexes
+
+    # Ràng buộc và chỉ mục
     __table_args__ = (
         Index("idx_audit_event_type", "event_type"),
         Index("idx_audit_user_id", "user_id"),
@@ -451,9 +451,9 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
         Index("idx_audit_created_at", "created_at"),
         Index("idx_audit_success", "success"),
     )
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Chuyển đổi sang từ điển."""
         return {
             "id": str(self.id),
             "event_type": self.event_type,
@@ -477,7 +477,7 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
         }
 
 
-# Model registry for easy access
+# Sổ đăng ký mô hình để truy cập dễ dàng
 MODEL_REGISTRY = {
     "Device": Device,
     "Session": Session,
@@ -489,10 +489,10 @@ MODEL_REGISTRY = {
 
 
 def get_model_by_name(name: str):
-    """Get model class by name."""
+    """Lấy lớp mô hình theo tên."""
     return MODEL_REGISTRY.get(name)
 
 
 def get_all_models() -> List:
-    """Get all model classes."""
+    """Lấy tất cả lớp mô hình."""
     return list(MODEL_REGISTRY.values())

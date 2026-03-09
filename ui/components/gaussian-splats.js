@@ -1,18 +1,18 @@
 /**
- * Gaussian Splat Renderer for WiFi Sensing Visualization
+ * Bộ Kết xuất Gaussian Splat cho Trực quan hoá Cảm biến WiFi
  *
- * Renders a 3D signal field using Three.js Points with custom ShaderMaterial.
- * Each "splat" is a screen-space disc whose size, color and opacity are driven
- * by the sensing data:
- *   - Size  : signal variance / disruption magnitude
- *   - Color : blue (quiet) -> green (presence) -> red (active motion)
- *   - Opacity: classification confidence
+ * Kết xuất trường tín hiệu 3D sử dụng Points của Three.js với ShaderMaterial tuỳ chỉnh.
+ * Mỗi "splat" là một đĩa trên không gian màn hình có kích thước, màu sắc và độ mờ
+ * được điều khiển bởi dữ liệu cảm biến:
+ *   - Kích thước: phương sai tín hiệu / biên độ nhiễu loạn
+ *   - Màu sắc: xanh dương (yên tĩnh) -> xanh lá (có mặt) -> đỏ (chuyển động tích cực)
+ *   - Độ mờ: độ tin cậy phân loại
  */
 
-// Use global THREE from CDN (loaded in SensingTab)
+// Sử dụng THREE toàn cục từ CDN (được tải trong SensingTab)
 const getThree = () => window.THREE;
 
-// ---- Custom Splat Shaders ------------------------------------------------
+// ---- Shader Splat Tuỳ chỉnh ------------------------------------------------
 
 const SPLAT_VERTEX = `
   attribute float splatSize;
@@ -37,7 +37,7 @@ const SPLAT_FRAGMENT = `
   varying float vOpacity;
 
   void main() {
-    // Circular soft-edge disc
+    // Đĩa mép mềm hình tròn
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     float alpha = smoothstep(0.5, 0.2, dist) * vOpacity;
@@ -45,12 +45,12 @@ const SPLAT_FRAGMENT = `
   }
 `;
 
-// ---- Color helpers -------------------------------------------------------
+// ---- Hàm trợ giúp Màu sắc -------------------------------------------------------
 
-/** Map a scalar 0-1 to blue -> green -> red gradient */
+/** Ánh xạ giá trị 0-1 sang gradient xanh dương -> xanh lá -> đỏ */
 function valueToColor(v) {
   const clamped = Math.max(0, Math.min(1, v));
-  // blue(0) -> cyan(0.25) -> green(0.5) -> yellow(0.75) -> red(1)
+  // xanh_dương(0) -> lục_lam(0.25) -> xanh_lá(0.5) -> vàng(0.75) -> đỏ(1)
   let r, g, b;
   if (clamped < 0.5) {
     const t = clamped * 2;
@@ -70,10 +70,10 @@ function valueToColor(v) {
 
 export class GaussianSplatRenderer {
   /**
-   * @param {HTMLElement} container - DOM element to attach the renderer to
+   * @param {HTMLElement} container - Phần tử DOM để gắn bộ kết xuất
    * @param {object}      [opts]
-   * @param {number}      [opts.width]  - canvas width  (default container width)
-   * @param {number}      [opts.height] - canvas height (default 500)
+   * @param {number}      [opts.width]  - chiều rộng canvas (mặc định chiều rộng container)
+   * @param {number}      [opts.height] - chiều cao canvas (mặc định 500)
    */
   constructor(container, opts = {}) {
     const THREE = getThree();
@@ -83,53 +83,53 @@ export class GaussianSplatRenderer {
     this.width  = opts.width  || container.clientWidth || 800;
     this.height = opts.height || 500;
 
-    // Scene
+    // Cảnh
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a12);
 
-    // Camera — perspective looking down at the room
+    // Camera — phối cảnh nhìn xuống phòng
     this.camera = new THREE.PerspectiveCamera(55, this.width / this.height, 0.1, 200);
     this.camera.position.set(0, 14, 14);
     this.camera.lookAt(0, 0, 0);
 
-    // Renderer
+    // Bộ kết xuất
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(this.renderer.domElement);
 
-    // Grid & room
+    // Lưới & phòng
     this._createRoom(THREE);
 
-    // Signal field splats (20x20 = 400 points on the floor plane)
+    // Splat trường tín hiệu (20x20 = 400 điểm trên mặt phẳng sàn)
     this.gridSize = 20;
     this._createFieldSplats(THREE);
 
-    // Node markers (ESP32 / router positions)
+    // Đánh dấu nút (vị trí ESP32 / router)
     this._createNodeMarkers(THREE);
 
-    // Body disruption blob
+    // Đốm nhiễu loạn cơ thể
     this._createBodyBlob(THREE);
 
-    // Simple orbit-like mouse rotation
+    // Xoay chuột kiểu quỹ đạo đơn giản
     this._setupMouseControls();
 
-    // Animation state
+    // Trạng thái hoạt hình
     this._animFrame = null;
     this._lastData = null;
 
-    // Start render loop
+    // Bắt đầu vòng kết xuất
     this._animate();
   }
 
-  // ---- Scene setup -------------------------------------------------------
+  // ---- Thiết lập cảnh -------------------------------------------------------
 
   _createRoom(THREE) {
-    // Floor grid
+    // Lưới sàn
     const grid = new THREE.GridHelper(20, 20, 0x1a3a4a, 0x0d1f28);
     this.scene.add(grid);
 
-    // Room boundary wireframe
+    // Khung dây ranh giới phòng
     const boxGeo = new THREE.BoxGeometry(20, 6, 20);
     const edges  = new THREE.EdgesGeometry(boxGeo);
     const line   = new THREE.LineSegments(
@@ -148,7 +148,7 @@ export class GaussianSplatRenderer {
     const colors    = new Float32Array(count * 3);
     const opacities = new Float32Array(count);
 
-    // Lay splats on the floor plane (y = 0.05 to sit just above grid)
+    // Đặt splat trên mặt phẳng sàn (y = 0.05 nằm ngay trên lưới)
     for (let iz = 0; iz < this.gridSize; iz++) {
       for (let ix = 0; ix < this.gridSize; ix++) {
         const idx = iz * this.gridSize + ix;
@@ -183,14 +183,14 @@ export class GaussianSplatRenderer {
   }
 
   _createNodeMarkers(THREE) {
-    // Router at center — green sphere
+    // Router ở giữa — hình cầu xanh lá
     const routerGeo = new THREE.SphereGeometry(0.3, 16, 16);
     const routerMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.8 });
     this.routerMarker = new THREE.Mesh(routerGeo, routerMat);
     this.routerMarker.position.set(0, 0.5, 0);
     this.scene.add(this.routerMarker);
 
-    // ESP32 node — cyan sphere (default position, updated from data)
+    // Nút ESP32 — hình cầu lục lam (vị trí mặc định, cập nhật từ dữ liệu)
     const nodeGeo = new THREE.SphereGeometry(0.25, 16, 16);
     const nodeMat = new THREE.MeshBasicMaterial({ color: 0x00ccff, transparent: true, opacity: 0.8 });
     this.nodeMarker = new THREE.Mesh(nodeGeo, nodeMat);
@@ -199,7 +199,7 @@ export class GaussianSplatRenderer {
   }
 
   _createBodyBlob(THREE) {
-    // A cluster of splats representing body disruption
+    // Cụm splat đại diện cho nhiễu loạn cơ thể
     const count = 64;
     const positions = new Float32Array(count * 3);
     const sizes     = new Float32Array(count);
@@ -207,7 +207,7 @@ export class GaussianSplatRenderer {
     const opacities = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      // Random sphere distribution
+      // Phân bố hình cầu ngẫu nhiên
       const theta = Math.random() * Math.PI * 2;
       const phi   = Math.acos(2 * Math.random() - 1);
       const r     = Math.random() * 1.5;
@@ -219,7 +219,7 @@ export class GaussianSplatRenderer {
       colors[i * 3]     = 0.2;
       colors[i * 3 + 1] = 0.8;
       colors[i * 3 + 2] = 0.3;
-      opacities[i] = 0.0; // hidden until presence detected
+      opacities[i] = 0.0; // ẩn cho đến khi phát hiện sự hiện diện
     }
 
     const geo = new THREE.BufferGeometry();
@@ -240,7 +240,7 @@ export class GaussianSplatRenderer {
     this.scene.add(this.bodyBlob);
   }
 
-  // ---- Mouse controls (simple orbit) -------------------------------------
+  // ---- Điều khiển chuột (quỹ đạo đơn giản) -------------------------------------
 
   _setupMouseControls() {
     let isDragging = false;
@@ -277,7 +277,7 @@ export class GaussianSplatRenderer {
     canvas.addEventListener('mouseup',   () => { isDragging = false; });
     canvas.addEventListener('mouseleave',() => { isDragging = false; });
 
-    // Scroll to zoom
+    // Cuộn để phóng to/thu nhỏ
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? 1.05 : 0.95;
@@ -288,11 +288,11 @@ export class GaussianSplatRenderer {
     updateCamera();
   }
 
-  // ---- Data update -------------------------------------------------------
+  // ---- Cập nhật dữ liệu -------------------------------------------------------
 
   /**
-   * Update the visualization with new sensing data.
-   * @param {object} data - sensing_update JSON from ws_server
+   * Cập nhật trực quan hoá với dữ liệu cảm biến mới.
+   * @param {object} data - JSON sensing_update từ ws_server
    */
   update(data) {
     this._lastData = data;
@@ -303,7 +303,7 @@ export class GaussianSplatRenderer {
     const signalField = data.signal_field || {};
     const nodes = data.nodes || [];
 
-    // -- Update signal field splats ----------------------------------------
+    // -- Cập nhật splat trường tín hiệu ----------------------------------------
     if (signalField.values && this.fieldPoints) {
       const geo    = this.fieldPoints.geometry;
       const clr    = geo.attributes.splatColor.array;
@@ -327,7 +327,7 @@ export class GaussianSplatRenderer {
       geo.attributes.splatOpacity.needsUpdate = true;
     }
 
-    // -- Update body blob --------------------------------------------------
+    // -- Cập nhật đốm cơ thể --------------------------------------------------
     if (this.bodyBlob) {
       const bGeo  = this.bodyBlob.geometry;
       const bOpac = bGeo.attributes.splatOpacity.array;
@@ -340,14 +340,14 @@ export class GaussianSplatRenderer {
       const confidence = classification.confidence || 0;
       const breathing  = features.breathing_band_power || 0;
 
-      // Breathing pulsation
+      // Nhịp hô hấp
       const breathPulse = 1.0 + Math.sin(Date.now() * 0.004) * Math.min(breathing * 3, 0.4);
 
       for (let i = 0; i < bOpac.length; i++) {
         if (presence) {
           bOpac[i] = confidence * 0.4;
 
-          // Color by motion level
+          // Màu theo mức chuyển động
           if (motionLvl === 'active') {
             bClr[i * 3]     = 1.0;
             bClr[i * 3 + 1] = 0.2;
@@ -369,19 +369,19 @@ export class GaussianSplatRenderer {
       bGeo.attributes.splatSize.needsUpdate    = true;
     }
 
-    // -- Update node positions ---------------------------------------------
+    // -- Cập nhật vị trí nút ---------------------------------------------
     if (nodes.length > 0 && nodes[0].position) {
       const pos = nodes[0].position;
       this.nodeMarker.position.set(pos[0], 0.5, pos[2]);
     }
   }
 
-  // ---- Render loop -------------------------------------------------------
+  // ---- Vòng kết xuất -------------------------------------------------------
 
   _animate() {
     this._animFrame = requestAnimationFrame(() => this._animate());
 
-    // Gentle router glow pulse
+    // Nhịp phát sáng nhẹ nhàng router
     if (this.routerMarker) {
       const pulse = 0.6 + 0.3 * Math.sin(Date.now() * 0.003);
       this.routerMarker.material.opacity = pulse;
@@ -390,7 +390,7 @@ export class GaussianSplatRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // ---- Resize / cleanup --------------------------------------------------
+  // ---- Thay đổi kích thước / dọn dẹp --------------------------------------------------
 
   resize(width, height) {
     this.width  = width;

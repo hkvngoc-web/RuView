@@ -102,13 +102,13 @@ export class Scene {
     fillLight.position.set(-5, 6, -3);
     this.scene.add(fillLight);
 
-    // Point light under the body for a soft uplight glow
+    // Ánh sáng điểm dưới cơ thể tạo ánh sáng hắt lên nhẹ
     const uplight = new THREE.PointLight(0x0066ff, 0.4, 8);
     uplight.position.set(0, 0.1, 0);
     this.scene.add(uplight);
   }
 
-  // Register a callback that runs each frame with (deltaTime, elapsedTime)
+  // Đăng ký callback chạy mỗi khung hình với (deltaTime, elapsedTime)
   onUpdate(callback) {
     this.updateCallbacks.push(callback);
     return () => {
@@ -139,7 +139,7 @@ export class Scene {
     const delta = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
 
-    // Run registered update callbacks
+    // Chạy các callback cập nhật đã đăng ký
     for (const cb of this.updateCallbacks) {
       cb(delta, elapsed);
     }
@@ -158,22 +158,22 @@ export class Scene {
     this.renderer.setSize(width, height);
   }
 
-  // Add an object to the scene
+  // Thêm đối tượng vào cảnh
   add(object) {
     this.scene.add(object);
   }
 
-  // Remove an object from the scene
+  // Xoá đối tượng khỏi cảnh
   remove(object) {
     this.scene.remove(object);
   }
 
-  // Get the Three.js scene, camera, renderer for external access
+  // Lấy cảnh, camera, renderer Three.js để truy cập bên ngoài
   getScene() { return this.scene; }
   getCamera() { return this.camera; }
   getRenderer() { return this.renderer; }
 
-  // Reset camera to default position
+  // Đặt lại camera về vị trí mặc định
   resetCamera() {
     this.camera.position.set(8, 7, 10);
     this.controls.target.set(0, 1.2, 0);

@@ -1,13 +1,13 @@
 """
-Testing utilities for WiFi-DensePose.
+Tiện ích kiểm thử cho WiFi-DensePose.
 
-This module contains mock data generators and testing helpers that are
-ONLY intended for use in development/testing environments. These generators
-produce synthetic data that mimics real CSI and pose data patterns.
+Module này chứa các bộ tạo dữ liệu giả lập và trợ giúp kiểm thử
+CHỈ dành cho sử dụng trong môi trường phát triển/kiểm thử. Các bộ tạo
+này sản xuất dữ liệu tổ hợp mô phỏng các mẫu dữ liệu CSI và tư thế thực.
 
-WARNING: Code in this module uses random number generation intentionally
-for mock/test data. Do NOT import from this module in production code paths
-unless behind an explicit mock_mode flag with appropriate logging.
+CẢNH BÁO: Mã trong module này sử dụng sinh số ngẫu nhiên có chủ đích
+cho dữ liệu giả lập/kiểm thử. KHÔNG import từ module này trong các đường dẫn
+mã sản xuất trừ khi nằm sau cờ mock_mode rõ ràng với logging phù hợp.
 """
 
 from .mock_csi_generator import MockCSIGenerator

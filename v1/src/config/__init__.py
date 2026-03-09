@@ -1,5 +1,5 @@
 """
-Configuration management package
+Gói quản lý cấu hình
 """
 
 from .settings import get_settings, Settings

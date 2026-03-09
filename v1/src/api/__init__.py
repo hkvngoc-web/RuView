@@ -1,7 +1,7 @@
 """
-WiFi-DensePose FastAPI application package
+Gói ứng dụng FastAPI WiFi-DensePose
 """
 
-# API package - routers and dependencies are imported by app.py
+# Gói API - các router và phụ thuộc được import bởi app.py
 
 __all__ = []

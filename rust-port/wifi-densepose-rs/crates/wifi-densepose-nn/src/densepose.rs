@@ -1,8 +1,8 @@
-//! DensePose head for body part segmentation and UV coordinate regression.
+//! Đầu DensePose cho phân đoạn bộ phận cơ thể và hồi quy tọa độ UV.
 //!
-//! This module implements the DensePose prediction head that takes feature maps
-//! from a backbone network and produces body part segmentation masks and UV
-//! coordinate predictions for each pixel.
+//! Mô-đun này cài đặt đầu dự đoán DensePose lấy bản đồ đặc trưng
+//! từ mạng xương sống và tạo ra mặt nạ phân đoạn bộ phận cơ thể cùng
+//! dự đoán tọa độ UV cho mỗi pixel.
 
 use crate::error::{NnError, NnResult};
 use crate::tensor::{Tensor, TensorShape, TensorStats};
@@ -10,34 +10,34 @@ use ndarray::Array4;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Configuration for the DensePose head
+/// Cấu hình cho đầu DensePose
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DensePoseConfig {
-    /// Number of input channels from backbone
+    /// Số kênh đầu vào từ xương sống
     pub input_channels: usize,
-    /// Number of body parts to predict (excluding background)
+    /// Số bộ phận cơ thể cần dự đoán (không bao gồm nền)
     pub num_body_parts: usize,
-    /// Number of UV coordinates (typically 2 for U and V)
+    /// Số tọa độ UV (thường là 2 cho U và V)
     pub num_uv_coordinates: usize,
-    /// Hidden channel sizes for shared convolutions
+    /// Kích thước kênh ẩn cho tích chập chia sẻ
     #[serde(default = "default_hidden_channels")]
     pub hidden_channels: Vec<usize>,
-    /// Convolution kernel size
+    /// Kích thước nhân tích chập
     #[serde(default = "default_kernel_size")]
     pub kernel_size: usize,
-    /// Convolution padding
+    /// Đệm tích chập
     #[serde(default = "default_padding")]
     pub padding: usize,
-    /// Dropout rate
+    /// Tỷ lệ dropout
     #[serde(default = "default_dropout_rate")]
     pub dropout_rate: f32,
-    /// Whether to use Feature Pyramid Network
+    /// Có sử dụng Mạng Kim tự tháp Đặc trưng không
     #[serde(default)]
     pub use_fpn: bool,
-    /// FPN levels to use
+    /// Các mức FPN sử dụng
     #[serde(default = "default_fpn_levels")]
     pub fpn_levels: Vec<usize>,
-    /// Output stride
+    /// Bước đầu ra
     #[serde(default = "default_output_stride")]
     pub output_stride: usize,
 }
@@ -84,7 +84,7 @@ impl Default for DensePoseConfig {
 }
 
 impl DensePoseConfig {
-    /// Create a new configuration with required parameters
+    /// Tạo cấu hình mới với các tham số bắt buộc
     pub fn new(input_channels: usize, num_body_parts: usize, num_uv_coordinates: usize) -> Self {
         Self {
             input_channels,
@@ -94,90 +94,90 @@ impl DensePoseConfig {
         }
     }
 
-    /// Validate configuration
+    /// Xác thực cấu hình
     pub fn validate(&self) -> NnResult<()> {
         if self.input_channels == 0 {
-            return Err(NnError::config("input_channels must be positive"));
+            return Err(NnError::config("input_channels phải dương"));
         }
         if self.num_body_parts == 0 {
-            return Err(NnError::config("num_body_parts must be positive"));
+            return Err(NnError::config("num_body_parts phải dương"));
         }
         if self.num_uv_coordinates == 0 {
-            return Err(NnError::config("num_uv_coordinates must be positive"));
+            return Err(NnError::config("num_uv_coordinates phải dương"));
         }
         if self.hidden_channels.is_empty() {
-            return Err(NnError::config("hidden_channels must not be empty"));
+            return Err(NnError::config("hidden_channels không được rỗng"));
         }
         Ok(())
     }
 
-    /// Get the number of output channels for segmentation (including background)
+    /// Lấy số kênh đầu ra cho phân đoạn (bao gồm nền)
     pub fn segmentation_channels(&self) -> usize {
-        self.num_body_parts + 1 // +1 for background class
+        self.num_body_parts + 1 // +1 cho lớp nền
     }
 }
 
-/// Output from the DensePose head
+/// Đầu ra từ đầu DensePose
 #[derive(Debug, Clone)]
 pub struct DensePoseOutput {
-    /// Body part segmentation logits: (batch, num_parts+1, height, width)
+    /// Logit phân đoạn bộ phận cơ thể: (lô, số_phần+1, chiều_cao, chiều_rộng)
     pub segmentation: Tensor,
-    /// UV coordinates: (batch, 2, height, width)
+    /// Tọa độ UV: (lô, 2, chiều_cao, chiều_rộng)
     pub uv_coordinates: Tensor,
-    /// Optional confidence scores
+    /// Điểm tin cậy tùy chọn
     pub confidence: Option<ConfidenceScores>,
 }
 
-/// Confidence scores for predictions
+/// Điểm tin cậy cho dự đoán
 #[derive(Debug, Clone)]
 pub struct ConfidenceScores {
-    /// Segmentation confidence per pixel
+    /// Tin cậy phân đoạn theo pixel
     pub segmentation_confidence: Tensor,
-    /// UV confidence per pixel
+    /// Tin cậy UV theo pixel
     pub uv_confidence: Tensor,
 }
 
-/// DensePose head for body part segmentation and UV regression
+/// Đầu DensePose cho phân đoạn bộ phận cơ thể và hồi quy UV
 ///
-/// This is a pure inference implementation that works with pre-trained
-/// weights stored in various formats (ONNX, SafeTensors, etc.)
+/// Đây là cài đặt suy luận thuần sử dụng trọng số đã huấn luyện trước
+/// được lưu trữ ở các định dạng khác nhau (ONNX, SafeTensors, v.v.)
 #[derive(Debug)]
 pub struct DensePoseHead {
     config: DensePoseConfig,
-    /// Cached weights for native inference (optional)
+    /// Trọng số đã lưu đệm cho suy luận gốc (tùy chọn)
     weights: Option<DensePoseWeights>,
 }
 
-/// Pre-trained weights for native Rust inference
+/// Trọng số đã huấn luyện trước cho suy luận Rust gốc
 #[derive(Debug, Clone)]
 pub struct DensePoseWeights {
-    /// Shared conv weights: Vec of (weight, bias) for each layer
+    /// Trọng số tích chập chia sẻ: Vec gồm (trọng_số, thiên_lệch) cho mỗi lớp
     pub shared_conv: Vec<ConvLayerWeights>,
-    /// Segmentation head weights
+    /// Trọng số đầu phân đoạn
     pub segmentation_head: Vec<ConvLayerWeights>,
-    /// UV regression head weights
+    /// Trọng số đầu hồi quy UV
     pub uv_head: Vec<ConvLayerWeights>,
 }
 
-/// Weights for a single conv layer
+/// Trọng số cho một lớp tích chập
 #[derive(Debug, Clone)]
 pub struct ConvLayerWeights {
-    /// Convolution weights: (out_channels, in_channels, kernel_h, kernel_w)
+    /// Trọng số tích chập: (kênh_ra, kênh_vào, chiều_cao_nhân, chiều_rộng_nhân)
     pub weight: Array4<f32>,
-    /// Bias: (out_channels,)
+    /// Thiên lệch: (kênh_ra,)
     pub bias: Option<ndarray::Array1<f32>>,
-    /// Batch norm gamma
+    /// Gamma chuẩn hóa lô
     pub bn_gamma: Option<ndarray::Array1<f32>>,
-    /// Batch norm beta
+    /// Beta chuẩn hóa lô
     pub bn_beta: Option<ndarray::Array1<f32>>,
-    /// Batch norm running mean
+    /// Trung bình chạy chuẩn hóa lô
     pub bn_mean: Option<ndarray::Array1<f32>>,
-    /// Batch norm running var
+    /// Phương sai chạy chuẩn hóa lô
     pub bn_var: Option<ndarray::Array1<f32>>,
 }
 
 impl DensePoseHead {
-    /// Create a new DensePose head with configuration
+    /// Tạo đầu DensePose mới với cấu hình
     pub fn new(config: DensePoseConfig) -> NnResult<Self> {
         config.validate()?;
         Ok(Self {
@@ -186,7 +186,7 @@ impl DensePoseHead {
         })
     }
 
-    /// Create with pre-loaded weights for native inference
+    /// Tạo với trọng số đã tải sẵn cho suy luận gốc
     pub fn with_weights(config: DensePoseConfig, weights: DensePoseWeights) -> NnResult<Self> {
         config.validate()?;
         Ok(Self {
@@ -195,22 +195,22 @@ impl DensePoseHead {
         })
     }
 
-    /// Get the configuration
+    /// Lấy cấu hình
     pub fn config(&self) -> &DensePoseConfig {
         &self.config
     }
 
-    /// Check if weights are loaded for native inference
+    /// Kiểm tra trọng số đã được tải chưa cho suy luận gốc
     pub fn has_weights(&self) -> bool {
         self.weights.is_some()
     }
 
-    /// Get expected input shape for a given batch size
+    /// Lấy hình dạng đầu vào kỳ vọng cho kích thước lô cho trước
     pub fn expected_input_shape(&self, batch_size: usize, height: usize, width: usize) -> TensorShape {
         TensorShape::new(vec![batch_size, self.config.input_channels, height, width])
     }
 
-    /// Validate input tensor shape
+    /// Xác thực hình dạng tensor đầu vào
     pub fn validate_input(&self, input: &Tensor) -> NnResult<()> {
         let shape = input.shape();
         if shape.ndim() != 4 {
@@ -221,7 +221,7 @@ impl DensePoseHead {
         }
         if shape.dim(1) != Some(self.config.input_channels) {
             return Err(NnError::invalid_input(format!(
-                "Expected {} input channels, got {:?}",
+                "Kỳ vọng {} kênh đầu vào, nhận được {:?}",
                 self.config.input_channels,
                 shape.dim(1)
             )));
@@ -229,52 +229,52 @@ impl DensePoseHead {
         Ok(())
     }
 
-    /// Forward pass through the DensePose head (native Rust implementation)
+    /// Truyền xuôi qua đầu DensePose (cài đặt Rust gốc)
     ///
-    /// This performs inference using loaded weights. For ONNX-based inference,
-    /// use the ONNX backend directly.
+    /// Thực hiện suy luận sử dụng trọng số đã tải. Cho suy luận dựa ONNX,
+    /// sử dụng trực tiếp backend ONNX.
     ///
-    /// # Errors
-    /// Returns an error if no model weights are loaded. Load weights with
-    /// `with_weights()` before calling forward(). Use `forward_mock()` in tests.
+    /// # Lỗi
+    /// Trả về lỗi nếu không có trọng số mô hình được tải. Tải trọng số bằng
+    /// `with_weights()` trước khi gọi forward(). Dùng `forward_mock()` trong kiểm thử.
     pub fn forward(&self, input: &Tensor) -> NnResult<DensePoseOutput> {
         self.validate_input(input)?;
 
         if let Some(ref _weights) = self.weights {
             self.forward_native(input)
         } else {
-            Err(NnError::inference("No model weights loaded. Load weights with with_weights() before calling forward(). Use MockBackend for testing."))
+            Err(NnError::inference("Chưa tải trọng số mô hình. Tải trọng số bằng with_weights() trước khi gọi forward(). Dùng MockBackend cho kiểm thử."))
         }
     }
 
-    /// Native forward pass using loaded weights
+    /// Truyền xuôi gốc sử dụng trọng số đã tải
     fn forward_native(&self, input: &Tensor) -> NnResult<DensePoseOutput> {
         let weights = self.weights.as_ref().ok_or_else(|| {
-            NnError::inference("No weights loaded for native inference")
+            NnError::inference("Chưa tải trọng số cho suy luận gốc")
         })?;
 
         let input_arr = input.as_array4()?;
         let (batch, _channels, height, width) = input_arr.dim();
 
-        // Apply shared convolutions
+        // Áp dụng tích chập chia sẻ
         let mut current = input_arr.clone();
         for layer_weights in &weights.shared_conv {
             current = self.apply_conv_layer(&current, layer_weights)?;
             current = self.apply_relu(&current);
         }
 
-        // Segmentation branch
+        // Nhánh phân đoạn
         let mut seg_features = current.clone();
         for layer_weights in &weights.segmentation_head {
             seg_features = self.apply_conv_layer(&seg_features, layer_weights)?;
         }
 
-        // UV regression branch
+        // Nhánh hồi quy UV
         let mut uv_features = current;
         for layer_weights in &weights.uv_head {
             uv_features = self.apply_conv_layer(&uv_features, layer_weights)?;
         }
-        // Apply sigmoid to normalize UV to [0, 1]
+        // Áp dụng sigmoid để chuẩn hóa UV về [0, 1]
         uv_features = self.apply_sigmoid(&uv_features);
 
         Ok(DensePoseOutput {
@@ -284,7 +284,7 @@ impl DensePoseHead {
         })
     }
 
-    /// Mock forward pass for testing
+    /// Truyền xuôi giả lập cho kiểm thử
     #[cfg(test)]
     fn forward_mock(&self, input: &Tensor) -> NnResult<DensePoseOutput> {
         let shape = input.shape();
@@ -292,15 +292,15 @@ impl DensePoseHead {
         let height = shape.dim(2).unwrap_or(64);
         let width = shape.dim(3).unwrap_or(64);
 
-        // Output dimensions after upsampling (2x)
+        // Kích thước đầu ra sau nâng mẫu (2x)
         let out_height = height * 2;
         let out_width = width * 2;
 
-        // Create mock segmentation output
+        // Tạo đầu ra phân đoạn giả lập
         let seg_shape = [batch, self.config.segmentation_channels(), out_height, out_width];
         let segmentation = Tensor::zeros_4d(seg_shape);
 
-        // Create mock UV output
+        // Tạo đầu ra UV giả lập
         let uv_shape = [batch, self.config.num_uv_coordinates, out_height, out_width];
         let uv_coordinates = Tensor::zeros_4d(uv_shape);
 
@@ -311,7 +311,7 @@ impl DensePoseHead {
         })
     }
 
-    /// Apply a convolution layer
+    /// Áp dụng lớp tích chập
     fn apply_conv_layer(&self, input: &Array4<f32>, weights: &ConvLayerWeights) -> NnResult<Array4<f32>> {
         let (batch, in_channels, in_height, in_width) = input.dim();
         let (out_channels, _, kernel_h, kernel_w) = weights.weight.dim();
@@ -323,7 +323,7 @@ impl DensePoseHead {
 
         let mut output = Array4::zeros((batch, out_channels, out_height, out_width));
 
-        // Simple convolution implementation (not optimized)
+        // Cài đặt tích chập đơn giản (chưa tối ưu)
         for b in 0..batch {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
@@ -352,7 +352,7 @@ impl DensePoseHead {
             }
         }
 
-        // Apply batch normalization if weights are present
+        // Áp dụng chuẩn hóa lô nếu có trọng số
         if let (Some(gamma), Some(beta), Some(mean), Some(var)) = (
             &weights.bn_gamma,
             &weights.bn_beta,
@@ -376,22 +376,22 @@ impl DensePoseHead {
         Ok(output)
     }
 
-    /// Apply ReLU activation
+    /// Áp dụng hàm kích hoạt ReLU
     fn apply_relu(&self, input: &Array4<f32>) -> Array4<f32> {
         input.mapv(|x| x.max(0.0))
     }
 
-    /// Apply sigmoid activation
+    /// Áp dụng hàm kích hoạt sigmoid
     fn apply_sigmoid(&self, input: &Array4<f32>) -> Array4<f32> {
         input.mapv(|x| 1.0 / (1.0 + (-x).exp()))
     }
 
-    /// Post-process predictions to get final output
+    /// Hậu xử lý dự đoán để lấy đầu ra cuối cùng
     pub fn post_process(&self, output: &DensePoseOutput) -> NnResult<PostProcessedOutput> {
-        // Get body part predictions (argmax over channels)
+        // Lấy dự đoán bộ phận cơ thể (argmax theo kênh)
         let body_parts = output.segmentation.argmax(1)?;
 
-        // Compute confidence scores
+        // Tính điểm tin cậy
         let seg_confidence = self.compute_segmentation_confidence(&output.segmentation)?;
         let uv_confidence = self.compute_uv_confidence(&output.uv_coordinates)?;
 
@@ -403,23 +403,23 @@ impl DensePoseHead {
         })
     }
 
-    /// Compute segmentation confidence from logits
+    /// Tính tin cậy phân đoạn từ logit
     fn compute_segmentation_confidence(&self, logits: &Tensor) -> NnResult<Tensor> {
-        // Apply softmax and take max probability
+        // Áp dụng softmax và lấy xác suất tối đa
         let probs = logits.softmax(1)?;
-        // For simplicity, return the softmax output
-        // In a full implementation, we'd compute max along channel axis
+        // Đơn giản, trả về đầu ra softmax
+        // Trong cài đặt đầy đủ, chúng ta sẽ tính max theo trục kênh
         Ok(probs)
     }
 
-    /// Compute UV confidence from predictions
+    /// Tính tin cậy UV từ dự đoán
     fn compute_uv_confidence(&self, uv: &Tensor) -> NnResult<Tensor> {
-        // UV confidence based on prediction variance
-        // Higher confidence where predictions are more consistent
+        // Tin cậy UV dựa trên phương sai dự đoán
+        // Tin cậy cao hơn khi dự đoán nhất quán hơn
         let std = uv.std()?;
         let confidence_val = 1.0 / (1.0 + std);
 
-        // Return a tensor with constant confidence for now
+        // Trả về tensor với tin cậy hằng số tạm thời
         let shape = uv.shape();
         let arr = Array4::from_elem(
             (shape.dim(0).unwrap_or(1), 1, shape.dim(2).unwrap_or(1), shape.dim(3).unwrap_or(1)),
@@ -428,7 +428,7 @@ impl DensePoseHead {
         Ok(Tensor::Float4D(arr))
     }
 
-    /// Get feature statistics for debugging
+    /// Lấy thống kê đặc trưng cho gỡ lỗi
     pub fn get_output_stats(&self, output: &DensePoseOutput) -> NnResult<HashMap<String, TensorStats>> {
         let mut stats = HashMap::new();
         stats.insert("segmentation".to_string(), TensorStats::from_tensor(&output.segmentation)?);
@@ -437,57 +437,57 @@ impl DensePoseHead {
     }
 }
 
-/// Post-processed output with final predictions
+/// Đầu ra đã hậu xử lý với dự đoán cuối cùng
 #[derive(Debug, Clone)]
 pub struct PostProcessedOutput {
-    /// Body part labels per pixel
+    /// Nhãn bộ phận cơ thể theo pixel
     pub body_parts: Tensor,
-    /// UV coordinates
+    /// Tọa độ UV
     pub uv_coordinates: Tensor,
-    /// Segmentation confidence
+    /// Tin cậy phân đoạn
     pub segmentation_confidence: Tensor,
-    /// UV confidence
+    /// Tin cậy UV
     pub uv_confidence: Tensor,
 }
 
-/// Body part labels according to DensePose specification
+/// Nhãn bộ phận cơ thể theo đặc tả DensePose
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum BodyPart {
-    /// Background (no body)
+    /// Nền (không phải cơ thể)
     Background = 0,
-    /// Torso
+    /// Thân
     Torso = 1,
-    /// Right hand
+    /// Tay phải
     RightHand = 2,
-    /// Left hand
+    /// Tay trái
     LeftHand = 3,
-    /// Left foot
+    /// Bàn chân trái
     LeftFoot = 4,
-    /// Right foot
+    /// Bàn chân phải
     RightFoot = 5,
-    /// Upper leg right
+    /// Đùi phải
     UpperLegRight = 6,
-    /// Upper leg left
+    /// Đùi trái
     UpperLegLeft = 7,
-    /// Lower leg right
+    /// Cẳng chân phải
     LowerLegRight = 8,
-    /// Lower leg left
+    /// Cẳng chân trái
     LowerLegLeft = 9,
-    /// Upper arm left
+    /// Bắp tay trái
     UpperArmLeft = 10,
-    /// Upper arm right
+    /// Bắp tay phải
     UpperArmRight = 11,
-    /// Lower arm left
+    /// Cẳng tay trái
     LowerArmLeft = 12,
-    /// Lower arm right
+    /// Cẳng tay phải
     LowerArmRight = 13,
-    /// Head
+    /// Đầu
     Head = 14,
 }
 
 impl BodyPart {
-    /// Get body part from index
+    /// Lấy bộ phận cơ thể từ chỉ số
     pub fn from_index(idx: u8) -> Option<Self> {
         match idx {
             0 => Some(BodyPart::Background),
@@ -509,24 +509,24 @@ impl BodyPart {
         }
     }
 
-    /// Get display name
+    /// Lấy tên hiển thị
     pub fn name(&self) -> &'static str {
         match self {
-            BodyPart::Background => "Background",
-            BodyPart::Torso => "Torso",
-            BodyPart::RightHand => "Right Hand",
-            BodyPart::LeftHand => "Left Hand",
-            BodyPart::LeftFoot => "Left Foot",
-            BodyPart::RightFoot => "Right Foot",
-            BodyPart::UpperLegRight => "Upper Leg Right",
-            BodyPart::UpperLegLeft => "Upper Leg Left",
-            BodyPart::LowerLegRight => "Lower Leg Right",
-            BodyPart::LowerLegLeft => "Lower Leg Left",
-            BodyPart::UpperArmLeft => "Upper Arm Left",
-            BodyPart::UpperArmRight => "Upper Arm Right",
-            BodyPart::LowerArmLeft => "Lower Arm Left",
-            BodyPart::LowerArmRight => "Lower Arm Right",
-            BodyPart::Head => "Head",
+            BodyPart::Background => "Nền",
+            BodyPart::Torso => "Thân",
+            BodyPart::RightHand => "Tay phải",
+            BodyPart::LeftHand => "Tay trái",
+            BodyPart::LeftFoot => "Bàn chân trái",
+            BodyPart::RightFoot => "Bàn chân phải",
+            BodyPart::UpperLegRight => "Đùi phải",
+            BodyPart::UpperLegLeft => "Đùi trái",
+            BodyPart::LowerLegRight => "Cẳng chân phải",
+            BodyPart::LowerLegLeft => "Cẳng chân trái",
+            BodyPart::UpperArmLeft => "Bắp tay trái",
+            BodyPart::UpperArmRight => "Bắp tay phải",
+            BodyPart::LowerArmLeft => "Cẳng tay trái",
+            BodyPart::LowerArmRight => "Cẳng tay phải",
+            BodyPart::Head => "Đầu",
         }
     }
 }
@@ -562,7 +562,7 @@ mod tests {
         let input = Tensor::zeros_4d([1, 256, 64, 64]);
         let result = head.forward(&input);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No model weights loaded"));
+        assert!(result.unwrap_err().to_string().contains("Chưa tải trọng số mô hình"));
     }
 
     #[test]
@@ -573,8 +573,8 @@ mod tests {
         let input = Tensor::zeros_4d([1, 256, 64, 64]);
         let output = head.forward_mock(&input).unwrap();
 
-        // Check output shapes
-        assert_eq!(output.segmentation.shape().dim(1), Some(25)); // 24 + 1 background
+        // Kiểm tra hình dạng đầu ra
+        assert_eq!(output.segmentation.shape().dim(1), Some(25)); // 24 + 1 nền
         assert_eq!(output.uv_coordinates.shape().dim(1), Some(2));
     }
 
@@ -584,6 +584,6 @@ mod tests {
         assert_eq!(BodyPart::from_index(14), Some(BodyPart::Head));
         assert_eq!(BodyPart::from_index(100), None);
 
-        assert_eq!(BodyPart::Torso.name(), "Torso");
+        assert_eq!(BodyPart::Torso.name(), "Thân");
     }
 }

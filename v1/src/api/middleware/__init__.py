@@ -1,5 +1,5 @@
 """
-FastAPI middleware package
+Gói middleware FastAPI
 """
 
 from .auth import AuthMiddleware

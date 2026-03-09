@@ -1,8 +1,8 @@
 """
-Initial database migration for WiFi-DensePose API
+Di cư cơ sở dữ liệu ban đầu cho WiFi-DensePose API
 
 Revision ID: 001_initial
-Revises: 
+Revises:
 Create Date: 2025-01-07 07:58:00.000000
 """
 
@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers
+# Định danh phiên bản
 revision = '001_initial'
 down_revision = None
 branch_labels = None
@@ -18,9 +18,9 @@ depends_on = None
 
 
 def upgrade():
-    """Create initial database schema."""
-    
-    # Create devices table
+    """Tạo lược đồ cơ sở dữ liệu ban đầu."""
+
+    # Tạo bảng thiết bị
     op.create_table(
         'devices',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -46,13 +46,13 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('mac_address')
     )
-    
-    # Create indexes for devices table
+
+    # Tạo chỉ mục cho bảng thiết bị
     op.create_index('idx_device_mac_address', 'devices', ['mac_address'])
     op.create_index('idx_device_status', 'devices', ['status'])
     op.create_index('idx_device_type', 'devices', ['device_type'])
-    
-    # Create sessions table
+
+    # Tạo bảng phiên
     op.create_table(
         'sessions',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -78,13 +78,13 @@ def upgrade():
         sa.ForeignKeyConstraint(['device_id'], ['devices.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
-    
-    # Create indexes for sessions table
+
+    # Tạo chỉ mục cho bảng phiên
     op.create_index('idx_session_device_id', 'sessions', ['device_id'])
     op.create_index('idx_session_status', 'sessions', ['status'])
     op.create_index('idx_session_started_at', 'sessions', ['started_at'])
-    
-    # Create csi_data table
+
+    # Tạo bảng dữ liệu CSI
     op.create_table(
         'csi_data',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -118,15 +118,15 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('device_id', 'sequence_number', 'timestamp_ns', name='uq_csi_device_seq_time')
     )
-    
-    # Create indexes for csi_data table
+
+    # Tạo chỉ mục cho bảng dữ liệu CSI
     op.create_index('idx_csi_device_id', 'csi_data', ['device_id'])
     op.create_index('idx_csi_session_id', 'csi_data', ['session_id'])
     op.create_index('idx_csi_timestamp', 'csi_data', ['timestamp_ns'])
     op.create_index('idx_csi_sequence', 'csi_data', ['sequence_number'])
     op.create_index('idx_csi_processing_status', 'csi_data', ['processing_status'])
-    
-    # Create pose_detections table
+
+    # Tạo bảng phát hiện tư thế
     op.create_table(
         'pose_detections',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -155,14 +155,14 @@ def upgrade():
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
-    
-    # Create indexes for pose_detections table
+
+    # Tạo chỉ mục cho bảng phát hiện tư thế
     op.create_index('idx_pose_session_id', 'pose_detections', ['session_id'])
     op.create_index('idx_pose_timestamp', 'pose_detections', ['timestamp_ns'])
     op.create_index('idx_pose_frame', 'pose_detections', ['frame_number'])
     op.create_index('idx_pose_person_count', 'pose_detections', ['person_count'])
-    
-    # Create system_metrics table
+
+    # Tạo bảng số liệu hệ thống
     op.create_table(
         'system_metrics',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -180,15 +180,15 @@ def upgrade():
         sa.Column('metadata', sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
-    
-    # Create indexes for system_metrics table
+
+    # Tạo chỉ mục cho bảng số liệu hệ thống
     op.create_index('idx_metric_name', 'system_metrics', ['metric_name'])
     op.create_index('idx_metric_type', 'system_metrics', ['metric_type'])
     op.create_index('idx_metric_created_at', 'system_metrics', ['created_at'])
     op.create_index('idx_metric_source', 'system_metrics', ['source'])
     op.create_index('idx_metric_component', 'system_metrics', ['component'])
-    
-    # Create audit_logs table
+
+    # Tạo bảng nhật ký kiểm toán
     op.create_table(
         'audit_logs',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -212,15 +212,15 @@ def upgrade():
         sa.Column('tags', postgresql.ARRAY(sa.String()), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
-    
-    # Create indexes for audit_logs table
+
+    # Tạo chỉ mục cho bảng nhật ký kiểm toán
     op.create_index('idx_audit_event_type', 'audit_logs', ['event_type'])
     op.create_index('idx_audit_user_id', 'audit_logs', ['user_id'])
     op.create_index('idx_audit_resource', 'audit_logs', ['resource_type', 'resource_id'])
     op.create_index('idx_audit_created_at', 'audit_logs', ['created_at'])
     op.create_index('idx_audit_success', 'audit_logs', ['success'])
-    
-    # Create triggers for updated_at columns
+
+    # Tạo trigger cho cột updated_at
     op.execute("""
         CREATE OR REPLACE FUNCTION update_updated_at_column()
         RETURNS TRIGGER AS $$
@@ -230,24 +230,24 @@ def upgrade():
         END;
         $$ language 'plpgsql';
     """)
-    
-    # Add triggers to all tables with updated_at column
+
+    # Thêm trigger cho tất cả bảng có cột updated_at
     tables_with_updated_at = [
-        'devices', 'sessions', 'csi_data', 'pose_detections', 
+        'devices', 'sessions', 'csi_data', 'pose_detections',
         'system_metrics', 'audit_logs'
     ]
-    
-    # Whitelist validation to prevent SQL injection
+
+    # Xác thực danh sách trắng để ngăn SQL injection
     allowed_tables = set(tables_with_updated_at)
-    
+
     for table in tables_with_updated_at:
-        # Validate table name against whitelist
+        # Xác thực tên bảng theo danh sách trắng
         if table not in allowed_tables:
             continue
-        
-        # Use parameterized query with SQLAlchemy's text() and bindparam
-        # Note: For table names in DDL, we validate against whitelist
-        # SQLAlchemy's op.execute with text() is safe when table names are whitelisted
+
+        # Sử dụng truy vấn tham số hóa với text() của SQLAlchemy và bindparam
+        # Lưu ý: Đối với tên bảng trong DDL, ta xác thực theo danh sách trắng
+        # op.execute của SQLAlchemy với text() an toàn khi tên bảng đã được xác thực
         op.execute(
             sa.text(f"""
                 CREATE TRIGGER update_{table}_updated_at
@@ -256,37 +256,37 @@ def upgrade():
                     EXECUTE FUNCTION update_updated_at_column();
             """)
         )
-    
-    # Insert initial data
+
+    # Chèn dữ liệu ban đầu
     _insert_initial_data()
 
 
 def downgrade():
-    """Drop all tables and functions."""
-    
-    # Drop triggers first
+    """Xóa tất cả bảng và hàm."""
+
+    # Xóa trigger trước
     tables_with_updated_at = [
-        'devices', 'sessions', 'csi_data', 'pose_detections', 
+        'devices', 'sessions', 'csi_data', 'pose_detections',
         'system_metrics', 'audit_logs'
     ]
-    
-    # Whitelist validation to prevent SQL injection
+
+    # Xác thực danh sách trắng để ngăn SQL injection
     allowed_tables = set(tables_with_updated_at)
-    
+
     for table in tables_with_updated_at:
-        # Validate table name against whitelist
+        # Xác thực tên bảng theo danh sách trắng
         if table not in allowed_tables:
             continue
-        
-        # Use parameterized query with SQLAlchemy's text()
+
+        # Sử dụng truy vấn tham số hóa với text() của SQLAlchemy
         op.execute(
             sa.text(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
         )
-    
-    # Drop function
+
+    # Xóa hàm
     op.execute("DROP FUNCTION IF EXISTS update_updated_at_column();")
-    
-    # Drop tables in reverse order (respecting foreign key constraints)
+
+    # Xóa bảng theo thứ tự ngược (tuân thủ ràng buộc khóa ngoại)
     op.drop_table('audit_logs')
     op.drop_table('system_metrics')
     op.drop_table('pose_detections')
@@ -296,9 +296,9 @@ def downgrade():
 
 
 def _insert_initial_data():
-    """Insert initial data into tables."""
-    
-    # Insert sample device
+    """Chèn dữ liệu ban đầu vào các bảng."""
+
+    # Chèn thiết bị mẫu
     op.execute("""
         INSERT INTO devices (
             id, name, device_type, mac_address, ip_address, status,
@@ -307,38 +307,38 @@ def _insert_initial_data():
             config, capabilities, description, tags
         ) VALUES (
             gen_random_uuid(),
-            'Demo Router',
+            'Router Demo',
             'router',
             '00:11:22:33:44:55',
             '192.168.1.1',
             'active',
             '1.0.0',
             'v1.0',
-            'Living Room',
+            'Phòng khách',
             'room_001',
             0.0,
             0.0,
             2.5,
             '{"channel": 6, "power": 20, "bandwidth": 80}',
             ARRAY['wifi6', 'csi', 'beamforming'],
-            'Demo WiFi router for testing',
+            'Router WiFi demo cho kiểm thử',
             ARRAY['demo', 'testing']
         );
     """)
-    
-    # Insert sample session
+
+    # Chèn phiên mẫu
     op.execute("""
         INSERT INTO sessions (
             id, name, description, started_at, status, config,
             device_id, tags, metadata, total_frames, processed_frames, error_count
         ) VALUES (
             gen_random_uuid(),
-            'Demo Session',
-            'Initial demo session for testing',
+            'Phiên Demo',
+            'Phiên demo ban đầu cho kiểm thử',
             now(),
             'active',
             '{"duration": 3600, "sampling_rate": 100}',
-            (SELECT id FROM devices WHERE name = 'Demo Router' LIMIT 1),
+            (SELECT id FROM devices WHERE name = 'Router Demo' LIMIT 1),
             ARRAY['demo', 'initial'],
             '{"purpose": "testing", "environment": "lab"}',
             0,
@@ -346,8 +346,8 @@ def _insert_initial_data():
             0
         );
     """)
-    
-    # Insert initial system metrics
+
+    # Chèn số liệu hệ thống ban đầu
     metrics_data = [
         ('system_startup', 'counter', 1.0, 'count', 'system', 'application'),
         ('database_connections', 'gauge', 0.0, 'count', 'database', 'postgresql'),
@@ -355,18 +355,18 @@ def _insert_initial_data():
         ('memory_usage', 'gauge', 0.0, 'bytes', 'system', 'memory'),
         ('cpu_usage', 'gauge', 0.0, 'percent', 'system', 'cpu'),
     ]
-    
+
     for metric_name, metric_type, value, unit, source, component in metrics_data:
-        # Use parameterized query to prevent SQL injection
-        # Escape single quotes in string values
+        # Sử dụng truy vấn tham số hóa để ngăn SQL injection
+        # Thoát dấu nháy đơn trong giá trị chuỗi
         safe_metric_name = metric_name.replace("'", "''")
         safe_metric_type = metric_type.replace("'", "''")
         safe_unit = unit.replace("'", "''") if unit else ''
         safe_source = source.replace("'", "''") if source else ''
         safe_component = component.replace("'", "''") if component else ''
-        safe_description = f'Initial {safe_metric_name} metric'.replace("'", "''")
-        
-        # Use SQLAlchemy's text() with proper escaping
+        safe_description = f'Số liệu {safe_metric_name} ban đầu'.replace("'", "''")
+
+        # Sử dụng text() của SQLAlchemy với thoát đúng cách
         op.execute(
             sa.text(f"""
                 INSERT INTO system_metrics (
@@ -394,8 +394,8 @@ def _insert_initial_data():
                 metadata='{"initial": true, "version": "1.0.0"}'
             )
         )
-    
-    # Insert initial audit log
+
+    # Chèn nhật ký kiểm toán ban đầu
     op.execute("""
         INSERT INTO audit_logs (
             id, event_type, event_name, description, user_id, success,
@@ -404,7 +404,7 @@ def _insert_initial_data():
             gen_random_uuid(),
             'system',
             'database_migration',
-            'Initial database schema created',
+            'Lược đồ cơ sở dữ liệu ban đầu đã được tạo',
             'system',
             true,
             'database',

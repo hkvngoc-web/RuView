@@ -2,6 +2,14 @@
 chcp 65001 >nul 2>&1
 :: Refresh PATH to pick up newly installed tools (Rust, etc.)
 for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "PATH=%%B;%PATH%"
+
+:: Setup MSVC environment (Visual Studio Build Tools)
+if exist "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" (
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
+) else if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" (
+    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
+)
+
 title RuView - He Thong Cam Bien WiFi AI
 
 color 0B
@@ -51,6 +59,15 @@ if %errorlevel% neq 0 (
     set "MISSING=1"
 ) else (
     echo  [OK] Cargo          : Da cai dat
+)
+
+where link >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [X] MSVC Linker     : CHUA CAI DAT
+    echo      ^> Can cai Visual Studio Build Tools
+    set "MISSING=1"
+) else (
+    echo  [OK] MSVC Linker    : Da cai dat
 )
 
 where python >nul 2>&1
@@ -252,7 +269,12 @@ if %errorlevel% neq 0 (
 echo  [*] Dang bien dich va khoi chay ung dung Tauri...
 echo  [*] Lan dau co the mat vai phut de bien dich.
 echo.
-cargo tauri dev
+cargo tauri dev 2>nul
+if %errorlevel% neq 0 (
+    echo  [*] Dang cai dat Tauri CLI...
+    cargo install tauri-cli
+    cargo tauri dev
+)
 echo.
 echo  [*] Ung dung Tauri da dong.
 cd /d "%~dp0"
@@ -294,6 +316,7 @@ if not exist "venv" (
     echo  [*] Dang cai dat phu thuoc...
     call venv\Scripts\activate.bat
     pip install -r requirements-lock.txt
+    pip install uvicorn fastapi sqlalchemy alembic click psutil passlib python-jose starlette redis asyncssh
 ) else (
     call venv\Scripts\activate.bat
 )

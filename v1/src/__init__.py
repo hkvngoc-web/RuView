@@ -1,32 +1,32 @@
 """
-WiFi-DensePose API Package
+Gói WiFi-DensePose API
 ==========================
 
-A comprehensive system for WiFi-based human pose estimation using CSI data
-and DensePose neural networks.
+Hệ thống toàn diện cho ước lượng tư thế con người dựa trên WiFi sử dụng dữ liệu CSI
+và mạng nơ-ron DensePose.
 
-This package provides:
-- Real-time CSI data collection from WiFi routers
-- Advanced signal processing and phase sanitization
-- DensePose neural network integration for pose estimation
-- RESTful API for data access and control
-- Background task management for data processing
-- Comprehensive monitoring and logging
+Gói này cung cấp:
+- Thu thập dữ liệu CSI thời gian thực từ router WiFi
+- Xử lý tín hiệu nâng cao và làm sạch pha
+- Tích hợp mạng nơ-ron DensePose để ước lượng tư thế
+- API RESTful để truy cập dữ liệu và điều khiển
+- Quản lý tác vụ nền để xử lý dữ liệu
+- Giám sát và ghi log toàn diện
 
-Example usage:
+Ví dụ sử dụng:
     >>> from src.app import app
     >>> from src.config.settings import get_settings
-    >>> 
+    >>>
     >>> settings = get_settings()
-    >>> # Run with: uvicorn src.app:app --host 0.0.0.0 --port 8000
+    >>> # Chạy với: uvicorn src.app:app --host 0.0.0.0 --port 8000
 
-For CLI usage:
+Sử dụng CLI:
     $ wifi-densepose start --host 0.0.0.0 --port 8000
     $ wifi-densepose status
     $ wifi-densepose stop
 
-Author: WiFi-DensePose Team
-License: MIT
+Tác giả: Đội WiFi-DensePose
+Giấy phép: MIT
 """
 
 __version__ = "1.1.0"
@@ -35,59 +35,59 @@ __email__ = "team@wifi-densepose.com"
 __license__ = "MIT"
 __copyright__ = "Copyright 2024 WiFi-DensePose Team"
 
-# Package metadata
+# Siêu dữ liệu gói
 __title__ = "wifi-densepose"
-__description__ = "WiFi-based human pose estimation using CSI data and DensePose neural networks"
+__description__ = "Ước lượng tư thế con người dựa trên WiFi sử dụng dữ liệu CSI và mạng nơ-ron DensePose"
 __url__ = "https://github.com/wifi-densepose/wifi-densepose"
 __download_url__ = "https://github.com/wifi-densepose/wifi-densepose/archive/main.zip"
 
-# Version info tuple
+# Tuple thông tin phiên bản
 __version_info__ = tuple(int(x) for x in __version__.split('.'))
 
-# Import key components for easy access
+# Import các thành phần chính để truy cập dễ dàng
 try:
     from src.app import app
     from src.config.settings import get_settings, Settings
     from src.logger import setup_logging, get_logger
-    
-    # Core components
+
+    # Thành phần cốt lõi
     from src.core.csi_processor import CSIProcessor
     from src.core.phase_sanitizer import PhaseSanitizer
     from src.core.pose_estimator import PoseEstimator
     from src.core.router_interface import RouterInterface
-    
-    # Services
+
+    # Dịch vụ
     from src.services.orchestrator import ServiceOrchestrator
     from src.services.health_check import HealthCheckService
     from src.services.metrics import MetricsService
-    
-    # Database
+
+    # Cơ sở dữ liệu
     from src.database.connection import get_database_manager
     from src.database.models import (
-        Device, Session, CSIData, PoseDetection, 
+        Device, Session, CSIData, PoseDetection,
         SystemMetric, AuditLog
     )
-    
+
     __all__ = [
-        # Core app
+        # Ứng dụng cốt lõi
         'app',
         'get_settings',
         'Settings',
         'setup_logging',
         'get_logger',
-        
-        # Core processing
+
+        # Xử lý cốt lõi
         'CSIProcessor',
-        'PhaseSanitizer', 
+        'PhaseSanitizer',
         'PoseEstimator',
         'RouterInterface',
-        
-        # Services
+
+        # Dịch vụ
         'ServiceOrchestrator',
         'HealthCheckService',
         'MetricsService',
-        
-        # Database
+
+        # Cơ sở dữ liệu
         'get_database_manager',
         'Device',
         'Session',
@@ -95,8 +95,8 @@ try:
         'PoseDetection',
         'SystemMetric',
         'AuditLog',
-        
-        # Metadata
+
+        # Siêu dữ liệu
         '__version__',
         '__version_info__',
         '__author__',
@@ -106,14 +106,14 @@ try:
     ]
 
 except ImportError as e:
-    # Handle import errors gracefully during package installation
+    # Xử lý lỗi import một cách nhẹ nhàng trong quá trình cài đặt gói
     import warnings
     warnings.warn(
-        f"Some components could not be imported: {e}. "
-        "This is normal during package installation.",
+        f"Một số thành phần không thể import được: {e}. "
+        "Điều này là bình thường trong quá trình cài đặt gói.",
         ImportWarning
     )
-    
+
     __all__ = [
         '__version__',
         '__version_info__',
@@ -125,17 +125,17 @@ except ImportError as e:
 
 
 def get_version():
-    """Get the package version."""
+    """Lấy phiên bản gói."""
     return __version__
 
 
 def get_version_info():
-    """Get the package version as a tuple."""
+    """Lấy phiên bản gói dưới dạng tuple."""
     return __version_info__
 
 
 def get_package_info():
-    """Get comprehensive package information."""
+    """Lấy thông tin gói toàn diện."""
     return {
         'name': __title__,
         'version': __version__,
@@ -151,11 +151,11 @@ def get_package_info():
 
 
 def check_dependencies():
-    """Check if all required dependencies are available."""
+    """Kiểm tra xem tất cả phụ thuộc bắt buộc có khả dụng không."""
     missing_deps = []
     optional_deps = []
-    
-    # Core dependencies
+
+    # Phụ thuộc cốt lõi
     required_modules = [
         ('fastapi', 'FastAPI'),
         ('uvicorn', 'Uvicorn'),
@@ -170,28 +170,28 @@ def check_dependencies():
         ('psutil', 'psutil'),
         ('click', 'Click'),
     ]
-    
+
     for module_name, display_name in required_modules:
         try:
             __import__(module_name)
         except ImportError:
             missing_deps.append(display_name)
-    
-    # Optional dependencies
+
+    # Phụ thuộc tùy chọn
     optional_modules = [
-        ('scapy', 'Scapy (for network packet capture)'),
-        ('paramiko', 'Paramiko (for SSH connections)'),
-        ('serial', 'PySerial (for serial communication)'),
-        ('matplotlib', 'Matplotlib (for plotting)'),
-        ('prometheus_client', 'Prometheus Client (for metrics)'),
+        ('scapy', 'Scapy (để bắt gói mạng)'),
+        ('paramiko', 'Paramiko (để kết nối SSH)'),
+        ('serial', 'PySerial (để giao tiếp nối tiếp)'),
+        ('matplotlib', 'Matplotlib (để vẽ đồ thị)'),
+        ('prometheus_client', 'Prometheus Client (để xuất chỉ số)'),
     ]
-    
+
     for module_name, display_name in optional_modules:
         try:
             __import__(module_name)
         except ImportError:
             optional_deps.append(display_name)
-    
+
     return {
         'missing_required': missing_deps,
         'missing_optional': optional_deps,
@@ -200,65 +200,65 @@ def check_dependencies():
 
 
 def print_system_info():
-    """Print system and package information."""
+    """In thông tin hệ thống và gói."""
     import sys
     import platform
-    
+
     info = get_package_info()
     deps = check_dependencies()
-    
+
     print(f"WiFi-DensePose v{info['version']}")
     print(f"Python {sys.version}")
-    print(f"Platform: {platform.platform()}")
-    print(f"Architecture: {platform.architecture()[0]}")
+    print(f"Nền tảng: {platform.platform()}")
+    print(f"Kiến trúc: {platform.architecture()[0]}")
     print()
-    
+
     if deps['all_required_available']:
-        print("✅ All required dependencies are available")
+        print("✅ Tất cả phụ thuộc bắt buộc đều khả dụng")
     else:
-        print("❌ Missing required dependencies:")
+        print("❌ Thiếu phụ thuộc bắt buộc:")
         for dep in deps['missing_required']:
             print(f"   - {dep}")
-    
+
     if deps['missing_optional']:
-        print("\n⚠️  Missing optional dependencies:")
+        print("\n⚠️  Thiếu phụ thuộc tùy chọn:")
         for dep in deps['missing_optional']:
             print(f"   - {dep}")
-    
-    print(f"\nFor more information, visit: {info['url']}")
+
+    print(f"\nĐể biết thêm thông tin, truy cập: {info['url']}")
 
 
-# Package-level configuration
+# Cấu hình cấp gói
 import logging
 
-# Set up basic logging configuration
+# Thiết lập cấu hình logging cơ bản
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-# Suppress some noisy third-party loggers
+# Tắt bớt một số logger bên thứ ba gây ồn
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('asyncio').setLevel(logging.WARNING)
 
-# Package initialization message
+# Thông báo khởi tạo gói
 if __name__ != '__main__':
     logger = logging.getLogger(__name__)
-    logger.debug(f"WiFi-DensePose package v{__version__} initialized")
+    logger.debug(f"Gói WiFi-DensePose v{__version__} đã được khởi tạo")
 
 
-# Compatibility aliases for backward compatibility
+# Bí danh tương thích ngược
 try:
-    WifiDensePose = app  # Legacy alias
+    WifiDensePose = app  # Bí danh cũ
 except NameError:
-    WifiDensePose = None  # Will be None if app import failed
+    WifiDensePose = None  # Sẽ là None nếu import app thất bại
 
 try:
-    get_config = get_settings  # Legacy alias
+    get_config = get_settings  # Bí danh cũ
 except NameError:
-    get_config = None  # Will be None if get_settings import failed
+    get_config = None  # Sẽ là None nếu import get_settings thất bại
 
 
 def main():
-    """Main entry point for the package when run as a module."""
+    """Điểm vào chính khi gói được chạy như module."""
     print_system_info()
 
 

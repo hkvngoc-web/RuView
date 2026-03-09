@@ -1,4 +1,4 @@
-// API Service for WiFi-DensePose UI
+// Dịch vụ API cho Giao diện WiFi-DensePose
 
 import { API_CONFIG, buildApiUrl } from '../config/api.config.js';
 import { backendDetector } from '../utils/backend-detector.js';
@@ -10,22 +10,22 @@ export class ApiService {
     this.responseInterceptors = [];
   }
 
-  // Set authentication token
+  // Đặt token xác thực
   setAuthToken(token) {
     this.authToken = token;
   }
 
-  // Add request interceptor
+  // Thêm bộ chặn yêu cầu
   addRequestInterceptor(interceptor) {
     this.requestInterceptors.push(interceptor);
   }
 
-  // Add response interceptor
+  // Thêm bộ chặn phản hồi
   addResponseInterceptor(interceptor) {
     this.responseInterceptors.push(interceptor);
   }
 
-  // Build headers for requests
+  // Xây dựng tiêu đề cho yêu cầu
   getHeaders(customHeaders = {}) {
     const headers = {
       ...API_CONFIG.DEFAULT_HEADERS,
@@ -64,50 +64,50 @@ export class ApiService {
     return processedResponse;
   }
 
-  // Generic request method
+  // Phương thức yêu cầu chung
   async request(url, options = {}) {
     try {
-      // Process request through interceptors
+      // Xử lý yêu cầu qua các bộ chặn
       const processed = await this.processRequest(url, options);
 
-      // Determine the correct base URL (real backend vs mock)
+      // Xác định URL cơ sở chính xác (backend thật vs giả lập)
       let finalUrl = processed.url;
       if (processed.url.startsWith(API_CONFIG.BASE_URL)) {
         const baseUrl = await backendDetector.getBaseUrl();
         finalUrl = processed.url.replace(API_CONFIG.BASE_URL, baseUrl);
       }
       
-      // Make the request
+      // Thực hiện yêu cầu
       const response = await fetch(finalUrl, {
         ...processed.options,
         headers: this.getHeaders(processed.options.headers)
       });
 
-      // Process response through interceptors
+      // Xử lý phản hồi qua các bộ chặn
       const processedResponse = await this.processResponse(response, url);
 
-      // Handle errors
+      // Xử lý lỗi
       if (!processedResponse.ok) {
         const error = await processedResponse.json().catch(() => ({
           message: `HTTP ${processedResponse.status}: ${processedResponse.statusText}`
         }));
-        throw new Error(error.message || error.detail || 'Request failed');
+        throw new Error(error.message || error.detail || 'Yêu cầu thất bại');
       }
 
-      // Parse JSON response
+      // Phân tích phản hồi JSON
       const data = await processedResponse.json().catch(() => null);
       return data;
 
     } catch (error) {
-      // Only log if not a connection refusal (expected when DensePose API is down)
+      // Chỉ log nếu không phải lỗi từ chối kết nối (dự kiến khi API DensePose không chạy)
       if (error.message && !error.message.includes('Failed to fetch')) {
-        console.error('API Request Error:', error);
+        console.error('Lỗi Yêu cầu API:', error);
       }
       throw error;
     }
   }
 
-  // GET request
+  // Yêu cầu GET
   async get(endpoint, params = {}, options = {}) {
     const url = buildApiUrl(endpoint, params);
     return this.request(url, {
@@ -116,7 +116,7 @@ export class ApiService {
     });
   }
 
-  // POST request
+  // Yêu cầu POST
   async post(endpoint, data = {}, options = {}) {
     const url = buildApiUrl(endpoint);
     return this.request(url, {
@@ -126,7 +126,7 @@ export class ApiService {
     });
   }
 
-  // PUT request
+  // Yêu cầu PUT
   async put(endpoint, data = {}, options = {}) {
     const url = buildApiUrl(endpoint);
     return this.request(url, {
@@ -136,7 +136,7 @@ export class ApiService {
     });
   }
 
-  // DELETE request
+  // Yêu cầu DELETE
   async delete(endpoint, options = {}) {
     const url = buildApiUrl(endpoint);
     return this.request(url, {
@@ -146,5 +146,5 @@ export class ApiService {
   }
 }
 
-// Create singleton instance
+// Tạo thể hiện singleton
 export const apiService = new ApiService();

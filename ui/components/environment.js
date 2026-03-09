@@ -31,11 +31,11 @@ export class Environment {
       { id: 'zone_3', center: [2, 0, 0], radius: 2, color: 0xff6600, label: 'Vùng 3' }
     ];
 
-    // Confidence heatmap state
+    // Trạng thái bản đồ nhiệt độ tin cậy
     this._heatmapData = new Float32Array(20 * 15); // 20x15 grid
     this._heatmapCells = [];
 
-    // Build everything
+    // Xây dựng mọi thứ
     this._buildFloor();
     this._buildGrid();
     this._buildWalls();
@@ -48,7 +48,7 @@ export class Environment {
   }
 
   _buildFloor() {
-    // Dark reflective floor
+    // Sàn phản chiếu tối
     const floorGeom = new THREE.PlaneGeometry(this.roomWidth, this.roomDepth);
     const floorMat = new THREE.MeshPhongMaterial({
       color: 0x0a0a15,
@@ -67,7 +67,7 @@ export class Environment {
   }
 
   _buildGrid() {
-    // Grid lines on the floor
+    // Đường lưới trên sàn
     const gridGroup = new THREE.Group();
     const gridMat = new THREE.LineBasicMaterial({
       color: 0x1a1a3a,
@@ -79,7 +79,7 @@ export class Environment {
     const halfD = this.roomDepth / 2;
     const step = 0.5;
 
-    // Lines along X
+    // Đường theo trục X
     for (let z = -halfD; z <= halfD; z += step) {
       const geom = new THREE.BufferGeometry();
       const positions = new Float32Array([-halfW, 0.005, z, halfW, 0.005, z]);
@@ -87,7 +87,7 @@ export class Environment {
       gridGroup.add(new THREE.Line(geom, gridMat));
     }
 
-    // Lines along Z
+    // Đường theo trục Z
     for (let x = -halfW; x <= halfW; x += step) {
       const geom = new THREE.BufferGeometry();
       const positions = new Float32Array([x, 0.005, -halfD, x, 0.005, halfD]);
@@ -95,7 +95,7 @@ export class Environment {
       gridGroup.add(new THREE.Line(geom, gridMat));
     }
 
-    // Brighter center lines
+    // Đường tâm sáng hơn
     const centerMat = new THREE.LineBasicMaterial({
       color: 0x2233aa,
       transparent: true,
@@ -115,7 +115,7 @@ export class Environment {
   }
 
   _buildWalls() {
-    // Subtle transparent walls to define the room boundary
+    // Tường trong suốt nhẹ để xác định ranh giới phòng
     const wallMat = new THREE.MeshBasicMaterial({
       color: 0x112244,
       transparent: true,
@@ -128,19 +128,19 @@ export class Environment {
     const halfD = this.roomDepth / 2;
     const h = this.roomHeight;
 
-    // Back wall
+    // Tường sau
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(this.roomWidth, h), wallMat);
     backWall.position.set(0, h / 2, -halfD);
     this.group.add(backWall);
 
-    // Front wall (more transparent)
+    // Tường trước (trong suốt hơn)
     const frontMat = wallMat.clone();
     frontMat.opacity = 0.03;
     const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(this.roomWidth, h), frontMat);
     frontWall.position.set(0, h / 2, halfD);
     this.group.add(frontWall);
 
-    // Side walls
+    // Tường bên
     const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(this.roomDepth, h), wallMat);
     leftWall.rotation.y = Math.PI / 2;
     leftWall.position.set(-halfW, h / 2, 0);
@@ -151,23 +151,23 @@ export class Environment {
     rightWall.position.set(halfW, h / 2, 0);
     this.group.add(rightWall);
 
-    // Wall edge lines
+    // Đường viền tường
     const edgeMat = new THREE.LineBasicMaterial({
       color: 0x334466,
       transparent: true,
       opacity: 0.3
     });
     const edges = [
-      // Floor edges
+      // Cạnh sàn
       [-halfW, 0, -halfD, halfW, 0, -halfD],
       [halfW, 0, -halfD, halfW, 0, halfD],
       [halfW, 0, halfD, -halfW, 0, halfD],
       [-halfW, 0, halfD, -halfW, 0, -halfD],
-      // Ceiling edges
+      // Cạnh trần
       [-halfW, h, -halfD, halfW, h, -halfD],
       [halfW, h, -halfD, halfW, h, halfD],
       [-halfW, h, halfD, -halfW, h, -halfD],
-      // Vertical edges
+      // Cạnh dọc
       [-halfW, 0, -halfD, -halfW, h, -halfD],
       [halfW, 0, -halfD, halfW, h, -halfD],
       [-halfW, 0, halfD, -halfW, h, halfD],
@@ -185,7 +185,7 @@ export class Environment {
     this._apMeshes = [];
     this._rxMeshes = [];
 
-    // Transmitter markers: small pyramid/cone shape, blue
+    // Đánh dấu máy phát: hình chóp/nón nhỏ, màu xanh dương
     const txGeom = new THREE.ConeGeometry(0.12, 0.25, 4);
     const txMat = new THREE.MeshPhongMaterial({
       color: 0x0088ff,
@@ -198,24 +198,24 @@ export class Environment {
     for (const ap of this.accessPoints) {
       const mesh = new THREE.Mesh(txGeom, txMat.clone());
       mesh.position.set(...ap.pos);
-      mesh.rotation.z = Math.PI; // Point downward
+      mesh.rotation.z = Math.PI; // Hướng xuống
       mesh.castShadow = true;
       mesh.name = `ap-${ap.id}`;
       this.group.add(mesh);
       this._apMeshes.push(mesh);
 
-      // Small point light at each AP
+      // Ánh sáng điểm nhỏ tại mỗi AP
       const light = new THREE.PointLight(0x0066ff, 0.3, 4);
       light.position.set(...ap.pos);
       this.group.add(light);
 
-      // Label
+      // Nhãn
       const label = this._createLabel(ap.id, 0x0088ff);
       label.position.set(ap.pos[0], ap.pos[1] + 0.3, ap.pos[2]);
       this.group.add(label);
     }
 
-    // Receiver markers: inverted cone, green
+    // Đánh dấu máy thu: nón ngược, màu xanh lá
     const rxGeom = new THREE.ConeGeometry(0.12, 0.25, 4);
     const rxMat = new THREE.MeshPhongMaterial({
       color: 0x00cc44,
@@ -233,12 +233,12 @@ export class Environment {
       this.group.add(mesh);
       this._rxMeshes.push(mesh);
 
-      // Small point light
+      // Ánh sáng điểm nhỏ
       const light = new THREE.PointLight(0x00cc44, 0.2, 3);
       light.position.set(...rx.pos);
       this.group.add(light);
 
-      // Label
+      // Nhãn
       const label = this._createLabel(rx.id, 0x00cc44);
       label.position.set(rx.pos[0], rx.pos[1] + 0.3, rx.pos[2]);
       this.group.add(label);
@@ -246,7 +246,7 @@ export class Environment {
   }
 
   _buildSignalPaths() {
-    // Dashed lines from each TX to each RX showing WiFi signal paths
+    // Đường nét đứt từ mỗi TX đến mỗi RX thể hiện đường tín hiệu WiFi
     this._signalLines = [];
     const lineMat = new THREE.LineDashedMaterial({
       color: 0x1133aa,
@@ -277,7 +277,7 @@ export class Environment {
       const zoneGroup = new THREE.Group();
       zoneGroup.name = `zone-${zone.id}`;
 
-      // Zone circle on floor
+      // Vòng tròn vùng trên sàn
       const circleGeom = new THREE.RingGeometry(zone.radius * 0.95, zone.radius, 48);
       const circleMat = new THREE.MeshBasicMaterial({
         color: zone.color,
@@ -291,7 +291,7 @@ export class Environment {
       circle.position.set(zone.center[0], 0.01, zone.center[2]);
       zoneGroup.add(circle);
 
-      // Zone fill
+      // Tô nền vùng
       const fillGeom = new THREE.CircleGeometry(zone.radius * 0.95, 48);
       const fillMat = new THREE.MeshBasicMaterial({
         color: zone.color,
@@ -305,7 +305,7 @@ export class Environment {
       fill.position.set(zone.center[0], 0.008, zone.center[2]);
       zoneGroup.add(fill);
 
-      // Zone label
+      // Nhãn vùng
       const label = this._createLabel(zone.label, zone.color);
       label.position.set(zone.center[0], 0.15, zone.center[2] + zone.radius + 0.2);
       label.scale.set(1.0, 0.25, 1);
@@ -317,7 +317,7 @@ export class Environment {
   }
 
   _buildConfidenceHeatmap() {
-    // Ground-level heatmap showing detection confidence across the room
+    // Bản đồ nhiệt mặt đất hiển thị độ tin cậy phát hiện trên toàn phòng
     const cols = 20;
     const rows = 15;
     const cellW = this.roomWidth / cols;
@@ -374,8 +374,8 @@ export class Environment {
     return new THREE.Sprite(mat);
   }
 
-  // Update zone occupancy display
-  // zoneOccupancy: { zone_1: count, zone_2: count, ... }
+  // Cập nhật hiển thị chiếm dụng vùng
+  // zoneOccupancy: { zone_1: số_lượng, zone_2: số_lượng, ... }
   updateZoneOccupancy(zoneOccupancy) {
     if (!zoneOccupancy) return;
 
@@ -383,14 +383,14 @@ export class Environment {
       const count = zoneOccupancy[zoneId] || 0;
       const isOccupied = count > 0;
 
-      // Brighten occupied zones
+      // Làm sáng các vùng có người
       meshes.circleMat.opacity = isOccupied ? 0.25 : 0.08;
       meshes.fillMat.opacity = isOccupied ? 0.10 : 0.03;
     }
   }
 
-  // Update confidence heatmap from detection data
-  // confidenceMap: 2D array or flat array of confidence values [0,1]
+  // Cập nhật bản đồ nhiệt độ tin cậy từ dữ liệu phát hiện
+  // confidenceMap: mảng 2D hoặc mảng phẳng các giá trị độ tin cậy [0,1]
   updateConfidenceHeatmap(confidenceMap) {
     if (!confidenceMap) return;
     const rows = this._heatmapCells.length;
@@ -405,7 +405,7 @@ export class Environment {
 
         const cell = this._heatmapCells[r][c];
         if (val > 0.01) {
-          // Color temperature: blue (low) -> green (mid) -> red (high)
+          // Nhiệt độ màu: xanh dương (thấp) -> xanh lá (trung bình) -> đỏ (cao)
           cell.material.color.setHSL(0.6 - val * 0.6, 1.0, 0.3 + val * 0.3);
           cell.material.opacity = val * 0.3;
         } else {
@@ -415,7 +415,7 @@ export class Environment {
     }
   }
 
-  // Generate a demo confidence heatmap centered on given positions
+  // Tạo bản đồ nhiệt độ tin cậy demo căn giữa tại các vị trí cho trước
   static generateDemoHeatmap(personPositions, cols, rows, roomWidth, roomDepth) {
     const map = new Float32Array(cols * rows);
     const cellW = roomWidth / cols;
@@ -437,23 +437,23 @@ export class Environment {
     return map;
   }
 
-  // Animate AP and RX markers (subtle pulse)
+  // Hoạt hình đánh dấu AP và RX (nhịp nhẹ)
   update(delta, elapsed) {
-    // Pulse AP markers
+    // Nhịp đánh dấu AP
     for (const mesh of this._apMeshes) {
       const pulse = 0.9 + Math.sin(elapsed * 2) * 0.1;
       mesh.scale.setScalar(pulse);
       mesh.material.emissiveIntensity = 0.3 + Math.sin(elapsed * 3) * 0.15;
     }
 
-    // Pulse RX markers
+    // Nhịp đánh dấu RX
     for (const mesh of this._rxMeshes) {
       const pulse = 0.9 + Math.sin(elapsed * 2 + Math.PI) * 0.1;
       mesh.scale.setScalar(pulse);
       mesh.material.emissiveIntensity = 0.3 + Math.sin(elapsed * 3 + Math.PI) * 0.15;
     }
 
-    // Animate signal paths subtly
+    // Hoạt hình đường tín hiệu nhẹ nhàng
     for (const line of this._signalLines) {
       line.material.opacity = 0.08 + Math.sin(elapsed * 1.5) * 0.05;
     }

@@ -121,8 +121,8 @@ export class BodyModel {
   }
 
   _buildBody() {
-    // Default T-pose joint positions (Y-up coordinate system)
-    // Heights are in meters, approximate human proportions (1.75m tall)
+    // Vị trí khớp T-pose mặc định (hệ toạ độ Y-hướng lên)
+    // Chiều cao tính bằng mét, tỷ lệ cơ thể người xấp xỉ (cao 1.75m)
     const defaultJoints = {
       head:            { x: 0, y: 1.70, z: 0 },
       neck:            { x: 0, y: 1.55, z: 0 },
@@ -143,7 +143,7 @@ export class BodyModel {
       right_ankle:     { x:  0.13, y: 0.08, z: 0 }
     };
 
-    // Create joint spheres
+    // Tạo các khối cầu khớp
     const jointGeom = new THREE.SphereGeometry(0.035, 12, 12);
     const headGeom = new THREE.SphereGeometry(0.10, 16, 16);
 
@@ -160,7 +160,7 @@ export class BodyModel {
       this.targetPositions[name] = { ...pos };
     }
 
-    // Create limb cylinders connecting joints
+    // Tạo các hình trụ chi nối các khớp
     const limbDefs = [
       { name: 'torso_upper', from: 'chest', to: 'neck', radius: 0.06 },
       { name: 'torso_lower', from: 'spine', to: 'chest', radius: 0.07 },
@@ -187,10 +187,10 @@ export class BodyModel {
       this.limbs[def.name] = { mesh: limb, from: def.from, to: def.to, radius: def.radius };
     }
 
-    // Create skeleton bone lines
+    // Tạo các đường xương bộ xương
     this._createBoneLines();
 
-    // Create body part glow meshes for DensePose part activation
+    // Tạo lưới phát sáng bộ phận cơ thể cho kích hoạt phần DensePose
     this._createPartGlows();
   }
 
@@ -226,13 +226,13 @@ export class BodyModel {
       mesh.quaternion.copy(quat);
     }
 
-    // Update the cylinder length
+    // Cập nhật chiều dài hình trụ
     mesh.scale.y = length / mesh.geometry.parameters.height;
   }
 
   _createBoneLines() {
     const boneGeom = new THREE.BufferGeometry();
-    // We will update positions each frame
+    // Chúng ta sẽ cập nhật vị trí mỗi khung hình
     const positions = new Float32Array(BodyModel.BONE_CONNECTIONS.length * 6);
     boneGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const boneLine = new THREE.LineSegments(boneGeom, this._materials.bone);
@@ -242,8 +242,8 @@ export class BodyModel {
   }
 
   _createPartGlows() {
-    // Create subtle glow indicators for each DensePose body region
-    // These light up based on which parts are being sensed
+    // Tạo chỉ báo phát sáng nhẹ cho mỗi vùng cơ thể DensePose
+    // Chúng sáng lên dựa trên bộ phận nào đang được cảm biến
     const partRegions = {
       torso: { pos: [0, 1.2, 0], scale: [0.2, 0.3, 0.1], parts: [1, 2] },
       left_upper_arm: { pos: [-0.35, 1.35, 0], scale: [0.06, 0.15, 0.06], parts: [15, 17] },
@@ -281,13 +281,13 @@ export class BodyModel {
     }
   }
 
-  // Update pose from keypoints array
-  // keypoints: array of {x, y, confidence} in normalized [0,1] coords
-  // The mapping follows COCO 17-keypoint format:
-  // 0:nose, 1:left_eye, 2:right_eye, 3:left_ear, 4:right_ear,
-  // 5:left_shoulder, 6:right_shoulder, 7:left_elbow, 8:right_elbow,
-  // 9:left_wrist, 10:right_wrist, 11:left_hip, 12:right_hip,
-  // 13:left_knee, 14:right_knee, 15:left_ankle, 16:right_ankle
+  // Cập nhật tư thế từ mảng điểm khớp
+  // keypoints: mảng {x, y, confidence} trong toạ độ chuẩn hoá [0,1]
+  // Ánh xạ theo định dạng COCO 17-điểm khớp:
+  // 0:mũi, 1:mắt_trái, 2:mắt_phải, 3:tai_trái, 4:tai_phải,
+  // 5:vai_trái, 6:vai_phải, 7:khuỷu_trái, 8:khuỷu_phải,
+  // 9:cổ_tay_trái, 10:cổ_tay_phải, 11:hông_trái, 12:hông_phải,
+  // 13:gối_trái, 14:gối_phải, 15:mắt_cá_trái, 16:mắt_cá_phải
   updateFromKeypoints(keypoints, personConfidence) {
     if (!keypoints || keypoints.length < 17) return;
 
@@ -297,17 +297,17 @@ export class BodyModel {
 
     if (!this.isVisible) return;
 
-    // Map COCO keypoints to our joint positions
-    // Convert normalized [0,1] to 3D space centered at origin
-    // x: left-right (normalized 0-1 maps to roughly -2 to 2 meters)
-    // y: up (we compute from relative positions)
-    // z: depth (we derive from some heuristics)
+    // Ánh xạ điểm khớp COCO sang vị trí khớp của chúng ta
+    // Chuyển đổi toạ độ chuẩn hoá [0,1] sang không gian 3D căn giữa tại gốc
+    // x: trái-phải (chuẩn hoá 0-1 ánh xạ xấp xỉ -2 đến 2 mét)
+    // y: lên (tính từ vị trí tương đối)
+    // z: độ sâu (suy ra từ một số heuristic)
     const kp = keypoints;
 
     const mapX = (val) => (val - 0.5) * 4;
-    const mapZ = (val) => (val - 0.5) * 0.5; // Slight depth from x offset
+    const mapZ = (val) => (val - 0.5) * 0.5; // Độ sâu nhẹ từ offset x
 
-    // Helper to compute a 3D position from a COCO keypoint
+    // Hàm trợ giúp tính vị trí 3D từ điểm khớp COCO
     const kpPos = (idx, defaultY) => {
       const k = kp[idx];
       if (!k || k.confidence < 0.1) return null;
@@ -318,19 +318,19 @@ export class BodyModel {
       };
     };
 
-    // Estimate vertical scale from shoulder-to-ankle distance
+    // Ước tính tỷ lệ dọc từ khoảng cách vai-đến-mắt-cá
     const lShoulder = kp[5], lAnkle = kp[15];
     let scale = 1.0;
     if (lShoulder && lAnkle && lShoulder.confidence > 0.2 && lAnkle.confidence > 0.2) {
       const pixelHeight = Math.abs(lAnkle.y - lShoulder.y);
       if (pixelHeight > 0.05) {
-        scale = 0.85 / pixelHeight; // shoulder-to-ankle is about 0.85m scaled
+        scale = 0.85 / pixelHeight; // vai-đến-mắt-cá khoảng 0.85m theo tỷ lệ
       }
     }
 
     const mapY = (val) => {
-      // Map y from normalized coords (0=top, 1=bottom) to world y
-      // Find the lowest point (ankles) and use that as ground reference
+      // Ánh xạ y từ toạ độ chuẩn hoá (0=trên, 1=dưới) sang y trong thế giới
+      // Tìm điểm thấp nhất (mắt cá) và dùng làm tham chiếu mặt đất
       const groundRef = Math.max(
         (kp[15] && kp[15].confidence > 0.2) ? kp[15].y : 0.95,
         (kp[16] && kp[16].confidence > 0.2) ? kp[16].y : 0.95
@@ -338,12 +338,12 @@ export class BodyModel {
       return (groundRef - val) * scale * 1.75;
     };
 
-    // Compute mid-hip as body center
+    // Tính giữa-hông làm tâm cơ thể
     const midHipX = this._avgCoord(kp, [11, 12], 'x');
     const midHipY = this._avgCoord(kp, [11, 12], 'y');
     const centerX = midHipX !== null ? mapX(midHipX) : 0;
 
-    // Map all joints
+    // Ánh xạ tất cả các khớp
     const updateJoint = (name, idx, fallbackY) => {
       const k = kp[idx];
       if (k && k.confidence > 0.1) {
@@ -355,14 +355,14 @@ export class BodyModel {
       }
     };
 
-    // Head (average of nose, eyes, ears)
+    // Đầu (trung bình của mũi, mắt, tai)
     const headX = this._avgCoord(kp, [0, 1, 2, 3, 4], 'x');
     const headY = this._avgCoord(kp, [0, 1, 2, 3, 4], 'y');
     if (headX !== null && headY !== null) {
       this.targetPositions.head = { x: mapX(headX) - centerX, y: mapY(headY) + 0.08, z: 0 };
     }
 
-    // Neck (between nose and mid-shoulder)
+    // Cổ (giữa mũi và giữa-vai)
     const midShoulderX = this._avgCoord(kp, [5, 6], 'x');
     const midShoulderY = this._avgCoord(kp, [5, 6], 'y');
     const noseK = kp[0];
@@ -374,7 +374,7 @@ export class BodyModel {
       };
     }
 
-    // Chest (mid-shoulder)
+    // Ngực (giữa-vai)
     if (midShoulderX !== null) {
       this.targetPositions.chest = {
         x: mapX(midShoulderX) - centerX,
@@ -383,7 +383,7 @@ export class BodyModel {
       };
     }
 
-    // Spine (between chest and pelvis)
+    // Cột sống (giữa ngực và xương chậu)
     if (midShoulderX !== null && midHipX !== null) {
       this.targetPositions.spine = {
         x: mapX((midShoulderX + midHipX) / 2) - centerX,
@@ -392,7 +392,7 @@ export class BodyModel {
       };
     }
 
-    // Pelvis
+    // Xương chậu
     if (midHipX !== null) {
       this.targetPositions.pelvis = {
         x: mapX(midHipX) - centerX,
@@ -401,7 +401,7 @@ export class BodyModel {
       };
     }
 
-    // Arms and legs
+    // Tay và chân
     updateJoint('left_shoulder', 5);
     updateJoint('right_shoulder', 6);
     updateJoint('left_elbow', 7);
@@ -415,9 +415,9 @@ export class BodyModel {
     updateJoint('left_ankle', 15);
     updateJoint('right_ankle', 16);
 
-    // Adjust all positions relative to center
-    // Apply global position offset (person location in room)
-    // Shift the body model to world position
+    // Điều chỉnh tất cả vị trí tương đối so với tâm
+    // Áp dụng offset vị trí toàn cục (vị trí người trong phòng)
+    // Dịch chuyển mô hình cơ thể đến vị trí trong thế giới
     this.group.position.x = centerX;
   }
 
@@ -434,25 +434,25 @@ export class BodyModel {
     return count > 0 ? sum / count : null;
   }
 
-  // Activate DensePose body part regions (parts: array of part IDs with confidence)
+  // Kích hoạt vùng bộ phận cơ thể DensePose (parts: mảng ID bộ phận với độ tin cậy)
   activateParts(partConfidences) {
-    // partConfidences: { partId: confidence, ... }
+    // partConfidences: { partId: độ_tin_cậy, ... }
     for (const [partId, mesh] of Object.entries(this.partMeshes)) {
       const conf = partConfidences[partId] || 0;
       mesh.material.opacity = conf * 0.4;
-      // Color temperature: blue (low) -> cyan -> green -> yellow -> orange (high)
-      const hue = (1 - conf) * 0.55; // 0.55 = blue, 0 = red
+      // Nhiệt độ màu: xanh dương (thấp) -> lục lam -> xanh lá -> vàng -> cam (cao)
+      const hue = (1 - conf) * 0.55; // 0.55 = xanh dương, 0 = đỏ
       mesh.material.color.setHSL(hue, 1.0, 0.5 + conf * 0.2);
     }
   }
 
-  // Smooth animation update - call each frame
+  // Cập nhật hoạt hình mượt mà - gọi mỗi khung hình
   update(delta) {
     if (!this.isVisible) return;
 
-    const lerpFactor = 1 - Math.pow(0.001, delta); // Smooth exponential lerp
+    const lerpFactor = 1 - Math.pow(0.001, delta); // Nội suy hàm mũ mượt
 
-    // Lerp joint positions
+    // Nội suy vị trí khớp
     for (const [name, joint] of Object.entries(this.joints)) {
       const target = this.targetPositions[name];
       const current = this.currentPositions[name];
@@ -465,7 +465,7 @@ export class BodyModel {
       joint.position.set(current.x, current.y, current.z);
     }
 
-    // Update limb cylinders
+    // Cập nhật hình trụ chi
     for (const limb of Object.values(this.limbs)) {
       const from = this.currentPositions[limb.from];
       const to = this.currentPositions[limb.to];
@@ -478,10 +478,10 @@ export class BodyModel {
       this._positionLimb(limb.mesh, from, to, length);
     }
 
-    // Update bone lines
+    // Cập nhật đường xương
     this._updateBoneLines();
 
-    // Update material colors based on confidence
+    // Cập nhật màu vật liệu dựa trên độ tin cậy
     this._updateMaterialColors();
   }
 
@@ -503,10 +503,10 @@ export class BodyModel {
   }
 
   _updateMaterialColors() {
-    // Confidence drives color temperature
-    // Low confidence = cool blue, high = warm cyan/green
+    // Độ tin cậy điều khiển nhiệt độ màu
+    // Độ tin cậy thấp = xanh dương lạnh, cao = lục lam/xanh lá ấm
     const conf = this.confidence;
-    const hue = 0.55 - conf * 0.25; // blue -> cyan -> green
+    const hue = 0.55 - conf * 0.25; // xanh dương -> lục lam -> xanh lá
     const saturation = 0.8;
     const lightness = 0.35 + conf * 0.2;
 
@@ -524,7 +524,7 @@ export class BodyModel {
       limb.mesh.material.opacity = 0.4 + conf * 0.5;
     }
 
-    // Head
+    // Đầu
     const headJoint = this.joints.head;
     if (headJoint) {
       headJoint.material.color.setHSL(hue - 0.05, saturation, lightness + 0.1);
@@ -532,12 +532,12 @@ export class BodyModel {
       headJoint.material.opacity = 0.6 + conf * 0.4;
     }
 
-    // Bone line color
+    // Màu đường xương
     this._materials.bone.color.setHSL(hue + 0.1, 1.0, 0.5 + conf * 0.2);
     this._materials.bone.opacity = 0.3 + conf * 0.4;
   }
 
-  // Set the world position of this body model (for multi-person scenes)
+  // Đặt vị trí trong thế giới của mô hình cơ thể này (cho cảnh nhiều người)
   setWorldPosition(x, y, z) {
     this.group.position.set(x, y || 0, z || 0);
   }
@@ -561,17 +561,17 @@ export class BodyModel {
 }
 
 
-// Manager for multiple body models (multi-person tracking)
+// Quản lý nhiều mô hình cơ thể (theo dõi nhiều người)
 export class BodyModelManager {
   constructor(scene) {
     this.scene = scene;
     this.models = new Map(); // personId -> BodyModel
     this.maxModels = 6;
-    this.inactiveTimeout = 3000; // ms before removing inactive model
-    this.lastSeen = new Map(); // personId -> timestamp
+    this.inactiveTimeout = 3000; // mili giây trước khi xoá mô hình không hoạt động
+    this.lastSeen = new Map(); // personId -> dấu thời gian
   }
 
-  // Update with new pose data for potentially multiple persons
+  // Cập nhật với dữ liệu tư thế mới cho có thể nhiều người
   update(personsData, delta) {
     const now = Date.now();
 
@@ -580,7 +580,7 @@ export class BodyModelManager {
         const person = personsData[i];
         const personId = person.id || `person_${i}`;
 
-        // Get or create model
+        // Lấy hoặc tạo mô hình
         let model = this.models.get(personId);
         if (!model) {
           model = new BodyModel();
@@ -588,12 +588,12 @@ export class BodyModelManager {
           this.scene.add(model.getGroup());
         }
 
-        // Update the model
+        // Cập nhật mô hình
         if (person.keypoints) {
           model.updateFromKeypoints(person.keypoints, person.confidence);
         }
 
-        // Activate DensePose parts if available
+        // Kích hoạt các phần DensePose nếu có
         if (person.body_parts) {
           model.activateParts(person.body_parts);
         }
@@ -602,12 +602,12 @@ export class BodyModelManager {
       }
     }
 
-    // Animate all models
+    // Hoạt hình tất cả mô hình
     for (const model of this.models.values()) {
       model.update(delta);
     }
 
-    // Remove stale models
+    // Xoá các mô hình cũ
     for (const [id, lastTime] of this.lastSeen.entries()) {
       if (now - lastTime > this.inactiveTimeout) {
         const model = this.models.get(id);

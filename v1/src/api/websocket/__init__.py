@@ -1,5 +1,5 @@
 """
-WebSocket handlers package
+Gói xử lý WebSocket
 """
 
 from .connection_manager import ConnectionManager

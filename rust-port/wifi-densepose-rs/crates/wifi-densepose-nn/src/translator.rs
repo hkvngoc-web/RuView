@@ -1,8 +1,8 @@
-//! Modality translation network for CSI to visual feature space conversion.
+//! Mạng dịch phương thức cho chuyển đổi CSI sang không gian đặc trưng thị giác.
 //!
-//! This module implements the encoder-decoder network that translates
-//! WiFi Channel State Information (CSI) into visual feature representations
-//! compatible with the DensePose head.
+//! Mô-đun này cài đặt mạng mã hóa-giải mã dịch Thông tin trạng thái
+//! kênh WiFi (CSI) sang biểu diễn đặc trưng thị giác tương thích
+//! với đầu DensePose.
 
 use crate::error::{NnError, NnResult};
 use crate::tensor::{Tensor, TensorShape, TensorStats};
@@ -10,37 +10,37 @@ use ndarray::Array4;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Configuration for the modality translator
+/// Cấu hình cho bộ dịch phương thức
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslatorConfig {
-    /// Number of input channels (CSI features)
+    /// Số kênh đầu vào (đặc trưng CSI)
     pub input_channels: usize,
-    /// Hidden channel sizes for encoder/decoder
+    /// Kích thước kênh ẩn cho mã hóa/giải mã
     pub hidden_channels: Vec<usize>,
-    /// Number of output channels (visual feature dimensions)
+    /// Số kênh đầu ra (chiều đặc trưng thị giác)
     pub output_channels: usize,
-    /// Convolution kernel size
+    /// Kích thước nhân tích chập
     #[serde(default = "default_kernel_size")]
     pub kernel_size: usize,
-    /// Convolution stride
+    /// Bước nhảy tích chập
     #[serde(default = "default_stride")]
     pub stride: usize,
-    /// Convolution padding
+    /// Đệm tích chập
     #[serde(default = "default_padding")]
     pub padding: usize,
-    /// Dropout rate
+    /// Tỷ lệ dropout
     #[serde(default = "default_dropout_rate")]
     pub dropout_rate: f32,
-    /// Activation function
+    /// Hàm kích hoạt
     #[serde(default = "default_activation")]
     pub activation: ActivationType,
-    /// Normalization type
+    /// Kiểu chuẩn hóa
     #[serde(default = "default_normalization")]
     pub normalization: NormalizationType,
-    /// Whether to use attention mechanism
+    /// Có sử dụng cơ chế attention không
     #[serde(default)]
     pub use_attention: bool,
-    /// Number of attention heads
+    /// Số đầu attention
     #[serde(default = "default_attention_heads")]
     pub attention_heads: usize,
 }
@@ -73,14 +73,14 @@ fn default_attention_heads() -> usize {
     8
 }
 
-/// Type of activation function
+/// Kiểu hàm kích hoạt
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActivationType {
-    /// Rectified Linear Unit
+    /// Đơn vị tuyến tính chỉnh lưu
     ReLU,
-    /// Leaky ReLU with negative slope
+    /// Leaky ReLU với độ dốc âm
     LeakyReLU,
-    /// Gaussian Error Linear Unit
+    /// Đơn vị tuyến tính lỗi Gauss
     GELU,
     /// Sigmoid
     Sigmoid,
@@ -88,25 +88,25 @@ pub enum ActivationType {
     Tanh,
 }
 
-/// Type of normalization
+/// Kiểu chuẩn hóa
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NormalizationType {
-    /// Batch normalization
+    /// Chuẩn hóa lô
     BatchNorm,
-    /// Instance normalization
+    /// Chuẩn hóa thể hiện
     InstanceNorm,
-    /// Layer normalization
+    /// Chuẩn hóa lớp
     LayerNorm,
-    /// No normalization
+    /// Không chuẩn hóa
     None,
 }
 
 impl Default for TranslatorConfig {
     fn default() -> Self {
         Self {
-            input_channels: 128, // CSI feature dimension
+            input_channels: 128, // Chiều đặc trưng CSI
             hidden_channels: vec![256, 512, 256],
-            output_channels: 256, // Visual feature dimension
+            output_channels: 256, // Chiều đặc trưng thị giác
             kernel_size: default_kernel_size(),
             stride: default_stride(),
             padding: default_padding(),
@@ -120,7 +120,7 @@ impl Default for TranslatorConfig {
 }
 
 impl TranslatorConfig {
-    /// Create a new translator configuration
+    /// Tạo cấu hình bộ dịch mới
     pub fn new(input_channels: usize, hidden_channels: Vec<usize>, output_channels: usize) -> Self {
         Self {
             input_channels,
@@ -130,106 +130,106 @@ impl TranslatorConfig {
         }
     }
 
-    /// Enable attention mechanism
+    /// Bật cơ chế attention
     pub fn with_attention(mut self, num_heads: usize) -> Self {
         self.use_attention = true;
         self.attention_heads = num_heads;
         self
     }
 
-    /// Set activation type
+    /// Đặt kiểu kích hoạt
     pub fn with_activation(mut self, activation: ActivationType) -> Self {
         self.activation = activation;
         self
     }
 
-    /// Validate configuration
+    /// Xác thực cấu hình
     pub fn validate(&self) -> NnResult<()> {
         if self.input_channels == 0 {
-            return Err(NnError::config("input_channels must be positive"));
+            return Err(NnError::config("input_channels phải dương"));
         }
         if self.hidden_channels.is_empty() {
-            return Err(NnError::config("hidden_channels must not be empty"));
+            return Err(NnError::config("hidden_channels không được rỗng"));
         }
         if self.output_channels == 0 {
-            return Err(NnError::config("output_channels must be positive"));
+            return Err(NnError::config("output_channels phải dương"));
         }
         if self.use_attention && self.attention_heads == 0 {
-            return Err(NnError::config("attention_heads must be positive when using attention"));
+            return Err(NnError::config("attention_heads phải dương khi dùng attention"));
         }
         Ok(())
     }
 
-    /// Get the bottleneck dimension (smallest hidden channel)
+    /// Lấy chiều cổ chai (kênh ẩn nhỏ nhất)
     pub fn bottleneck_dim(&self) -> usize {
         *self.hidden_channels.last().unwrap_or(&self.output_channels)
     }
 }
 
-/// Output from the modality translator
+/// Đầu ra từ bộ dịch phương thức
 #[derive(Debug, Clone)]
 pub struct TranslatorOutput {
-    /// Translated visual features
+    /// Đặc trưng thị giác đã dịch
     pub features: Tensor,
-    /// Intermediate encoder features (for skip connections)
+    /// Đặc trưng mã hóa trung gian (cho kết nối bỏ qua)
     pub encoder_features: Option<Vec<Tensor>>,
-    /// Attention weights (if attention is used)
+    /// Trọng số attention (nếu sử dụng attention)
     pub attention_weights: Option<Tensor>,
 }
 
-/// Weights for the modality translator
+/// Trọng số cho bộ dịch phương thức
 #[derive(Debug, Clone)]
 pub struct TranslatorWeights {
-    /// Encoder layer weights
+    /// Trọng số lớp mã hóa
     pub encoder: Vec<ConvBlockWeights>,
-    /// Decoder layer weights
+    /// Trọng số lớp giải mã
     pub decoder: Vec<ConvBlockWeights>,
-    /// Attention weights (if used)
+    /// Trọng số attention (nếu dùng)
     pub attention: Option<AttentionWeights>,
 }
 
-/// Weights for a convolutional block
+/// Trọng số cho khối tích chập
 #[derive(Debug, Clone)]
 pub struct ConvBlockWeights {
-    /// Convolution weights
+    /// Trọng số tích chập
     pub conv_weight: Array4<f32>,
-    /// Convolution bias
+    /// Thiên lệch tích chập
     pub conv_bias: Option<ndarray::Array1<f32>>,
-    /// Normalization gamma
+    /// Gamma chuẩn hóa
     pub norm_gamma: Option<ndarray::Array1<f32>>,
-    /// Normalization beta
+    /// Beta chuẩn hóa
     pub norm_beta: Option<ndarray::Array1<f32>>,
-    /// Running mean for batch norm
+    /// Trung bình chạy cho chuẩn hóa lô
     pub running_mean: Option<ndarray::Array1<f32>>,
-    /// Running var for batch norm
+    /// Phương sai chạy cho chuẩn hóa lô
     pub running_var: Option<ndarray::Array1<f32>>,
 }
 
-/// Weights for multi-head attention
+/// Trọng số cho attention đa đầu
 #[derive(Debug, Clone)]
 pub struct AttentionWeights {
-    /// Query projection
+    /// Phép chiếu truy vấn
     pub query_weight: ndarray::Array2<f32>,
-    /// Key projection
+    /// Phép chiếu khóa
     pub key_weight: ndarray::Array2<f32>,
-    /// Value projection
+    /// Phép chiếu giá trị
     pub value_weight: ndarray::Array2<f32>,
-    /// Output projection
+    /// Phép chiếu đầu ra
     pub output_weight: ndarray::Array2<f32>,
-    /// Output bias
+    /// Thiên lệch đầu ra
     pub output_bias: ndarray::Array1<f32>,
 }
 
-/// Modality translator for CSI to visual feature conversion
+/// Bộ dịch phương thức cho chuyển đổi CSI sang đặc trưng thị giác
 #[derive(Debug)]
 pub struct ModalityTranslator {
     config: TranslatorConfig,
-    /// Pre-loaded weights for native inference
+    /// Trọng số đã tải sẵn cho suy luận gốc
     weights: Option<TranslatorWeights>,
 }
 
 impl ModalityTranslator {
-    /// Create a new modality translator
+    /// Tạo bộ dịch phương thức mới
     pub fn new(config: TranslatorConfig) -> NnResult<Self> {
         config.validate()?;
         Ok(Self {
@@ -238,7 +238,7 @@ impl ModalityTranslator {
         })
     }
 
-    /// Create with pre-loaded weights
+    /// Tạo với trọng số đã tải sẵn
     pub fn with_weights(config: TranslatorConfig, weights: TranslatorWeights) -> NnResult<Self> {
         config.validate()?;
         Ok(Self {
@@ -247,22 +247,22 @@ impl ModalityTranslator {
         })
     }
 
-    /// Get the configuration
+    /// Lấy cấu hình
     pub fn config(&self) -> &TranslatorConfig {
         &self.config
     }
 
-    /// Check if weights are loaded
+    /// Kiểm tra trọng số đã được tải chưa
     pub fn has_weights(&self) -> bool {
         self.weights.is_some()
     }
 
-    /// Get expected input shape
+    /// Lấy hình dạng đầu vào kỳ vọng
     pub fn expected_input_shape(&self, batch_size: usize, height: usize, width: usize) -> TensorShape {
         TensorShape::new(vec![batch_size, self.config.input_channels, height, width])
     }
 
-    /// Validate input tensor
+    /// Xác thực tensor đầu vào
     pub fn validate_input(&self, input: &Tensor) -> NnResult<()> {
         let shape = input.shape();
         if shape.ndim() != 4 {
@@ -273,7 +273,7 @@ impl ModalityTranslator {
         }
         if shape.dim(1) != Some(self.config.input_channels) {
             return Err(NnError::invalid_input(format!(
-                "Expected {} input channels, got {:?}",
+                "Kỳ vọng {} kênh đầu vào, nhận được {:?}",
                 self.config.input_channels,
                 shape.dim(1)
             )));
@@ -281,72 +281,72 @@ impl ModalityTranslator {
         Ok(())
     }
 
-    /// Forward pass through the translator
+    /// Truyền xuôi qua bộ dịch
     ///
-    /// # Errors
-    /// Returns an error if no model weights are loaded. Load weights with
-    /// `with_weights()` before calling forward(). Use `forward_mock()` in tests.
+    /// # Lỗi
+    /// Trả về lỗi nếu không có trọng số mô hình được tải. Tải trọng số bằng
+    /// `with_weights()` trước khi gọi forward(). Dùng `forward_mock()` trong kiểm thử.
     pub fn forward(&self, input: &Tensor) -> NnResult<TranslatorOutput> {
         self.validate_input(input)?;
 
         if let Some(ref _weights) = self.weights {
             self.forward_native(input)
         } else {
-            Err(NnError::inference("No model weights loaded. Load weights with with_weights() before calling forward(). Use MockBackend for testing."))
+            Err(NnError::inference("Chưa tải trọng số mô hình. Tải trọng số bằng with_weights() trước khi gọi forward(). Dùng MockBackend cho kiểm thử."))
         }
     }
 
-    /// Encode input to latent space
+    /// Mã hóa đầu vào sang không gian ẩn
     ///
-    /// # Errors
-    /// Returns an error if no model weights are loaded.
+    /// # Lỗi
+    /// Trả về lỗi nếu không có trọng số mô hình được tải.
     pub fn encode(&self, input: &Tensor) -> NnResult<Vec<Tensor>> {
         self.validate_input(input)?;
 
         if self.weights.is_none() {
-            return Err(NnError::inference("No model weights loaded. Cannot encode without weights."));
+            return Err(NnError::inference("Chưa tải trọng số mô hình. Không thể mã hóa mà không có trọng số."));
         }
 
-        // Real encoding through the encoder path of forward_native
+        // Mã hóa thực qua đường mã hóa của forward_native
         let output = self.forward_native(input)?;
         output.encoder_features.ok_or_else(|| {
-            NnError::inference("Encoder features not available from forward pass")
+            NnError::inference("Đặc trưng mã hóa không khả dụng từ truyền xuôi")
         })
     }
 
-    /// Decode from latent space
+    /// Giải mã từ không gian ẩn
     ///
-    /// # Errors
-    /// Returns an error if no model weights are loaded or if encoded features are empty.
+    /// # Lỗi
+    /// Trả về lỗi nếu không có trọng số mô hình được tải hoặc đặc trưng đã mã hóa rỗng.
     pub fn decode(&self, encoded_features: &[Tensor]) -> NnResult<Tensor> {
         if encoded_features.is_empty() {
-            return Err(NnError::invalid_input("No encoded features provided"));
+            return Err(NnError::invalid_input("Không có đặc trưng đã mã hóa được cung cấp"));
         }
         if self.weights.is_none() {
-            return Err(NnError::inference("No model weights loaded. Cannot decode without weights."));
+            return Err(NnError::inference("Chưa tải trọng số mô hình. Không thể giải mã mà không có trọng số."));
         }
 
         let last_feat = encoded_features.last().unwrap();
         let shape = last_feat.shape();
         let batch = shape.dim(0).unwrap_or(1);
 
-        // Determine output spatial dimensions based on encoder structure
+        // Xác định kích thước không gian đầu ra dựa trên cấu trúc mã hóa
         let out_height = shape.dim(2).unwrap_or(1) * 2_usize.pow(encoded_features.len() as u32 - 1);
         let out_width = shape.dim(3).unwrap_or(1) * 2_usize.pow(encoded_features.len() as u32 - 1);
 
         Ok(Tensor::zeros_4d([batch, self.config.output_channels, out_height, out_width]))
     }
 
-    /// Native forward pass with weights
+    /// Truyền xuôi gốc với trọng số
     fn forward_native(&self, input: &Tensor) -> NnResult<TranslatorOutput> {
         let weights = self.weights.as_ref().ok_or_else(|| {
-            NnError::inference("No weights loaded for native inference")
+            NnError::inference("Chưa tải trọng số cho suy luận gốc")
         })?;
 
         let input_arr = input.as_array4()?;
         let (batch, _channels, height, width) = input_arr.dim();
 
-        // Encode
+        // Mã hóa
         let mut encoder_outputs = Vec::new();
         let mut current = input_arr.clone();
 
@@ -357,7 +357,7 @@ impl ModalityTranslator {
             encoder_outputs.push(Tensor::Float4D(current.clone()));
         }
 
-        // Apply attention if configured
+        // Áp dụng attention nếu được cấu hình
         let attention_weights = if self.config.use_attention {
             if let Some(ref attn_weights) = weights.attention {
                 let (attended, attn_w) = self.apply_attention(&current, attn_weights)?;
@@ -370,13 +370,13 @@ impl ModalityTranslator {
             None
         };
 
-        // Decode
+        // Giải mã
         for block_weights in &weights.decoder {
             current = self.apply_deconv_block(&current, block_weights)?;
             current = self.apply_activation(&current);
         }
 
-        // Final tanh normalization
+        // Chuẩn hóa tanh cuối cùng
         current = current.mapv(|x| x.tanh());
 
         Ok(TranslatorOutput {
@@ -386,7 +386,7 @@ impl ModalityTranslator {
         })
     }
 
-    /// Mock forward pass for testing
+    /// Truyền xuôi giả lập cho kiểm thử
     #[cfg(test)]
     fn forward_mock(&self, input: &Tensor) -> NnResult<TranslatorOutput> {
         let shape = input.shape();
@@ -394,7 +394,7 @@ impl ModalityTranslator {
         let height = shape.dim(2).unwrap_or(64);
         let width = shape.dim(3).unwrap_or(64);
 
-        // Output has same spatial dimensions but different channels
+        // Đầu ra có cùng kích thước không gian nhưng khác kênh
         let features = Tensor::zeros_4d([batch, self.config.output_channels, height, width]);
 
         Ok(TranslatorOutput {
@@ -404,7 +404,7 @@ impl ModalityTranslator {
         })
     }
 
-    /// Apply a convolutional block
+    /// Áp dụng khối tích chập
     fn apply_conv_block(
         &self,
         input: &Array4<f32>,
@@ -419,7 +419,7 @@ impl ModalityTranslator {
 
         let mut output = Array4::zeros((batch, out_channels, out_height, out_width));
 
-        // Simple strided convolution
+        // Tích chập bước nhảy đơn giản
         for b in 0..batch {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
@@ -451,13 +451,13 @@ impl ModalityTranslator {
             }
         }
 
-        // Apply normalization
+        // Áp dụng chuẩn hóa
         self.apply_normalization(&mut output, weights);
 
         Ok(output)
     }
 
-    /// Apply transposed convolution for upsampling
+    /// Áp dụng tích chập chuyển vị để nâng mẫu
     fn apply_deconv_block(
         &self,
         input: &Array4<f32>,
@@ -466,11 +466,11 @@ impl ModalityTranslator {
         let (batch, in_channels, in_height, in_width) = input.dim();
         let (out_channels, _, kernel_h, kernel_w) = weights.conv_weight.dim();
 
-        // Upsample 2x
+        // Nâng mẫu 2x
         let out_height = in_height * 2;
         let out_width = in_width * 2;
 
-        // Simple nearest-neighbor upsampling + conv (approximation of transpose conv)
+        // Nâng mẫu láng giềng gần nhất + tích chập (xấp xỉ tích chập chuyển vị)
         let mut output = Array4::zeros((batch, out_channels, out_height, out_width));
 
         for b in 0..batch {
@@ -496,7 +496,7 @@ impl ModalityTranslator {
         Ok(output)
     }
 
-    /// Apply normalization to output
+    /// Áp dụng chuẩn hóa cho đầu ra
     fn apply_normalization(&self, output: &mut Array4<f32>, weights: &ConvBlockWeights) {
         if let (Some(gamma), Some(beta), Some(mean), Some(var)) = (
             &weights.norm_gamma,
@@ -521,13 +521,13 @@ impl ModalityTranslator {
         }
     }
 
-    /// Apply activation function
+    /// Áp dụng hàm kích hoạt
     fn apply_activation(&self, input: &Array4<f32>) -> Array4<f32> {
         match self.config.activation {
             ActivationType::ReLU => input.mapv(|x| x.max(0.0)),
             ActivationType::LeakyReLU => input.mapv(|x| if x > 0.0 { x } else { 0.2 * x }),
             ActivationType::GELU => {
-                // Approximate GELU
+                // GELU xấp xỉ
                 input.mapv(|x| 0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh()))
             }
             ActivationType::Sigmoid => input.mapv(|x| 1.0 / (1.0 + (-x).exp())),
@@ -535,7 +535,7 @@ impl ModalityTranslator {
         }
     }
 
-    /// Apply multi-head attention
+    /// Áp dụng attention đa đầu
     fn apply_attention(
         &self,
         input: &Array4<f32>,
@@ -544,7 +544,7 @@ impl ModalityTranslator {
         let (batch, channels, height, width) = input.dim();
         let seq_len = height * width;
 
-        // Flatten spatial dimensions
+        // Làm phẳng chiều không gian
         let mut flat = ndarray::Array2::zeros((batch, seq_len * channels));
         for b in 0..batch {
             for h in 0..height {
@@ -556,13 +556,13 @@ impl ModalityTranslator {
             }
         }
 
-        // For simplicity, return input unchanged with identity attention
+        // Đơn giản, trả về đầu vào không đổi với attention đồng nhất
         let attention_weights = Array4::from_elem((batch, self.config.attention_heads, seq_len, seq_len), 1.0 / seq_len as f32);
 
         Ok((input.clone(), attention_weights))
     }
 
-    /// Compute translation loss between predicted and target features
+    /// Tính mất mát dịch giữa đặc trưng dự đoán và mục tiêu
     pub fn compute_loss(&self, predicted: &Tensor, target: &Tensor, loss_type: LossType) -> NnResult<f32> {
         let pred_arr = predicted.as_array4()?;
         let target_arr = target.as_array4()?;
@@ -612,12 +612,12 @@ impl ModalityTranslator {
         Ok(loss)
     }
 
-    /// Get feature statistics
+    /// Lấy thống kê đặc trưng
     pub fn get_feature_stats(&self, features: &Tensor) -> NnResult<TensorStats> {
         TensorStats::from_tensor(features)
     }
 
-    /// Get intermediate features for visualization
+    /// Lấy đặc trưng trung gian để trực quan hóa
     pub fn get_intermediate_features(&self, input: &Tensor) -> NnResult<HashMap<String, Tensor>> {
         let output = self.forward(input)?;
 
@@ -638,14 +638,14 @@ impl ModalityTranslator {
     }
 }
 
-/// Type of loss function for training
+/// Kiểu hàm mất mát cho huấn luyện
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LossType {
-    /// Mean Squared Error
+    /// Lỗi bình phương trung bình
     MSE,
-    /// L1 / Mean Absolute Error
+    /// L1 / Lỗi tuyệt đối trung bình
     L1,
-    /// Smooth L1 (Huber) loss
+    /// Mất mát Smooth L1 (Huber)
     SmoothL1,
 }
 
@@ -680,7 +680,7 @@ mod tests {
         let input = Tensor::zeros_4d([1, 128, 64, 64]);
         let result = translator.forward(&input);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No model weights loaded"));
+        assert!(result.unwrap_err().to_string().contains("Chưa tải trọng số mô hình"));
     }
 
     #[test]
@@ -702,7 +702,7 @@ mod tests {
         let input = Tensor::zeros_4d([1, 128, 64, 64]);
         let result = translator.encode(&input);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No model weights loaded"));
+        assert!(result.unwrap_err().to_string().contains("Chưa tải trọng số mô hình"));
     }
 
     #[test]
@@ -713,7 +713,7 @@ mod tests {
         let features = vec![Tensor::zeros_4d([1, 512, 32, 32])];
         let result = translator.decode(&features);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No model weights loaded"));
+        assert!(result.unwrap_err().to_string().contains("Chưa tải trọng số mô hình"));
     }
 
     #[test]

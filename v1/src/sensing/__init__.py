@@ -1,24 +1,23 @@
 """
-Commodity WiFi Sensing Module (ADR-013)
-=======================================
+Module Cảm Biến WiFi Thương Phẩm (ADR-013)
+============================================
 
-RSSI-based presence and motion detection using standard Linux WiFi metrics.
-This module provides real signal processing from commodity WiFi hardware,
-extracting presence and motion features from RSSI time series.
+Phát hiện sự hiện diện và chuyển động dựa trên RSSI sử dụng các chỉ số WiFi Linux tiêu chuẩn.
+Module này cung cấp xử lý tín hiệu thực từ phần cứng WiFi thương phẩm,
+trích xuất các đặc trưng hiện diện và chuyển động từ chuỗi thời gian RSSI.
 
-Components:
-    - rssi_collector: Data collection from Linux WiFi interfaces
-    - feature_extractor: Time-domain and frequency-domain feature extraction
-    - classifier: Presence and motion classification from features
-    - backend: Common sensing backend interface
+Thành phần:
+    - rssi_collector: Thu thập dữ liệu từ giao diện WiFi Linux
+    - feature_extractor: Trích xuất đặc trưng miền thời gian và miền tần số
+    - classifier: Phân loại hiện diện và chuyển động từ đặc trưng
+    - backend: Giao diện backend cảm biến chung
 
-Capabilities:
-    - PRESENCE: Detect whether a person is present in the sensing area
-    - MOTION: Classify motion level (absent / still / active)
+Khả năng:
+    - PRESENCE: Phát hiện có người hiện diện trong vùng cảm biến hay không
+    - MOTION: Phân loại mức chuyển động (vắng mặt / đứng yên / hoạt động)
 
-Note: This module uses RSSI only. For higher-fidelity sensing (respiration,
-pose estimation), CSI-capable hardware and the full DensePose pipeline
-are required.
+Lưu ý: Module này chỉ sử dụng RSSI. Để cảm biến độ trung thực cao hơn (hô hấp,
+ước lượng tư thế), cần phần cứng có khả năng CSI và đường ống DensePose đầy đủ.
 """
 
 from v1.src.sensing.rssi_collector import (

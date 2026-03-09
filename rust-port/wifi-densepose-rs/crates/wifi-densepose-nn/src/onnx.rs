@@ -1,7 +1,7 @@
-//! ONNX Runtime backend for neural network inference.
+//! Backend ONNX Runtime cho suy luận mạng nơ-ron.
 //!
-//! This module provides ONNX model loading and execution using the `ort` crate.
-//! It supports CPU and GPU (CUDA/TensorRT) execution providers.
+//! Mô-đun này cung cấp tải và thực thi mô hình ONNX sử dụng crate `ort`.
+//! Hỗ trợ các nhà cung cấp thực thi CPU và GPU (CUDA/TensorRT).
 
 use crate::error::{NnError, NnResult};
 use crate::inference::{Backend, InferenceOptions};
@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tracing::info;
 
-/// ONNX Runtime session wrapper
+/// Bao bọc phiên ONNX Runtime
 pub struct OnnxSession {
     session: Session,
     input_names: Vec<String>,
@@ -33,18 +33,18 @@ impl std::fmt::Debug for OnnxSession {
 }
 
 impl OnnxSession {
-    /// Create a new ONNX session from a file
+    /// Tạo phiên ONNX mới từ tệp
     pub fn from_file<P: AsRef<Path>>(path: P, _options: &InferenceOptions) -> NnResult<Self> {
         let path = path.as_ref();
-        info!(?path, "Loading ONNX model");
+        info!(?path, "Đang tải mô hình ONNX");
 
-        // Build session using ort 2.0 API
+        // Xây dựng phiên sử dụng API ort 2.0
         let session = Session::builder()
-            .map_err(|e| NnError::model_load(format!("Failed to create session builder: {}", e)))?
+            .map_err(|e| NnError::model_load(format!("Tạo session builder thất bại: {}", e)))?
             .commit_from_file(path)
-            .map_err(|e| NnError::model_load(format!("Failed to load model: {}", e)))?;
+            .map_err(|e| NnError::model_load(format!("Tải mô hình thất bại: {}", e)))?;
 
-        // Extract metadata using ort 2.0 API
+        // Trích xuất metadata sử dụng API ort 2.0
         let input_names: Vec<String> = session
             .inputs()
             .iter()
@@ -57,14 +57,14 @@ impl OnnxSession {
             .map(|output| output.name().to_string())
             .collect();
 
-        // For now, leave shapes empty - they can be populated when needed
+        // Tạm thời để hình dạng trống — sẽ được điền khi cần
         let input_shapes = HashMap::new();
         let output_shapes = HashMap::new();
 
         info!(
             inputs = ?input_names,
             outputs = ?output_names,
-            "ONNX model loaded successfully"
+            "Tải mô hình ONNX thành công"
         );
 
         Ok(Self {
@@ -76,14 +76,14 @@ impl OnnxSession {
         })
     }
 
-    /// Create from in-memory bytes
+    /// Tạo từ byte trong bộ nhớ
     pub fn from_bytes(bytes: &[u8], _options: &InferenceOptions) -> NnResult<Self> {
-        info!("Loading ONNX model from bytes");
+        info!("Đang tải mô hình ONNX từ byte");
 
         let session = Session::builder()
-            .map_err(|e| NnError::model_load(format!("Failed to create session builder: {}", e)))?
+            .map_err(|e| NnError::model_load(format!("Tạo session builder thất bại: {}", e)))?
             .commit_from_memory(bytes)
-            .map_err(|e| NnError::model_load(format!("Failed to load model from bytes: {}", e)))?;
+            .map_err(|e| NnError::model_load(format!("Tải mô hình từ byte thất bại: {}", e)))?;
 
         let input_names: Vec<String> = session
             .inputs()
@@ -109,66 +109,66 @@ impl OnnxSession {
         })
     }
 
-    /// Get input names
+    /// Lấy tên đầu vào
     pub fn input_names(&self) -> &[String] {
         &self.input_names
     }
 
-    /// Get output names
+    /// Lấy tên đầu ra
     pub fn output_names(&self) -> &[String] {
         &self.output_names
     }
 
-    /// Run inference
+    /// Chạy suy luận
     pub fn run(&mut self, inputs: HashMap<String, Tensor>) -> NnResult<HashMap<String, Tensor>> {
-        // Get the first input tensor
+        // Lấy tensor đầu vào đầu tiên
         let first_input_name = self.input_names.first()
-            .ok_or_else(|| NnError::inference("No input names defined"))?;
+            .ok_or_else(|| NnError::inference("Không có tên đầu vào được định nghĩa"))?;
 
         let tensor = inputs
             .get(first_input_name)
-            .ok_or_else(|| NnError::invalid_input(format!("Missing input: {}", first_input_name)))?;
+            .ok_or_else(|| NnError::invalid_input(format!("Thiếu đầu vào: {}", first_input_name)))?;
 
         let arr = tensor.as_array4()?;
 
-        // Get shape and data for ort tensor creation
+        // Lấy hình dạng và dữ liệu để tạo tensor ort
         let shape: Vec<i64> = arr.shape().iter().map(|&d| d as i64).collect();
         let data: Vec<f32> = arr.iter().cloned().collect();
 
-        // Create ORT tensor from shape and data
+        // Tạo tensor ORT từ hình dạng và dữ liệu
         let ort_tensor = ort::value::Tensor::from_array((shape, data))
-            .map_err(|e| NnError::tensor_op(format!("Failed to create ORT tensor: {}", e)))?;
+            .map_err(|e| NnError::tensor_op(format!("Tạo tensor ORT thất bại: {}", e)))?;
 
-        // Build input map - inputs! macro returns Vec directly
+        // Xây dựng bản đồ đầu vào — macro inputs! trả về Vec trực tiếp
         let session_inputs = ort::inputs![first_input_name.as_str() => ort_tensor];
 
-        // Run session
+        // Chạy phiên
         let session_outputs = self.session
             .run(session_inputs)
-            .map_err(|e| NnError::inference(format!("Inference failed: {}", e)))?;
+            .map_err(|e| NnError::inference(format!("Suy luận thất bại: {}", e)))?;
 
-        // Extract outputs
+        // Trích xuất đầu ra
         let mut result = HashMap::new();
 
         for name in self.output_names.iter() {
             if let Some(output) = session_outputs.get(name.as_str()) {
-                // Try to extract tensor - returns (shape, data) tuple in ort 2.0
+                // Thử trích xuất tensor — trả về bộ (shape, data) trong ort 2.0
                 if let Ok((shape, data)) = output.try_extract_tensor::<f32>() {
                     let dims: Vec<usize> = shape.iter().map(|&d| d as usize).collect();
 
                     if dims.len() == 4 {
-                        // Convert to 4D array
+                        // Chuyển sang mảng 4D
                         let arr4 = ndarray::Array4::from_shape_vec(
                             (dims[0], dims[1], dims[2], dims[3]),
                             data.to_vec(),
-                        ).map_err(|e| NnError::tensor_op(format!("Shape error: {}", e)))?;
+                        ).map_err(|e| NnError::tensor_op(format!("Lỗi hình dạng: {}", e)))?;
                         result.insert(name.clone(), Tensor::Float4D(arr4));
                     } else {
-                        // Handle other dimensionalities
+                        // Xử lý các chiều khác
                         let arr_dyn = ndarray::ArrayD::from_shape_vec(
                             ndarray::IxDyn(&dims),
                             data.to_vec(),
-                        ).map_err(|e| NnError::tensor_op(format!("Shape error: {}", e)))?;
+                        ).map_err(|e| NnError::tensor_op(format!("Lỗi hình dạng: {}", e)))?;
                         result.insert(name.clone(), Tensor::FloatND(arr_dyn));
                     }
                 }
@@ -179,7 +179,7 @@ impl OnnxSession {
     }
 }
 
-/// ONNX Runtime backend implementation
+/// Cài đặt backend ONNX Runtime
 pub struct OnnxBackend {
     session: Arc<parking_lot::RwLock<OnnxSession>>,
     options: InferenceOptions,
@@ -194,7 +194,7 @@ impl std::fmt::Debug for OnnxBackend {
 }
 
 impl OnnxBackend {
-    /// Create backend from file
+    /// Tạo backend từ tệp
     pub fn from_file<P: AsRef<Path>>(path: P) -> NnResult<Self> {
         let options = InferenceOptions::default();
         let session = OnnxSession::from_file(path, &options)?;
@@ -204,7 +204,7 @@ impl OnnxBackend {
         })
     }
 
-    /// Create backend from file with options
+    /// Tạo backend từ tệp với tùy chọn
     pub fn from_file_with_options<P: AsRef<Path>>(path: P, options: InferenceOptions) -> NnResult<Self> {
         let session = OnnxSession::from_file(path, &options)?;
         Ok(Self {
@@ -213,7 +213,7 @@ impl OnnxBackend {
         })
     }
 
-    /// Create backend from bytes
+    /// Tạo backend từ byte
     pub fn from_bytes(bytes: &[u8]) -> NnResult<Self> {
         let options = InferenceOptions::default();
         let session = OnnxSession::from_bytes(bytes, &options)?;
@@ -223,7 +223,7 @@ impl OnnxBackend {
         })
     }
 
-    /// Create backend from bytes with options
+    /// Tạo backend từ byte với tùy chọn
     pub fn from_bytes_with_options(bytes: &[u8], options: InferenceOptions) -> NnResult<Self> {
         let session = OnnxSession::from_bytes(bytes, &options)?;
         Ok(Self {
@@ -232,7 +232,7 @@ impl OnnxBackend {
         })
     }
 
-    /// Get options
+    /// Lấy tùy chọn
     pub fn options(&self) -> &InferenceOptions {
         &self.options
     }
@@ -282,51 +282,51 @@ impl Backend for OnnxBackend {
                 }
             }
         }
-        drop(session); // Release read lock before running
+        drop(session); // Giải phóng khóa đọc trước khi chạy
 
         if !dummy_inputs.is_empty() {
             let _ = self.run(dummy_inputs)?;
-            info!("ONNX warmup completed");
+            info!("Khởi động ONNX hoàn tất");
         }
 
         Ok(())
     }
 }
 
-/// Model metadata from ONNX file
+/// Metadata mô hình từ tệp ONNX
 #[derive(Debug, Clone)]
 pub struct OnnxModelInfo {
-    /// Model producer name
+    /// Tên nhà sản xuất mô hình
     pub producer_name: Option<String>,
-    /// Model version
+    /// Phiên bản mô hình
     pub model_version: Option<i64>,
-    /// Domain
+    /// Miền
     pub domain: Option<String>,
-    /// Description
+    /// Mô tả
     pub description: Option<String>,
-    /// Input specifications
+    /// Đặc tả đầu vào
     pub inputs: Vec<TensorSpec>,
-    /// Output specifications
+    /// Đặc tả đầu ra
     pub outputs: Vec<TensorSpec>,
 }
 
-/// Tensor specification
+/// Đặc tả tensor
 #[derive(Debug, Clone)]
 pub struct TensorSpec {
-    /// Name of the tensor
+    /// Tên của tensor
     pub name: String,
-    /// Shape (may contain dynamic dimensions as -1)
+    /// Hình dạng (có thể chứa chiều động là -1)
     pub shape: Vec<i64>,
-    /// Data type
+    /// Kiểu dữ liệu
     pub dtype: String,
 }
 
-/// Load model info without creating a full session
+/// Tải thông tin mô hình mà không tạo phiên đầy đủ
 pub fn load_model_info<P: AsRef<Path>>(path: P) -> NnResult<OnnxModelInfo> {
     let session = Session::builder()
-        .map_err(|e| NnError::model_load(format!("Failed to create session builder: {}", e)))?
+        .map_err(|e| NnError::model_load(format!("Tạo session builder thất bại: {}", e)))?
         .commit_from_file(path.as_ref())
-        .map_err(|e| NnError::model_load(format!("Failed to load model: {}", e)))?;
+        .map_err(|e| NnError::model_load(format!("Tải mô hình thất bại: {}", e)))?;
 
     let inputs: Vec<TensorSpec> = session
         .inputs()
@@ -362,7 +362,7 @@ pub fn load_model_info<P: AsRef<Path>>(path: P) -> NnResult<OnnxModelInfo> {
     })
 }
 
-/// Builder for ONNX backend
+/// Bộ tạo cho backend ONNX
 pub struct OnnxBackendBuilder {
     model_path: Option<String>,
     model_bytes: Option<Vec<u8>>,
@@ -370,7 +370,7 @@ pub struct OnnxBackendBuilder {
 }
 
 impl OnnxBackendBuilder {
-    /// Create a new builder
+    /// Tạo bộ tạo mới
     pub fn new() -> Self {
         Self {
             model_path: None,
@@ -379,51 +379,51 @@ impl OnnxBackendBuilder {
         }
     }
 
-    /// Set model path
+    /// Đặt đường dẫn mô hình
     pub fn model_path<P: Into<String>>(mut self, path: P) -> Self {
         self.model_path = Some(path.into());
         self
     }
 
-    /// Set model bytes
+    /// Đặt byte mô hình
     pub fn model_bytes(mut self, bytes: Vec<u8>) -> Self {
         self.model_bytes = Some(bytes);
         self
     }
 
-    /// Use GPU
+    /// Sử dụng GPU
     pub fn gpu(mut self, device_id: usize) -> Self {
         self.options.use_gpu = true;
         self.options.gpu_device_id = device_id;
         self
     }
 
-    /// Use CPU
+    /// Sử dụng CPU
     pub fn cpu(mut self) -> Self {
         self.options.use_gpu = false;
         self
     }
 
-    /// Set number of threads
+    /// Đặt số luồng
     pub fn threads(mut self, n: usize) -> Self {
         self.options.num_threads = n;
         self
     }
 
-    /// Enable optimization
+    /// Bật tối ưu
     pub fn optimize(mut self, enabled: bool) -> Self {
         self.options.optimize = enabled;
         self
     }
 
-    /// Build the backend
+    /// Xây dựng backend
     pub fn build(self) -> NnResult<OnnxBackend> {
         if let Some(path) = self.model_path {
             OnnxBackend::from_file_with_options(path, self.options)
         } else if let Some(bytes) = self.model_bytes {
             OnnxBackend::from_bytes_with_options(&bytes, self.options)
         } else {
-            Err(NnError::config("No model path or bytes provided"))
+            Err(NnError::config("Không có đường dẫn mô hình hoặc byte được cung cấp"))
         }
     }
 }
@@ -445,7 +445,7 @@ mod tests {
             .threads(4)
             .optimize(true);
 
-        // Can't test build without a real model
+        // Không thể kiểm tra build mà không có mô hình thực
         assert!(builder.model_path.is_none());
     }
 

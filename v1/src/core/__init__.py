@@ -1,5 +1,5 @@
 """
-Core package for WiFi-DensePose API
+Gói cốt lõi cho WiFi-DensePose API
 """
 
 from .csi_processor import CSIProcessor
