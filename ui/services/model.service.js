@@ -1,5 +1,5 @@
-// Model Service for WiFi-DensePose UI
-// Manages model loading, listing, LoRA profiles, and lifecycle events.
+// Dịch vụ Mô hình cho Giao diện WiFi-DensePose
+// Quản lý tải mô hình, liệt kê, hồ sơ LoRA và sự kiện vòng đời.
 
 import { apiService } from './api.service.js';
 
@@ -19,7 +19,7 @@ export class ModelService {
     };
   }
 
-  // --- Event emitter helpers ---
+  // --- Trợ giúp bộ phát sự kiện ---
 
   on(event, callback) {
     if (!this.listeners[event]) {
@@ -37,19 +37,19 @@ export class ModelService {
   emit(event, data) {
     if (!this.listeners[event]) return;
     this.listeners[event].forEach(cb => {
-      try { cb(data); } catch (err) { this.logger.error('Listener error', { event, err }); }
+      try { cb(data); } catch (err) { this.logger.error('Lỗi trình nghe', { event, err }); }
     });
   }
 
-  // --- API methods ---
+  // --- Phương thức API ---
 
   async listModels() {
     try {
       const data = await apiService.get('/api/v1/models');
-      this.logger.info('Listed models', { count: data?.models?.length ?? 0 });
+      this.logger.info('Đã liệt kê mô hình', { count: data?.models?.length ?? 0 });
       return data;
     } catch (error) {
-      this.logger.error('Failed to list models', { error: error.message });
+      this.logger.error('Không thể liệt kê mô hình', { error: error.message });
       throw error;
     }
   }
@@ -59,7 +59,7 @@ export class ModelService {
       const data = await apiService.get(`/api/v1/models/${encodeURIComponent(id)}`);
       return data;
     } catch (error) {
-      this.logger.error('Failed to get model', { id, error: error.message });
+      this.logger.error('Không thể lấy mô hình', { id, error: error.message });
       throw error;
     }
   }
